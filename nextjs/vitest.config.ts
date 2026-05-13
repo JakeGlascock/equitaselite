@@ -26,6 +26,7 @@ export default defineConfig({
         // DB-backed routes — require live DB; tested via integration tests
         'src/app/api/me/**',
         'src/app/api/onboarding/**',
+        'src/app/api/matches/**',
       ],
       thresholds: {
         lines:     80,
