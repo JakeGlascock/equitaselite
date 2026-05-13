@@ -132,7 +132,10 @@ jobs:
           # CKV2_AWS_71  — Wildcard ACM cert (*.equitaselite.com) is intentional to cover staging + future subdomains
           # CKV2_AWS_28 — WAF IS attached via aws_wafv2_web_acl_association in waf.tf;
           #               Checkov only inspects the aws_lb resource itself and misses the association
-          skip_check: CKV2_AWS_62,CKV_AWS_144,CKV2_AWS_57,CKV2_AWS_71,CKV2_AWS_28
+          # CKV_AWS_26  — SNS topic intentionally unencrypted: it's only for CloudTrail/CloudWatch
+          #               alarm notifications (alert metadata, not secrets), and KMS-encrypted SNS
+          #               requires CloudTrail in the key policy which couples unrelated services
+          skip_check: CKV2_AWS_62,CKV_AWS_144,CKV2_AWS_57,CKV2_AWS_71,CKV2_AWS_28,CKV_AWS_26
 
       - name: Upload Checkov SARIF to GitHub Security tab
         uses: github/codeql-action/upload-sarif@v3

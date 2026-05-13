@@ -76,11 +76,6 @@ resource "aws_cognito_user_pool" "main" {
   user_pool_add_ons {
     advanced_security_mode = "ENFORCED"
   }
-
-  lambda_config {
-    pre_sign_up    = aws_lambda_function.cognito_pre_signup.arn
-    post_confirmation = aws_lambda_function.cognito_post_confirm.arn
-  }
 }
 
 resource "aws_cognito_user_pool_client" "web" {
@@ -131,60 +126,3 @@ resource "aws_ses_email_identity" "noreply" {
   email = "noreply@${var.domain_name}"
 }
 
-# Lambda stubs — deploy real code separately via CI/CD
-resource "aws_lambda_function" "cognito_pre_signup" {
-  function_name = "${var.app_name}-cognito-pre-signup-${var.environment}"
-  role          = aws_iam_role.lambda_cognito.arn
-  runtime       = "nodejs22.x"
-  handler       = "index.handler"
-  filename      = "${path.module}/lambda/cognito_presignup.zip"
-  timeout       = 5
-
-  environment {
-    variables = {
-      ALLOWED_DOMAINS = "equitaselite.com"
-    }
-  }
-}
-
-resource "aws_lambda_function" "cognito_post_confirm" {
-  function_name = "${var.app_name}-cognito-post-confirm-${var.environment}"
-  role          = aws_iam_role.lambda_cognito.arn
-  runtime       = "nodejs22.x"
-  handler       = "index.handler"
-  filename      = "${path.module}/lambda/cognito_postconfirm.zip"
-  timeout       = 5
-}
-
-resource "aws_iam_role" "lambda_cognito" {
-  name = "${var.app_name}-lambda-cognito-${var.environment}"
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [{
-      Action    = "sts:AssumeRole"
-      Effect    = "Allow"
-      Principal = { Service = "lambda.amazonaws.com" }
-    }]
-  })
-}
-
-resource "aws_iam_role_policy_attachment" "lambda_cognito_basic" {
-  role       = aws_iam_role.lambda_cognito.name
-  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
-}
-
-resource "aws_lambda_permission" "cognito_pre_signup" {
-  statement_id  = "AllowCognitoInvokePreSignup"
-  action        = "lambda:InvokeFunction"
-  function_name = aws_lambda_function.cognito_pre_signup.function_name
-  principal     = "cognito-idp.amazonaws.com"
-  source_arn    = aws_cognito_user_pool.main.arn
-}
-
-resource "aws_lambda_permission" "cognito_post_confirm" {
-  statement_id  = "AllowCognitoInvokePostConfirm"
-  action        = "lambda:InvokeFunction"
-  function_name = aws_lambda_function.cognito_post_confirm.function_name
-  principal     = "cognito-idp.amazonaws.com"
-  source_arn    = aws_cognito_user_pool.main.arn
-}

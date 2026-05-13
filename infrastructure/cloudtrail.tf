@@ -94,6 +94,30 @@ resource "aws_cloudwatch_metric_alarm" "cloudtrail" {
 }
 
 resource "aws_sns_topic" "security_alerts" {
-  name              = "${var.app_name}-${var.environment}-security-alerts"
-  kms_master_key_id = aws_kms_key.secrets.id
+  name = "${var.app_name}-${var.environment}-security-alerts"
+  # Not KMS-encrypted: CloudTrail can't publish to KMS-encrypted topics without
+  # being added to the key policy, and these are alert metadata, not secrets.
+}
+
+resource "aws_sns_topic_policy" "security_alerts" {
+  arn = aws_sns_topic.security_alerts.arn
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid       = "AllowCloudTrailPublish"
+        Effect    = "Allow"
+        Principal = { Service = "cloudtrail.amazonaws.com" }
+        Action    = "sns:Publish"
+        Resource  = aws_sns_topic.security_alerts.arn
+      },
+      {
+        Sid       = "AllowCloudWatchAlarmsPublish"
+        Effect    = "Allow"
+        Principal = { Service = "cloudwatch.amazonaws.com" }
+        Action    = "sns:Publish"
+        Resource  = aws_sns_topic.security_alerts.arn
+      }
+    ]
+  })
 }

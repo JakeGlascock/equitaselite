@@ -131,7 +131,7 @@ resource "aws_iam_role_policy" "flow_logs" {
 
 resource "aws_security_group" "alb" {
   name        = "${var.app_name}-alb-${var.environment}"
-  description = "ALB — HTTPS inbound only"
+  description = "ALB - HTTPS inbound only"
   vpc_id      = aws_vpc.main.id
 
   ingress {
@@ -145,7 +145,7 @@ resource "aws_security_group" "alb" {
 
 resource "aws_security_group" "app" {
   name        = "${var.app_name}-app-${var.environment}"
-  description = "ECS tasks — inbound from ALB only"
+  description = "ECS tasks - inbound from ALB only"
   vpc_id      = aws_vpc.main.id
 
   # HTTPS to reach AWS service endpoints (Cognito, S3, Secrets Manager, ECR) via NAT
@@ -168,7 +168,7 @@ resource "aws_security_group" "app" {
 
 resource "aws_security_group" "rds" {
   name        = "${var.app_name}-rds-${var.environment}"
-  description = "RDS — inbound from ECS only"
+  description = "RDS - inbound from ECS only"
   vpc_id      = aws_vpc.main.id
 }
 
