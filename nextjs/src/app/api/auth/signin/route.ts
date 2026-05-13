@@ -1,5 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { signIn, respondToMfaChallenge, type AuthTokens } from '@/lib/auth'
+import {
+  signIn,
+  respondToMfaChallenge,
+  respondToNewPassword,
+  getMfaSetupSecret,
+  verifyMfaSetup,
+  type AuthTokens,
+} from '@/lib/auth'
 
 const SECURE = process.env.NODE_ENV === 'production'
 const COOKIE_OPTS = {
@@ -13,7 +20,27 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
 
-    // MFA step: { email, code, session }
+    // New-password step: { step, username, newPassword, session }
+    if (body.step === 'new_password') {
+      const result = await respondToNewPassword(body.username, body.newPassword, body.session)
+      if (result.tokens) return tokenResponse(result.tokens)
+      if (result.challengeName === 'MFA_SETUP') {
+        const { secretCode, session } = await getMfaSetupSecret(result.session!)
+        return NextResponse.json({ challenge: 'mfa_setup', secretCode, session })
+      }
+      if (result.challengeName === 'SOFTWARE_TOKEN_MFA') {
+        return NextResponse.json({ challenge: 'mfa', session: result.session })
+      }
+      return NextResponse.json({ error: `Unexpected challenge: ${result.challengeName}` }, { status: 400 })
+    }
+
+    // MFA-setup verification step: { step, session, code }
+    if (body.step === 'mfa_setup_verify') {
+      const { session } = await verifyMfaSetup(body.session, body.code)
+      return NextResponse.json({ challenge: 'mfa', session })
+    }
+
+    // MFA step (backward compat): { email, code, session }
     if (body.session) {
       const tokens = await respondToMfaChallenge(body.email, body.code, body.session)
       return tokenResponse(tokens)
@@ -22,8 +49,15 @@ export async function POST(req: NextRequest) {
     // Credentials step: { email, password }
     const result = await signIn(body.email, body.password)
 
+    if (result.challengeName === 'NEW_PASSWORD_REQUIRED') {
+      return NextResponse.json({ challenge: 'new_password', session: result.session })
+    }
     if (result.challengeName === 'SOFTWARE_TOKEN_MFA') {
       return NextResponse.json({ challenge: 'mfa', session: result.session })
+    }
+    if (result.challengeName === 'MFA_SETUP') {
+      const { secretCode, session } = await getMfaSetupSecret(result.session!)
+      return NextResponse.json({ challenge: 'mfa_setup', secretCode, session })
     }
 
     return tokenResponse(result.tokens!)

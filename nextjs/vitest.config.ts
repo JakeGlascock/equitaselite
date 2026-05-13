@@ -27,6 +27,8 @@ export default defineConfig({
         'src/app/api/me/**',
         'src/app/api/onboarding/**',
         'src/app/api/matches/**',
+        // Admin route calls Cognito Admin API; tested via integration tests
+        'src/app/api/admin/**',
       ],
       thresholds: {
         lines:     80,

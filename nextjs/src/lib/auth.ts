@@ -3,6 +3,9 @@ import {
   RespondToAuthChallengeCommand,
   GlobalSignOutCommand,
   GetUserCommand,
+  AdminCreateUserCommand,
+  AssociateSoftwareTokenCommand,
+  VerifySoftwareTokenCommand,
   type AuthenticationResultType,
 } from '@aws-sdk/client-cognito-identity-provider'
 import { cognitoClient } from './aws'
@@ -75,6 +78,58 @@ export async function refreshTokens(refreshToken: string): Promise<AuthTokens> {
     })
   )
   return toTokens(AuthenticationResult!)
+}
+
+export async function inviteUser(email: string): Promise<void> {
+  await cognitoClient.send(new AdminCreateUserCommand({
+    UserPoolId: process.env.COGNITO_USER_POOL_ID!,
+    Username: email,
+    UserAttributes: [
+      { Name: 'email',          Value: email },
+      { Name: 'email_verified', Value: 'true' },
+    ],
+    DesiredDeliveryMediums: ['EMAIL'],
+  }))
+}
+
+export async function respondToNewPassword(
+  username: string,
+  newPassword: string,
+  session: string,
+): Promise<{ tokens?: AuthTokens; challengeName?: string; session?: string }> {
+  const { AuthenticationResult, ChallengeName, Session } = await cognitoClient.send(
+    new RespondToAuthChallengeCommand({
+      ClientId: CLIENT_ID,
+      ChallengeName: 'NEW_PASSWORD_REQUIRED',
+      Session: session,
+      ChallengeResponses: { USERNAME: username, NEW_PASSWORD: newPassword },
+    })
+  )
+  if (ChallengeName) return { challengeName: ChallengeName, session: Session }
+  return { tokens: toTokens(AuthenticationResult!) }
+}
+
+export async function getMfaSetupSecret(
+  session: string,
+): Promise<{ secretCode: string; session: string }> {
+  const { SecretCode, Session } = await cognitoClient.send(
+    new AssociateSoftwareTokenCommand({ Session: session })
+  )
+  return { secretCode: SecretCode!, session: Session! }
+}
+
+export async function verifyMfaSetup(
+  session: string,
+  userCode: string,
+): Promise<{ session: string }> {
+  const { Session } = await cognitoClient.send(
+    new VerifySoftwareTokenCommand({
+      Session: session,
+      UserCode: userCode,
+      FriendlyDeviceName: 'Authenticator App',
+    })
+  )
+  return { session: Session! }
 }
 
 function toTokens(result: AuthenticationResultType): AuthTokens {

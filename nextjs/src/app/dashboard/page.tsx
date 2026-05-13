@@ -85,6 +85,11 @@ export default async function DashboardPage() {
   const firstName = me.full_name.split(' ')[0]
   const roleLabel = me.role === 'angel' ? 'Family Offices' : 'Angel Investors'
 
+  const userEmail = headersList.get('x-user-email')?.toLowerCase()
+  const isAdmin = (process.env.ADMIN_EMAILS ?? '')
+    .split(',').map(e => e.trim().toLowerCase()).filter(Boolean)
+    .includes(userEmail ?? '')
+
   return (
     <main className="min-h-screen px-4 py-10">
       <div className="max-w-2xl mx-auto space-y-6">
@@ -100,6 +105,11 @@ export default async function DashboardPage() {
             </p>
           </div>
           <div className="flex items-center gap-4">
+            {isAdmin && (
+              <a href="/admin" className="text-xs text-ee-gold hover:brightness-110 transition-all">
+                Admin
+              </a>
+            )}
             <a href="/profile" className="text-xs text-ee-muted hover:text-ee-primary transition-colors">
               Edit profile
             </a>
