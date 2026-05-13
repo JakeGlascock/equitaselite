@@ -1,6 +1,7 @@
 resource "aws_s3_bucket" "documents" {
-  bucket = "${var.app_name}-${var.environment}-documents"
+  bucket        = "${var.app_name}-${var.environment}-documents"
   force_destroy = false
+  #checkov:skip=CKV_AWS_144:Cross-region replication deferred — single-region MVP; will add when multi-region HA is required
 }
 
 resource "aws_s3_bucket_versioning" "documents" {
@@ -46,8 +47,15 @@ resource "aws_s3_bucket_logging" "documents" {
 }
 
 resource "aws_s3_bucket" "access_logs" {
-  bucket = "${var.app_name}-${var.environment}-access-logs"
+  bucket        = "${var.app_name}-${var.environment}-access-logs"
   force_destroy = false
+  #checkov:skip=CKV_AWS_144:Cross-region replication deferred — single-region MVP
+  #checkov:skip=CKV_AWS_18:This IS the access log bucket — self-referential logging not applicable
+}
+
+resource "aws_s3_bucket_versioning" "access_logs" {
+  bucket = aws_s3_bucket.access_logs.id
+  versioning_configuration { status = "Enabled" }
 }
 
 resource "aws_s3_bucket_public_access_block" "access_logs" {
@@ -75,13 +83,21 @@ resource "aws_s3_bucket_lifecycle_configuration" "access_logs" {
     status = "Enabled"
     filter {}
     expiration { days = var.retention_days }
+    abort_incomplete_multipart_upload { days_after_initiation = 7 }
   }
 }
 
 # CloudTrail bucket (referenced by cloudtrail.tf)
 resource "aws_s3_bucket" "cloudtrail" {
-  bucket = "${var.app_name}-${var.environment}-cloudtrail"
+  bucket        = "${var.app_name}-${var.environment}-cloudtrail"
   force_destroy = false
+  #checkov:skip=CKV_AWS_144:Cross-region replication deferred — single-region MVP
+  #checkov:skip=CKV_AWS_18:Audit log bucket — logging access to this bucket would create circular dependency
+}
+
+resource "aws_s3_bucket_versioning" "cloudtrail" {
+  bucket = aws_s3_bucket.cloudtrail.id
+  versioning_configuration { status = "Enabled" }
 }
 
 resource "aws_s3_bucket_public_access_block" "cloudtrail" {
@@ -109,6 +125,7 @@ resource "aws_s3_bucket_lifecycle_configuration" "cloudtrail" {
     status = "Enabled"
     filter {}
     expiration { days = var.retention_days }
+    abort_incomplete_multipart_upload { days_after_initiation = 7 }
   }
 }
 

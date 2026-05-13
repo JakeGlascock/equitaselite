@@ -40,11 +40,4 @@ resource "random_password" "cookie_secret" {
   special = false
 }
 
-terraform {
-  required_providers {
-    random = {
-      source  = "hashicorp/random"
-      version = "~> 3.0"
-    }
-  }
-}
+# random provider declared in main.tf required_providers block

@@ -62,14 +62,35 @@ resource "aws_db_instance" "main" {
   backup_window           = "03:00-04:00"
   maintenance_window      = "Mon:04:00-Mon:05:00"
 
-  auto_minor_version_upgrade = true
-  copy_tags_to_snapshot      = true
+  auto_minor_version_upgrade          = true
+  copy_tags_to_snapshot               = true
+  iam_database_authentication_enabled = true
+
+  monitoring_interval = 60
+  monitoring_role_arn = aws_iam_role.rds_monitoring.arn
 
   enabled_cloudwatch_logs_exports = ["postgresql", "upgrade"]
 
   performance_insights_enabled          = true
   performance_insights_kms_key_id       = aws_kms_key.rds.arn
   performance_insights_retention_period = 7
+}
+
+resource "aws_iam_role" "rds_monitoring" {
+  name = "${var.app_name}-rds-monitoring-${var.environment}"
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Action    = "sts:AssumeRole"
+      Effect    = "Allow"
+      Principal = { Service = "monitoring.rds.amazonaws.com" }
+    }]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "rds_monitoring" {
+  role       = aws_iam_role.rds_monitoring.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonRDSEnhancedMonitoringRole"
 }
 
 resource "aws_cloudwatch_metric_alarm" "rds_cpu" {

@@ -134,6 +134,7 @@ resource "aws_lb" "main" {
 
   drop_invalid_header_fields = true
   enable_deletion_protection = true
+  desync_mitigation_mode     = "strictest"
 
   access_logs {
     bucket  = aws_s3_bucket.access_logs.id

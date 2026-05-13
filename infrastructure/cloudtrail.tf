@@ -9,6 +9,7 @@ resource "aws_cloudtrail" "main" {
 
   cloud_watch_logs_group_arn = "${aws_cloudwatch_log_group.cloudtrail.arn}:*"
   cloud_watch_logs_role_arn  = aws_iam_role.cloudtrail.arn
+  sns_topic_name             = aws_sns_topic.security_alerts.name
 
   event_selector {
     read_write_type           = "All"

@@ -9,12 +9,12 @@ ENV NODE_ENV=production
 # ---- deps ----
 FROM base AS deps
 COPY package.json package-lock.json* ./
-RUN npm ci --omit=dev
+RUN npm install --omit=dev
 
 # ---- builder ----
 FROM base AS builder
 COPY package.json package-lock.json* ./
-RUN npm ci
+RUN npm install
 COPY . .
 RUN npm run build
 

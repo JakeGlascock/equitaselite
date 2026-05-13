@@ -119,7 +119,7 @@ resource "aws_iam_role_policy" "flow_logs" {
     Statement = [{
       Effect   = "Allow"
       Action   = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents", "logs:DescribeLogGroups", "logs:DescribeLogStreams"]
-      Resource = "*"
+      Resource = "${aws_cloudwatch_log_group.flow_logs.arn}:*"
     }]
   })
 }
@@ -137,12 +137,13 @@ resource "aws_security_group" "alb" {
     cidr_blocks = var.allowed_cidr_blocks
     description = "HTTPS"
   }
+  # Egress restricted to app tier only — ALB only needs to reach ECS tasks on port 3000
   egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-    description = "All outbound"
+    from_port       = 3000
+    to_port         = 3000
+    protocol        = "tcp"
+    security_groups = [aws_security_group.app.id]
+    description     = "To ECS tasks"
   }
 }
 
@@ -158,12 +159,29 @@ resource "aws_security_group" "app" {
     security_groups = [aws_security_group.alb.id]
     description     = "From ALB"
   }
+  # HTTPS to reach AWS service endpoints (Cognito, S3, Secrets Manager, ECR) via NAT
   egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
-    description = "All outbound"
+    description = "HTTPS to AWS service endpoints"
+  }
+  # DNS resolution
+  egress {
+    from_port   = 53
+    to_port     = 53
+    protocol    = "udp"
+    cidr_blocks = ["0.0.0.0/0"]
+    description = "DNS"
+  }
+  # PostgreSQL to RDS
+  egress {
+    from_port       = 5432
+    to_port         = 5432
+    protocol        = "tcp"
+    security_groups = [aws_security_group.rds.id]
+    description     = "PostgreSQL to RDS"
   }
 }
 
@@ -183,4 +201,10 @@ resource "aws_security_group" "rds" {
 
 data "aws_availability_zones" "available" {
   state = "available"
+}
+
+# Restrict the VPC default security group — it allows all traffic by default
+resource "aws_default_security_group" "default" {
+  vpc_id = aws_vpc.main.id
+  # No ingress or egress rules — forces all traffic through explicit security groups
 }
