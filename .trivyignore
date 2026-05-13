@@ -4,3 +4,25 @@
 # container only executes 'node server.js' as a non-root user. Untrusted glob
 # patterns are never passed to picomatch in this deployment context.
 CVE-2026-33671
+
+# CVE-2026-33672: picomatch method injection — same location as above
+# (usr/local/lib/node_modules/npm/node_modules/picomatch 4.0.3).
+# Affects npm's own internal tooling; not reachable at container runtime.
+CVE-2026-33672
+
+# CVE-2026-42338: ip-address XSS in HTML-emitting methods
+# (usr/local/lib/node_modules/npm/node_modules/ip-address).
+# Bundled inside npm CLI; never invoked at container runtime.
+CVE-2026-42338
+
+# CVE-2026-33750: brace-expansion DoS via zero step in brace pattern
+# (usr/local/lib/node_modules/npm/node_modules/brace-expansion).
+# Bundled inside npm CLI; never invoked at container runtime.
+CVE-2026-33750
+
+# CVE-2026-41305: postcss XSS via improper escaping of style closing tags
+# (app/node_modules/next/node_modules/postcss 8.4.31).
+# postcss is bundled inside the 'next' package itself — upgrading our direct
+# postcss devDependency does not fix Next.js's internal copy. postcss performs
+# CSS compilation at BUILD TIME (Tailwind), not from user input at runtime.
+CVE-2026-41305
