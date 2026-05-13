@@ -99,12 +99,14 @@ export default async function DashboardPage() {
                 : `No ${roleLabel} have completed their profiles yet`}
             </p>
           </div>
-          <a
-            href="/api/auth/signout"
-            className="text-xs text-ee-muted hover:text-ee-primary transition-colors"
-          >
-            Sign out
-          </a>
+          <div className="flex items-center gap-4">
+            <a href="/profile" className="text-xs text-ee-muted hover:text-ee-primary transition-colors">
+              Edit profile
+            </a>
+            <a href="/api/auth/signout" className="text-xs text-ee-muted hover:text-ee-primary transition-colors">
+              Sign out
+            </a>
+          </div>
         </div>
 
         {/* Match list */}

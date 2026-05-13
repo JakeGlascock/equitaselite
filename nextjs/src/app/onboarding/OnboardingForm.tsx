@@ -85,7 +85,13 @@ function CheckSlider({
   )
 }
 
-export default function OnboardingForm({ email }: { email: string }) {
+interface Props {
+  email: string
+  mode?: 'onboard' | 'edit'
+  initialData?: Partial<FormData>
+}
+
+export default function OnboardingForm({ email, mode = 'onboard', initialData }: Props) {
   const [step, setStep] = useState(1)
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
@@ -108,6 +114,7 @@ export default function OnboardingForm({ email }: { email: string }) {
     timeline: '',
     mandate_type: '',
     concentration: '',
+    ...initialData,
   })
 
   const set = (key: keyof FormData, val: unknown) =>
@@ -117,8 +124,10 @@ export default function OnboardingForm({ email }: { email: string }) {
     setSaving(true)
     setError('')
     try {
-      const res = await fetch('/api/onboarding', {
-        method:  'POST',
+      const url    = mode === 'edit' ? '/api/me' : '/api/onboarding'
+      const method = mode === 'edit' ? 'PATCH'  : 'POST'
+      const res = await fetch(url, {
+        method,
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify(data),
       })
@@ -480,7 +489,7 @@ export default function OnboardingForm({ email }: { email: string }) {
               disabled={saving}
               className="btn-gold flex-1 justify-center"
             >
-              {saving ? 'Saving…' : 'Complete profile'}
+              {saving ? 'Saving…' : mode === 'edit' ? 'Save changes' : 'Complete profile'}
             </button>
           )}
         </div>
