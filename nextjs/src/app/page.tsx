@@ -1,17 +1,16 @@
 'use client'
 
 import { useState } from 'react'
-import { signIn, respondToMfaChallenge } from '@/lib/auth'
 
 type Step = 'credentials' | 'mfa'
 
 export default function LoginPage() {
-  const [step, setStep] = useState<Step>('credentials')
-  const [email, setEmail] = useState('')
+  const [step, setStep]       = useState<Step>('credentials')
+  const [email, setEmail]     = useState('')
   const [password, setPassword] = useState('')
   const [mfaCode, setMfaCode] = useState('')
   const [session, setSession] = useState('')
-  const [error, setError] = useState('')
+  const [error, setError]     = useState('')
   const [loading, setLoading] = useState(false)
 
   async function handleCredentials(e: React.FormEvent) {
@@ -19,17 +18,18 @@ export default function LoginPage() {
     setError('')
     setLoading(true)
     try {
-      const result = await signIn(email, password)
-      if (result.challengeName === 'SOFTWARE_TOKEN_MFA') {
-        setSession(result.session!)
+      const res  = await fetch('/api/auth/signin', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ email, password }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? 'Sign in failed')
+
+      if (data.challenge === 'mfa') {
+        setSession(data.session)
         setStep('mfa')
-      } else if (result.tokens) {
-        // Store tokens in httpOnly cookie via API route
-        await fetch('/api/auth/session', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(result.tokens),
-        })
+      } else {
         window.location.href = '/dashboard'
       }
     } catch (err: unknown) {
@@ -44,12 +44,13 @@ export default function LoginPage() {
     setError('')
     setLoading(true)
     try {
-      const tokens = await respondToMfaChallenge(email, mfaCode, session)
-      await fetch('/api/auth/session', {
-        method: 'POST',
+      const res  = await fetch('/api/auth/signin', {
+        method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(tokens),
+        body:    JSON.stringify({ email, code: mfaCode, session }),
       })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? 'Invalid code')
       window.location.href = '/dashboard'
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Invalid code')
