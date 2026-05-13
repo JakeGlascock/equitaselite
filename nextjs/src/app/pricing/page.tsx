@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 
 const ANNUAL_DISCOUNT = 0.20
 
@@ -97,9 +98,9 @@ export default function PricingPage() {
 
         {/* Header */}
         <div className="text-center space-y-4">
-          <a href="/" className="inline-block text-xs text-ee-muted hover:text-ee-primary transition-colors mb-2">
+          <Link href="/" className="inline-block text-xs text-ee-muted hover:text-ee-primary transition-colors mb-2">
             ← Back to sign in
-          </a>
+          </Link>
           <h1 className="font-display text-4xl text-ee-gold">Membership</h1>
           <p className="text-ee-muted max-w-md mx-auto">
             Curated capital meets verified mandate. Every tier is invitation-only.
