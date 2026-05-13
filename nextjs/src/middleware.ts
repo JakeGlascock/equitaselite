@@ -13,7 +13,7 @@ const JWKS = ISSUER
   : null
 
 const PUBLIC_PREFIXES = ['/_next/', '/favicon.ico', '/logo.png']
-const PUBLIC_EXACT    = ['/']
+const PUBLIC_EXACT    = ['/', '/pricing']
 const PUBLIC_API      = ['/api/auth/', '/api/health']
 
 function isPublic(pathname: string): boolean {

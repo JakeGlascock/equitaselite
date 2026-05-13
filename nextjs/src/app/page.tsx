@@ -120,6 +120,11 @@ export default function LoginPage() {
                   Request access
                 </a>
               </p>
+              <p className="text-center text-xs text-ee-muted">
+                <a href="/pricing" className="hover:text-ee-primary transition-colors">
+                  View membership plans →
+                </a>
+              </p>
             </form>
           ) : (
             <form onSubmit={handleMfa} className="space-y-5">
