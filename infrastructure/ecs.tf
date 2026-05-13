@@ -35,13 +35,16 @@ resource "aws_ecs_task_definition" "app" {
     portMappings = [{ containerPort = 3000, protocol = "tcp" }]
 
     environment = [
-      { name = "NODE_ENV", value = var.environment },
-      { name = "AWS_REGION", value = var.aws_region },
+      { name = "NODE_ENV",             value = var.environment },
+      { name = "AWS_REGION",           value = var.aws_region },
       { name = "COGNITO_USER_POOL_ID", value = aws_cognito_user_pool.main.id },
-      { name = "COGNITO_CLIENT_ID", value = aws_cognito_user_pool_client.web.id },
-      { name = "DB_HOST", value = aws_db_instance.main.address },
-      { name = "DB_NAME", value = var.db_name },
-      { name = "NODE_OPTIONS", value = "--openssl-fips" },
+      { name = "COGNITO_CLIENT_ID",    value = aws_cognito_user_pool_client.web.id },
+      { name = "DB_HOST",              value = aws_db_instance.main.address },
+      { name = "DB_PORT",              value = tostring(aws_db_instance.main.port) },
+      { name = "DB_NAME",              value = var.db_name },
+      { name = "DB_USER",              value = var.db_username },
+      { name = "ADMIN_EMAILS",         value = var.admin_emails },
+      { name = "NODE_OPTIONS",         value = "--openssl-fips" },
     ]
 
     secrets = [

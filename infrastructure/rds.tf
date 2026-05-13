@@ -45,7 +45,7 @@ resource "aws_db_instance" "main" {
   kms_key_id        = aws_kms_key.rds.arn
 
   db_name  = var.db_name
-  username = "equitaselite_admin"
+  username = var.db_username
   password = aws_secretsmanager_secret_version.db_password.secret_string
 
   db_subnet_group_name   = aws_db_subnet_group.main.name

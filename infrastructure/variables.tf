@@ -72,3 +72,15 @@ variable "retention_days" {
   type        = number
   default     = 365
 }
+
+variable "db_username" {
+  description = "RDS master username"
+  type        = string
+  default     = "equitaselite_admin"
+}
+
+variable "admin_emails" {
+  description = "Comma-separated emails granted access to /admin"
+  type        = string
+  default     = ""
+}
