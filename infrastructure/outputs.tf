@@ -75,6 +75,11 @@ output "acm_certificate_arn" {
   value       = aws_acm_certificate.main.arn
 }
 
+output "route53_nameservers" {
+  description = "Set these as Custom Nameservers at GoDaddy to move DNS to Route 53"
+  value       = aws_route53_zone.main.name_servers
+}
+
 output "acm_validation_records" {
   description = "DNS CNAME records to add to GoDaddy to validate the ACM certificate"
   value = {
