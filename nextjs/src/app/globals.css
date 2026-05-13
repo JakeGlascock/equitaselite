@@ -1,0 +1,58 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --ee-bg:      #031427;
+    --ee-gold:    #e9c176;
+    --ee-emerald: #4edea3;
+    --ee-primary: #bec6e0;
+    --ee-muted:   #8892a4;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  body {
+    background-color: var(--ee-bg);
+    color: var(--ee-primary);
+  }
+
+  /* Scrollbar styling */
+  ::-webkit-scrollbar        { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track  { background: transparent; }
+  ::-webkit-scrollbar-thumb  { background: rgba(190,198,224,0.2); border-radius: 3px; }
+}
+
+@layer components {
+  .glass-panel {
+    background:     rgba(16, 32, 52, 0.6);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(69, 70, 77, 0.5);
+    border-radius: 12px;
+  }
+
+  .btn-gold {
+    @apply bg-ee-gold text-ee-bg font-semibold px-6 py-2.5 rounded-lg
+           hover:brightness-110 transition-all duration-150 text-sm;
+  }
+
+  .btn-ghost {
+    @apply border border-ee-border text-ee-primary px-6 py-2.5 rounded-lg
+           hover:bg-white/5 transition-all duration-150 text-sm;
+  }
+
+  .input-field {
+    @apply w-full bg-white/5 border border-ee-border rounded-lg px-4 py-2.5
+           text-ee-primary placeholder-ee-muted focus:outline-none
+           focus:border-ee-gold/50 transition-colors text-sm;
+  }
+
+  .score-ring-strong  { color: #4edea3; }
+  .score-ring-good    { color: #e9c176; }
+  .score-ring-possible { color: #f59e0b; }
+  .score-ring-low     { color: #ef4444; }
+}
