@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html class="dark" lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Equitas Elite — Match Discovery</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Playfair+Display:wght@600;700&family=IBM+Plex+Sans:wght@500;600&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+tailwind.config = {
+  darkMode: "class",
+  theme: {
+    extend: {
+      colors: {
+        "surface-container-highest": "#26364a",
+        "surface-container-high": "#1b2b3f",
+        "surface-container": "#102034",
+        "surface-container-low": "#0b1c30",
+        "surface-container-lowest": "#000f21",
+        "background": "#031427",
+        "surface": "#031427",
+        "surface-bright": "#2a3a4f",
+        "surface-variant": "#26364a",
+        "primary": "#bec6e0",
+        "on-primary": "#283044",
+        "primary-container": "#0f172a",
+        "on-primary-container": "#798098",
+        "secondary": "#e9c176",
+        "on-secondary": "#412d00",
+        "secondary-container": "#604403",
+        "on-secondary-container": "#dab36a",
+        "tertiary": "#4edea3",
+        "on-tertiary": "#003824",
+        "tertiary-container": "#001c10",
+        "on-tertiary-container": "#009365",
+        "on-surface": "#d3e4fe",
+        "on-surface-variant": "#c6c6cd",
+        "outline": "#909097",
+        "outline-variant": "#45464d",
+      },
+      borderRadius: {
+        "sm": "0.25rem",
+        "DEFAULT": "0.5rem",
+        "md": "0.75rem",
+        "lg": "1rem",
+        "xl": "1.5rem",
+        "full": "9999px",
+      },
+      fontFamily: {
+        "display": ["Playfair Display", "serif"],
+        "body": ["Inter", "sans-serif"],
+        "label": ["IBM Plex Sans", "sans-serif"],
+      },
+    },
+  },
+}
+</script>
+<style>
+  .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24; }
+  .nav-active { background: rgba(233,193,118,0.12); color: #e9c176; }
+  .glass-panel { background: rgba(16,32,52,0.6); backdrop-filter: blur(12px); border: 1px solid rgba(69,70,77,0.5); }
+  .filter-chip { cursor: pointer; transition: all 0.15s; }
+  .filter-chip.active { background: rgba(233,193,118,0.15); border-color: #e9c176; color: #e9c176; }
+  .match-card { transition: all 0.2s; }
+  .match-card:hover { transform: translateY(-1px); border-color: rgba(69,70,77,0.8); }
+  select option { background: #102034; }
+  body { min-height: 100dvh; }
+</style>
+</head>
+<body class="bg-background text-on-surface font-body">
+
+<div id="ee-topbar"></div>
+
+<div class="flex pt-14 min-h-screen">
+  <div id="ee-sidebar"></div>
+
+  <!-- Main Content -->
+  <main class="flex-1 lg:ml-60 px-5 md:px-8 py-8 pb-24 lg:pb-8">
+    <div class="max-w-5xl mx-auto">
+
+      <!-- Header -->
+      <div class="mb-6">
+        <span class="font-label text-[10px] tracking-[0.12em] text-on-surface-variant uppercase">Curated Intelligence</span>
+        <h1 class="font-display text-[28px] md:text-[36px] font-bold leading-tight text-on-surface mt-1">Your Matches</h1>
+        <p class="text-[13px] text-on-surface-variant mt-1" id="match-subtitle">Showing all curated matches ranked by alignment score</p>
+      </div>
+
+      <!-- Filter Bar -->
+      <div class="flex flex-wrap gap-2 mb-6">
+        <div class="flex items-center gap-2 bg-surface-container border border-outline-variant/40 rounded-lg px-3 h-9">
+          <span class="material-symbols-outlined text-on-surface-variant text-base">search</span>
+          <input id="search-input" type="text" placeholder="Search by name or firm…" oninput="renderMatches()"
+            class="bg-transparent text-sm text-on-surface placeholder:text-on-surface-variant/40 outline-none w-40 md:w-56"/>
+        </div>
+        <select id="sort-select" onchange="renderMatches()" class="bg-surface-container border border-outline-variant/40 rounded-lg px-3 h-9 text-[12px] font-label text-on-surface outline-none">
+          <option value="score">Sort: Alignment Score</option>
+          <option value="check">Sort: Check Size</option>
+          <option value="name">Sort: Name</option>
+        </select>
+        <div class="flex items-center gap-2 ml-auto">
+          <button onclick="setView('grid')" id="view-grid" class="p-2 rounded-lg bg-secondary/15 border border-secondary/30 text-secondary">
+            <span class="material-symbols-outlined text-base">grid_view</span>
+          </button>
+          <button onclick="setView('list')" id="view-list" class="p-2 rounded-lg bg-surface-container border border-outline-variant/40 text-on-surface-variant">
+            <span class="material-symbols-outlined text-base">list</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Sector Filter Chips -->
+      <div id="sector-filter" class="flex flex-wrap gap-2 mb-6">
+        <!-- injected by JS -->
+      </div>
+
+      <!-- Stats bar -->
+      <div class="flex items-center gap-6 mb-6 pb-5 border-b border-outline-variant/30">
+        <div>
+          <p class="font-label text-[10px] tracking-widest text-on-surface-variant uppercase">Total Candidates</p>
+          <p class="font-display text-2xl font-bold text-on-surface" id="total-count">—</p>
+        </div>
+        <div class="w-px h-10 bg-outline-variant/40"></div>
+        <div>
+          <p class="font-label text-[10px] tracking-widest text-on-surface-variant uppercase">Exceptional (85%+)</p>
+          <p class="font-display text-2xl font-bold text-tertiary" id="exc-count">—</p>
+        </div>
+        <div class="w-px h-10 bg-outline-variant/40"></div>
+        <div>
+          <p class="font-label text-[10px] tracking-widest text-on-surface-variant uppercase">Strong (70–84%)</p>
+          <p class="font-display text-2xl font-bold text-secondary" id="str-count">—</p>
+        </div>
+        <div class="w-px h-10 bg-outline-variant/40 hidden md:block"></div>
+        <div class="hidden md:block">
+          <p class="font-label text-[10px] tracking-widest text-on-surface-variant uppercase">Avg Check Size</p>
+          <p class="font-display text-2xl font-bold text-on-surface" id="avg-check">—</p>
+        </div>
+      </div>
+
+      <!-- Match Grid/List -->
+      <div id="match-grid" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <!-- injected by JS -->
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<div id="ee-mobile-nav"></div>
+
+<script src="shared.js"></script>
+<script>
+let currentView = 'grid';
+let activeSectors = [];
+let scoredCandidates = [];
+
+
+function setView(v) {
+  currentView = v;
+  ['grid','list'].forEach(x => {
+    document.getElementById(`view-${x}`).className = x === v
+      ? 'p-2 rounded-lg bg-secondary/15 border border-secondary/30 text-secondary'
+      : 'p-2 rounded-lg bg-surface-container border border-outline-variant/40 text-on-surface-variant';
+  });
+  renderMatches();
+}
+
+function toggleSectorFilter(sec) {
+  if (activeSectors.includes(sec)) {
+    activeSectors = activeSectors.filter(s => s !== sec);
+  } else {
+    activeSectors.push(sec);
+  }
+  // update chip styles
+  document.querySelectorAll('.filter-chip').forEach(el => {
+    const s = el.dataset.sector;
+    if (activeSectors.includes(s)) el.classList.add('active');
+    else el.classList.remove('active');
+  });
+  renderMatches();
+}
+
+function renderMatches() {
+  const search = (document.getElementById('search-input')?.value || '').toLowerCase();
+  const sort = document.getElementById('sort-select')?.value || 'score';
+  let items = [...scoredCandidates];
+
+  if (activeSectors.length > 0) {
+    items = items.filter(c => activeSectors.some(s => (c.sectors||[]).includes(s)));
+  }
+  if (search) {
+    items = items.filter(c => (c.name+c.firm+c.location).toLowerCase().includes(search));
+  }
+  if (sort === 'check') items.sort((a,b) => (b.maxCheck||0) - (a.maxCheck||0));
+  else if (sort === 'name') items.sort((a,b) => (a.firm||a.name).localeCompare(b.firm||b.name));
+  else items.sort((a,b) => b.score - a.score);
+
+  document.getElementById('total-count').textContent = items.length;
+  document.getElementById('exc-count').textContent = items.filter(x => x.score >= 85).length;
+  document.getElementById('str-count').textContent = items.filter(x => x.score >= 70 && x.score < 85).length;
+  const avgCheck = items.length ? Math.round(items.reduce((a,c) => a + ((c.minCheck||0)+(c.maxCheck||0))/2, 0) / items.length) : 0;
+  document.getElementById('avg-check').textContent = avgCheck ? `$${avgCheck}M` : '—';
+
+  const user = JSON.parse(localStorage.getItem('ee_current_user') || '{}');
+  const isGrid = currentView === 'grid';
+  const grid = document.getElementById('match-grid');
+
+  if (items.length === 0) {
+    grid.innerHTML = '<div class="col-span-2 text-center py-12 text-on-surface-variant">No matches found. Try adjusting your filters.</div>';
+    grid.className = 'grid grid-cols-1 md:grid-cols-2 gap-4';
+    return;
+  }
+
+  if (!isGrid) {
+    grid.className = 'flex flex-col gap-3';
+  } else {
+    grid.className = 'grid grid-cols-1 md:grid-cols-2 gap-4';
+  }
+
+  grid.innerHTML = items.map(c => {
+    const colors = eeScoreColors(c.score);
+    const sOverlap = (user.sectors||[]).filter(s => (c.sectors||[]).includes(s));
+    const encoded = encodeURIComponent(JSON.stringify(c));
+
+    if (!isGrid) {
+      // List view: compact row
+      return `
+      <div class="match-card glass-panel rounded-lg px-5 py-4 cursor-pointer" onclick="openAlignment('${encoded}')">
+        <div class="flex items-center justify-between gap-4">
+          <div class="flex items-center gap-4 flex-1 min-w-0">
+            <div class="w-10 h-10 rounded-lg bg-primary/15 flex items-center justify-center shrink-0">
+              <span class="material-symbols-outlined text-primary text-lg" style="font-variation-settings:'FILL' 1,'wght' 300,'GRAD' 0,'opsz' 24">${c.type === 'family_office' ? 'account_balance' : 'person_raised_hand'}</span>
+            </div>
+            <div class="min-w-0 flex-1">
+              <div class="flex items-center gap-2">
+                <p class="font-body text-[14px] font-semibold text-on-surface truncate">${c.firm || c.name}</p>
+                <span class="font-label text-[9px] tracking-widest text-on-surface-variant/60 uppercase hidden sm:block">${c.type === 'family_office' ? 'Family Office' : 'Angel Investor'}</span>
+              </div>
+              <p class="font-label text-[10px] tracking-wider text-on-surface-variant">${c.title} · ${c.location}</p>
+            </div>
+          </div>
+          <div class="flex items-center gap-6 shrink-0">
+            <div class="hidden md:block text-right">
+              <p class="font-label text-[10px] text-on-surface-variant uppercase">Check Size</p>
+              <p class="font-label text-[12px] font-semibold text-on-surface">$${c.minCheck}M – $${c.maxCheck}M</p>
+            </div>
+            <div class="hidden md:block text-right">
+              <p class="font-label text-[10px] text-on-surface-variant uppercase">Stages</p>
+              <p class="font-label text-[12px] font-semibold text-on-surface">${(c.stages||[]).slice(0,2).join(', ')}</p>
+            </div>
+            <div class="flex flex-col items-end">
+              <div class="px-3 py-1 ${colors.bg} border rounded-full">
+                <span class="font-label text-[12px] font-bold ${colors.text}">${c.score}%</span>
+              </div>
+              <span class="font-label text-[9px] tracking-wider text-on-surface-variant mt-0.5">${eeScoreLabel(c.score)}</span>
+            </div>
+            <button class="h-8 px-4 bg-secondary text-on-secondary font-label text-[10px] font-bold tracking-wider uppercase rounded-lg hover:opacity-90 transition-all hidden sm:block">View</button>
+          </div>
+        </div>
+      </div>`;
+    }
+
+    // Grid view: card
+    return `
+    <div class="match-card glass-panel rounded-xl p-5 cursor-pointer" onclick="openAlignment('${encoded}')">
+      <!-- Score badge -->
+      <div class="flex items-start justify-between mb-4">
+        <div class="flex items-center gap-3">
+          <div class="w-11 h-11 rounded-lg bg-primary/15 flex items-center justify-center">
+            <span class="material-symbols-outlined text-primary text-2xl" style="font-variation-settings:'FILL' 1,'wght' 300,'GRAD' 0,'opsz' 24">${c.type === 'family_office' ? 'account_balance' : 'person_raised_hand'}</span>
+          </div>
+          <div>
+            <p class="font-body text-[14px] font-semibold text-on-surface leading-5">${c.firm || c.name}</p>
+            <p class="font-label text-[10px] tracking-wider text-on-surface-variant/70 uppercase">${c.type === 'family_office' ? 'Family Office' : 'Angel Investor'}</p>
+          </div>
+        </div>
+        <div class="flex flex-col items-end">
+          <div class="px-2.5 py-1 ${colors.bg} border rounded-full">
+            <span class="font-label text-[13px] font-bold ${colors.text}">${c.score}%</span>
+          </div>
+          <span class="font-label text-[9px] tracking-wider text-on-surface-variant mt-0.5">${eeScoreLabel(c.score)}</span>
+        </div>
+      </div>
+
+      <!-- Score bar -->
+      <div class="mb-4">
+        <div class="flex justify-between items-center mb-1">
+          <span class="font-label text-[10px] tracking-widest text-on-surface-variant uppercase">Alignment Score</span>
+        </div>
+        <div class="h-1.5 w-full bg-surface-container rounded-full overflow-hidden">
+          <div class="h-full rounded-full" style="width:${c.score}%; background:${colors.bar}; transition: width 0.8s ease;"></div>
+        </div>
+      </div>
+
+      <!-- Details -->
+      <div class="space-y-2 mb-4 text-[12px]">
+        <div class="flex justify-between">
+          <span class="text-on-surface-variant">${c.title}</span>
+          <span class="text-on-surface font-medium">${c.location}</span>
+        </div>
+        <div class="flex justify-between">
+          <span class="text-on-surface-variant">AUM / Capital</span>
+          <span class="text-on-surface font-medium">${c.aum}</span>
+        </div>
+        <div class="flex justify-between">
+          <span class="text-on-surface-variant">Check Size</span>
+          <span class="text-on-surface font-medium">$${c.minCheck}M – $${c.maxCheck}M</span>
+        </div>
+        <div class="flex justify-between">
+          <span class="text-on-surface-variant">Stages</span>
+          <span class="text-on-surface font-medium">${(c.stages||[]).join(', ')}</span>
+        </div>
+      </div>
+
+      <!-- Sector chips -->
+      <div class="flex flex-wrap gap-1.5 mb-4">
+        ${sOverlap.slice(0,3).map(s => `<span class="font-label text-[9px] tracking-wider px-2 py-0.5 bg-tertiary/15 text-tertiary rounded-full border border-tertiary/30">${s}</span>`).join('')}
+        ${(c.sectors||[]).filter(s => !sOverlap.includes(s)).slice(0,2).map(s => `<span class="font-label text-[9px] tracking-wider px-2 py-0.5 bg-surface-container text-on-surface-variant rounded-full border border-outline-variant/30">${s}</span>`).join('')}
+      </div>
+
+      <!-- CTA -->
+      <div class="flex gap-2 pt-3 border-t border-outline-variant/30">
+        <button class="flex-1 h-9 bg-secondary text-on-secondary font-label text-[10px] font-bold tracking-wider uppercase rounded-lg hover:opacity-90 transition-all">View Alignment</button>
+        <button class="h-9 px-3 border border-outline-variant text-on-surface-variant font-label text-[10px] font-bold tracking-wider uppercase rounded-lg hover:bg-surface-container transition-all" onclick="event.stopPropagation(); quickIntro('${c.name}')">Intro</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function openAlignment(encodedCandidate) {
+  const candidate = JSON.parse(decodeURIComponent(encodedCandidate));
+  localStorage.setItem('ee_selected_candidate', JSON.stringify(candidate));
+  window.location.href = 'alignment.html';
+}
+
+function quickIntro(name) {
+  eeOpenMessage(name);
+}
+
+function init() {
+  const user = eeBootstrap('discovery.html');
+  if (!user) return;
+
+  const isAngel = user.type === 'angel';
+  document.getElementById('match-subtitle').textContent = isAngel
+    ? 'Family Offices matching your investment thesis — ranked by alignment score'
+    : 'Angel Investors matching your mandate — ranked by alignment score';
+
+  const candidates = isAngel ? MOCK_FAMILY_OFFICES : MOCK_ANGELS;
+  scoredCandidates = candidates.map(c => ({ ...c, score: eeMatchScore(user, c) }));
+
+  // Build sector filter chips
+  const allSectors = [...new Set(candidates.flatMap(c => c.sectors||[]))].sort();
+  document.getElementById('sector-filter').innerHTML = allSectors.map(sec => `
+    <button type="button" onclick="toggleSectorFilter('${sec}')" data-sector="${sec}"
+      class="filter-chip border border-outline-variant/50 text-on-surface-variant font-label text-[10px] font-semibold tracking-wider px-3 py-1.5 rounded-full hover:border-outline-variant transition-all">
+      ${sec}
+    </button>`).join('');
+
+  renderMatches();
+}
+
+init();
+</script>
+</body>
+</html>

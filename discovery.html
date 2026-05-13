@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html class="dark" lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Equitas Elite — Discovery Feed</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Playfair+Display:wght@600;700&family=IBM+Plex+Sans:wght@500;600&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<script>
+tailwind.config = {
+  darkMode:"class",
+  theme:{extend:{colors:{"surface-container-highest":"#26364a","surface-container-high":"#1b2b3f","surface-container":"#102034","surface-container-low":"#0b1c30","surface-container-lowest":"#000f21","background":"#031427","surface":"#031427","surface-bright":"#2a3a4f","surface-variant":"#26364a","primary":"#bec6e0","on-primary":"#283044","primary-container":"#0f172a","on-primary-container":"#798098","secondary":"#e9c176","on-secondary":"#412d00","secondary-container":"#604403","on-secondary-container":"#dab36a","tertiary":"#4edea3","on-tertiary":"#003824","tertiary-container":"#001c10","on-tertiary-container":"#009365","on-surface":"#d3e4fe","on-surface-variant":"#c6c6cd","outline":"#909097","outline-variant":"#45464d"},borderRadius:{"sm":"0.25rem","DEFAULT":"0.5rem","md":"0.75rem","lg":"1rem","xl":"1.5rem","full":"9999px"},fontFamily:{"display":["Playfair Display","serif"],"body":["Inter","sans-serif"],"label":["IBM Plex Sans","sans-serif"]}}}
+}
+</script>
+<style>
+  .material-symbols-outlined{font-variation-settings:'FILL' 0,'wght' 300,'GRAD' 0,'opsz' 24}
+  .glass-panel{background:rgba(16,32,52,0.6);backdrop-filter:blur(12px);border:1px solid rgba(69,70,77,0.5)}
+  .filter-chip{cursor:pointer;transition:all .15s}
+  .filter-chip.active{background:rgba(233,193,118,0.15);border-color:#e9c176;color:#e9c176}
+  .match-card{transition:transform .2s,border-color .2s}
+  .match-card:hover{transform:translateY(-2px);border-color:rgba(69,70,77,.8)}
+  select option{background:#102034}
+  body{min-height:100dvh}
+</style>
+</head>
+<body class="bg-background text-on-surface font-body">
+
+<div id="ee-topbar"></div>
+
+<div class="flex pt-14 min-h-screen">
+  <div id="ee-sidebar"></div>
+
+  <main class="flex-1 lg:ml-60 px-5 md:px-8 py-8 pb-24 lg:pb-8">
+    <div class="max-w-6xl mx-auto">
+
+      <!-- Header -->
+      <div class="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-6">
+        <div>
+          <span class="font-label text-[10px] tracking-[.12em] text-on-surface-variant uppercase" id="feed-subtitle">Family Office · Discovery</span>
+          <h1 class="font-display text-[28px] md:text-[36px] font-bold leading-tight text-on-surface mt-1">Discovery Feed</h1>
+          <p class="text-[13px] text-on-surface-variant mt-1">A curated selection of institutional partners matched to your mandate and preferences.</p>
+        </div>
+        <div class="flex items-center gap-3">
+          <span class="font-label text-[11px] text-on-surface-variant" id="result-count">— results</span>
+          <button onclick="eeOpenNewDeal()" class="h-9 px-4 bg-secondary text-on-secondary font-label text-[10px] font-bold tracking-widest uppercase rounded-lg hover:opacity-90 transition-all flex items-center gap-1.5">
+            <span class="material-symbols-outlined text-sm">add</span>New Deal
+          </button>
+        </div>
+      </div>
+
+      <!-- Filter bar -->
+      <div class="glass-panel rounded-xl px-4 py-3 mb-5 flex flex-wrap gap-3 items-center">
+        <div class="flex items-center gap-2 flex-1 min-w-[180px]">
+          <span class="material-symbols-outlined text-on-surface-variant text-base">search</span>
+          <input id="search-input" type="text" placeholder="Search partners…" oninput="renderFeed()"
+            class="bg-transparent text-sm text-on-surface placeholder:text-on-surface-variant/40 outline-none flex-1"/>
+        </div>
+        <div class="w-px h-5 bg-outline-variant/40 hidden md:block"></div>
+        <select id="filter-stage" onchange="renderFeed()" class="bg-transparent text-[12px] font-label text-on-surface-variant outline-none border-none cursor-pointer">
+          <option value="">All Stages</option>
+          <option>Pre-Seed</option><option>Seed</option><option>Series A</option><option>Series B</option><option>Growth</option>
+        </select>
+        <div class="w-px h-5 bg-outline-variant/40 hidden md:block"></div>
+        <select id="filter-geo" onchange="renderFeed()" class="bg-transparent text-[12px] font-label text-on-surface-variant outline-none border-none cursor-pointer">
+          <option value="">All Locations</option>
+          <option>North America</option><option>Europe</option><option>Asia-Pacific</option><option>Middle East</option><option>Global</option>
+        </select>
+        <div class="w-px h-5 bg-outline-variant/40 hidden md:block"></div>
+        <select id="filter-sort" onchange="renderFeed()" class="bg-transparent text-[12px] font-label text-on-surface-variant outline-none border-none cursor-pointer">
+          <option value="score">Best Match</option>
+          <option value="aum">Largest AUM</option>
+          <option value="check">Largest Check</option>
+        </select>
+        <button onclick="resetFilters()" class="font-label text-[10px] font-semibold tracking-wider text-on-surface-variant/60 hover:text-on-surface-variant uppercase transition-colors ml-auto">Reset</button>
+      </div>
+
+      <!-- Sector chips -->
+      <div id="sector-chips" class="flex flex-wrap gap-2 mb-6"></div>
+
+      <!-- Featured / Top 2 match cards -->
+      <div id="featured-section" class="mb-6">
+        <span class="font-label text-[10px] tracking-widest text-secondary uppercase block mb-3">★ Featured — Highest Alignment</span>
+        <div id="featured-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+      </div>
+
+      <!-- All matches -->
+      <div class="mb-4">
+        <span class="font-label text-[10px] tracking-widest text-on-surface-variant uppercase block mb-3">Available Partners</span>
+        <div id="all-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+      </div>
+
+      <!-- Network Activity -->
+      <div class="glass-panel rounded-xl p-5 mt-8">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="font-display text-lg font-bold text-on-surface">Network Activity</h2>
+          <a href="network.html" class="font-label text-[10px] font-semibold tracking-wider text-secondary hover:underline uppercase">View Audit Log →</a>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-[12px]">
+            <thead>
+              <tr class="border-b border-outline-variant/30">
+                <th class="font-label text-[10px] tracking-widest text-on-surface-variant uppercase pb-3 text-left">Firm / Partner</th>
+                <th class="font-label text-[10px] tracking-widest text-on-surface-variant uppercase pb-3 text-left hidden md:table-cell">Action</th>
+                <th class="font-label text-[10px] tracking-widest text-on-surface-variant uppercase pb-3 text-left">Status</th>
+                <th class="font-label text-[10px] tracking-widest text-on-surface-variant uppercase pb-3 text-left hidden md:table-cell">Date</th>
+                <th class="font-label text-[10px] tracking-widest text-on-surface-variant uppercase pb-3 text-left hidden lg:table-cell">Markets</th>
+              </tr>
+            </thead>
+            <tbody id="activity-table" class="divide-y divide-outline-variant/20"></tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<div id="ee-mobile-nav"></div>
+
+<script src="shared.js"></script>
+<script>
+const ACTIVITY = [
+  { firm:'Vanguard Equity Partners', action:'Updated Deal Profile', status:'Active', date:'3h ago', market:'Life Sciences' },
+  { firm:'Lumina Wealth', action:'New Mandate Published', status:'Active', date:'1d ago', market:'FinTech' },
+  { firm:'Meridian Global', action:'Connection Requested', status:'Pending', date:'2d ago', market:'Clean Energy' },
+  { firm:'Blue Marble Capital', action:'Joined Syndicate', status:'Active', date:'3d ago', market:'Deep Tech' },
+  { firm:'Apex Private Equity', action:'Profile Verified', status:'Verified', date:'5d ago', market:'Healthcare' },
+];
+
+let activeSectors = [];
+
+function statusBadge(s) {
+  const map = { Active:'bg-tertiary/15 text-tertiary border-tertiary/30', Pending:'bg-secondary/15 text-secondary border-secondary/30', Verified:'bg-primary/15 text-primary border-primary/30' };
+  return `<span class="font-label text-[10px] tracking-wider px-2 py-0.5 rounded-full border ${map[s]||'bg-surface-container text-on-surface-variant border-outline-variant/30'}">${s}</span>`;
+}
+
+function resetFilters() {
+  document.getElementById('search-input').value='';
+  document.getElementById('filter-stage').value='';
+  document.getElementById('filter-geo').value='';
+  document.getElementById('filter-sort').value='score';
+  activeSectors=[];
+  document.querySelectorAll('.filter-chip').forEach(c=>c.classList.remove('active'));
+  renderFeed();
+}
+
+function toggleSector(sec) {
+  if (activeSectors.includes(sec)) activeSectors=activeSectors.filter(s=>s!==sec);
+  else activeSectors.push(sec);
+  document.querySelectorAll('.filter-chip').forEach(el=>{
+    if(activeSectors.includes(el.dataset.sector)) el.classList.add('active');
+    else el.classList.remove('active');
+  });
+  renderFeed();
+}
+
+function renderFeed() {
+  const user = eeGetUser();
+  const isAngel = user?.type === 'angel';
+  const candidates = isAngel ? MOCK_FAMILY_OFFICES : MOCK_ANGELS;
+  const search = document.getElementById('search-input').value.toLowerCase();
+  const stageF = document.getElementById('filter-stage').value;
+  const geoF = document.getElementById('filter-geo').value;
+  const sort = document.getElementById('filter-sort').value;
+
+  let items = candidates.map(c=>({...c, score:eeMatchScore(user||{}, c)}));
+
+  if (activeSectors.length) items=items.filter(c=>activeSectors.some(s=>(c.sectors||[]).includes(s)));
+  if (search) items=items.filter(c=>(c.name+c.firm+c.location).toLowerCase().includes(search));
+  if (stageF) items=items.filter(c=>(c.stages||[]).includes(stageF));
+  if (geoF) items=items.filter(c=>c.geography===geoF||c.geography==='Global'||geoF==='Global');
+
+  if (sort==='aum') items.sort((a,b)=>parseFloat(b.aum||0)-parseFloat(a.aum||0));
+  else if (sort==='check') items.sort((a,b)=>(b.maxCheck||0)-(a.maxCheck||0));
+  else items.sort((a,b)=>b.score-a.score);
+
+  document.getElementById('result-count').textContent = `${items.length} results`;
+
+  const featured = items.filter(c=>c.score>=75).slice(0,3);
+  const rest = items.filter(c=>c.score<75);
+
+  document.getElementById('featured-section').style.display = featured.length ? '' : 'none';
+  document.getElementById('featured-grid').innerHTML = featured.map(c=>cardHTML(c,user,true)).join('');
+  document.getElementById('all-grid').innerHTML = rest.length
+    ? rest.map(c=>cardHTML(c,user,false)).join('')
+    : '<p class="col-span-3 text-center py-8 text-on-surface-variant text-[13px]">No additional results. Adjust filters to broaden your search.</p>';
+}
+
+function cardHTML(c, user, featured) {
+  const colors = eeScoreColors(c.score);
+  const sOverlap = ((user?.sectors)||[]).filter(s=>(c.sectors||[]).includes(s));
+  const encoded = encodeURIComponent(JSON.stringify(c));
+  const typeIcon = c.type==='family_office' ? 'account_balance' : 'person_raised_hand';
+  const typeLabel = c.type==='family_office' ? 'Family Office' : 'Angel Investor';
+  return `
+  <div class="match-card glass-panel rounded-xl p-5 cursor-pointer flex flex-col ${featured?'border-secondary/30':''}" onclick="openAlignment('${encoded}')">
+    <div class="flex items-start justify-between mb-4">
+      <div class="flex items-center gap-3">
+        <div class="w-11 h-11 rounded-lg bg-primary/15 flex items-center justify-center shrink-0">
+          <span class="material-symbols-outlined text-primary text-2xl" style="font-variation-settings:'FILL' 1,'wght' 300,'GRAD' 0,'opsz' 24">${typeIcon}</span>
+        </div>
+        <div>
+          <p class="font-body text-[14px] font-semibold text-on-surface leading-5">${c.firm||c.name}</p>
+          <p class="font-label text-[10px] tracking-wider text-on-surface-variant/70 uppercase">${typeLabel}</p>
+        </div>
+      </div>
+      <div class="flex flex-col items-end gap-0.5 shrink-0">
+        <div class="px-2.5 py-1 ${colors.bg} border rounded-full">
+          <span class="font-label text-[12px] font-bold ${colors.text}">${c.score}%</span>
+        </div>
+        <span class="font-label text-[9px] tracking-wider text-on-surface-variant uppercase">${eeScoreLabel(c.score)}</span>
+      </div>
+    </div>
+    <div class="h-1.5 w-full bg-surface-container rounded-full overflow-hidden mb-4">
+      <div class="h-full rounded-full" style="width:${c.score}%;background:${colors.bar}"></div>
+    </div>
+    <div class="space-y-1.5 mb-4 text-[12px] flex-1">
+      <div class="flex justify-between"><span class="text-on-surface-variant">${c.title}</span><span class="text-on-surface font-medium">${c.location}</span></div>
+      <div class="flex justify-between"><span class="text-on-surface-variant">AUM</span><span class="text-on-surface font-medium">${c.aum}</span></div>
+      <div class="flex justify-between"><span class="text-on-surface-variant">Check</span><span class="text-on-surface font-medium">$${c.minCheck}M–$${c.maxCheck}M</span></div>
+      <div class="flex justify-between"><span class="text-on-surface-variant">Stages</span><span class="text-on-surface font-medium text-right">${(c.stages||[]).join(', ')}</span></div>
+    </div>
+    <div class="flex flex-wrap gap-1.5 mb-4">
+      ${sOverlap.slice(0,2).map(s=>`<span class="font-label text-[9px] tracking-wider px-2 py-0.5 bg-tertiary/15 text-tertiary rounded-full border border-tertiary/30">${s}</span>`).join('')}
+      ${(c.sectors||[]).filter(s=>!sOverlap.includes(s)).slice(0,2).map(s=>`<span class="font-label text-[9px] tracking-wider px-2 py-0.5 bg-surface-container text-on-surface-variant rounded-full border border-outline-variant/30">${s}</span>`).join('')}
+    </div>
+    <div class="flex gap-2 pt-3 border-t border-outline-variant/30">
+      <button class="flex-1 h-9 bg-secondary text-on-secondary font-label text-[10px] font-bold tracking-wider uppercase rounded-lg hover:opacity-90 transition-all">View Alignment</button>
+      <button class="h-9 px-3 border border-outline-variant text-on-surface-variant font-label text-[10px] font-bold uppercase rounded-lg hover:bg-surface-container transition-all" onclick="event.stopPropagation();eeOpenMessage('${(c.firm||c.name).replace(/'/g,"\\'")}')">Intro</button>
+    </div>
+  </div>`;
+}
+
+function openAlignment(enc) {
+  localStorage.setItem('ee_selected_candidate', decodeURIComponent(enc));
+  window.location.href='alignment.html';
+}
+
+function init() {
+  const user = eeBootstrap('discovery.html');
+  if (!user) return;
+
+  const isAngel = user.type==='angel';
+  document.getElementById('feed-subtitle').textContent = (isAngel?'Angel Investor':'Family Office') + ' · Discovery';
+
+  // Build sector chips
+  const candidates = isAngel ? MOCK_FAMILY_OFFICES : MOCK_ANGELS;
+  const sectors = [...new Set(candidates.flatMap(c=>c.sectors||[]))].sort();
+  document.getElementById('sector-chips').innerHTML = ['All Sectors',...sectors].map((s,i)=>`
+    <button type="button" data-sector="${s}" onclick="${i===0?'resetFilters()':'toggleSector(\''+s+'\')'}"
+      class="filter-chip border border-outline-variant/50 text-on-surface-variant font-label text-[10px] font-semibold tracking-wider px-3 py-1.5 rounded-full hover:border-outline-variant transition-all ${i===0?'active border-secondary/60 text-secondary bg-secondary/10':''}">
+      ${s}
+    </button>`).join('');
+
+  // Activity table
+  document.getElementById('activity-table').innerHTML = ACTIVITY.map(a=>`
+    <tr class="hover:bg-surface-container/30 transition-colors">
+      <td class="py-3 pr-4"><span class="font-semibold text-on-surface">${a.firm}</span></td>
+      <td class="py-3 pr-4 hidden md:table-cell text-on-surface-variant">${a.action}</td>
+      <td class="py-3 pr-4">${statusBadge(a.status)}</td>
+      <td class="py-3 pr-4 hidden md:table-cell text-on-surface-variant">${a.date}</td>
+      <td class="py-3 hidden lg:table-cell"><span class="font-label text-[10px] tracking-wider px-2 py-0.5 bg-surface-container border border-outline-variant/30 rounded-full text-on-surface-variant">${a.market}</span></td>
+    </tr>`).join('');
+
+  renderFeed();
+}
+
+init();
+</script>
+</body>
+</html>

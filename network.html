@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html class="dark" lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Equitas Elite — Network & Syndicate</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Playfair+Display:wght@600;700&family=IBM+Plex+Sans:wght@500;600&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<script>
+tailwind.config={darkMode:"class",theme:{extend:{colors:{"surface-container-highest":"#26364a","surface-container-high":"#1b2b3f","surface-container":"#102034","surface-container-low":"#0b1c30","surface-container-lowest":"#000f21","background":"#031427","surface":"#031427","surface-bright":"#2a3a4f","surface-variant":"#26364a","primary":"#bec6e0","on-primary":"#283044","primary-container":"#0f172a","on-primary-container":"#798098","secondary":"#e9c176","on-secondary":"#412d00","secondary-container":"#604403","on-secondary-container":"#dab36a","tertiary":"#4edea3","on-tertiary":"#003824","tertiary-container":"#001c10","on-tertiary-container":"#009365","on-surface":"#d3e4fe","on-surface-variant":"#c6c6cd","outline":"#909097","outline-variant":"#45464d"},borderRadius:{"sm":"0.25rem","DEFAULT":"0.5rem","md":"0.75rem","lg":"1rem","xl":"1.5rem","full":"9999px"},fontFamily:{"display":["Playfair Display","serif"],"body":["Inter","sans-serif"],"label":["IBM Plex Sans","sans-serif"]}}}}
+</script>
+<style>
+  .material-symbols-outlined{font-variation-settings:'FILL' 0,'wght' 300,'GRAD' 0,'opsz' 24}
+  .glass-panel{background:rgba(16,32,52,0.6);backdrop-filter:blur(12px);border:1px solid rgba(69,70,77,0.5)}
+  body{min-height:100dvh}
+</style>
+</head>
+<body class="bg-background text-on-surface font-body">
+
+<div id="ee-topbar"></div>
+<div class="flex pt-14 min-h-screen">
+  <div id="ee-sidebar"></div>
+
+  <main class="flex-1 lg:ml-60 px-5 md:px-8 py-8 pb-24 lg:pb-8">
+    <div class="max-w-6xl mx-auto">
+
+      <!-- Header -->
+      <div class="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-7">
+        <div>
+          <span class="font-label text-[10px] tracking-[.12em] text-on-surface-variant uppercase">Institutional Ecosystem</span>
+          <h1 class="font-display text-[28px] md:text-[36px] font-bold leading-tight text-on-surface mt-1">Network &amp; Syndicate</h1>
+          <p class="text-[13px] text-on-surface-variant mt-1">Manage your partnerships, co-investor relations, and private syndicate activity across the global elite ecosystem.</p>
+        </div>
+        <button onclick="eeOpenModal('invite-modal')" class="h-10 px-5 bg-secondary text-on-secondary font-label text-[10px] font-bold tracking-widest uppercase rounded-lg hover:opacity-90 transition-all flex items-center gap-2 shrink-0">
+          <span class="material-symbols-outlined text-base">person_add</span>Invite Partner
+        </button>
+      </div>
+
+      <!-- Metric Cards -->
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-7">
+        <div class="glass-panel rounded-xl p-5">
+          <p class="font-label text-[10px] tracking-widest text-on-surface-variant uppercase mb-2">Total Partners</p>
+          <p class="font-display text-3xl font-bold text-on-surface">142</p>
+          <div class="flex items-center gap-1 mt-1"><span class="material-symbols-outlined text-tertiary text-sm" style="font-variation-settings:'FILL' 1,'wght' 300,'GRAD' 0,'opsz' 24">arrow_upward</span><span class="font-label text-[11px] text-tertiary">+8</span><span class="font-label text-[10px] text-on-surface-variant">this month</span></div>
+        </div>
+        <div class="glass-panel rounded-xl p-5">
+          <p class="font-label text-[10px] tracking-widest text-on-surface-variant uppercase mb-2">Active Syndicates</p>
+          <p class="font-display text-3xl font-bold text-on-surface">8</p>
+          <span class="font-label text-[10px] text-on-surface-variant">Ongoing</span>
+        </div>
+        <div class="glass-panel rounded-xl p-5">
+          <p class="font-label text-[10px] tracking-widest text-on-surface-variant uppercase mb-2">Co-Investment Capital</p>
+          <p class="font-display text-2xl font-bold text-on-surface">$42.5M</p>
+          <span class="font-label text-[10px] text-on-surface-variant">Deployed</span>
+        </div>
+        <div class="glass-panel rounded-xl p-5">
+          <p class="font-label text-[10px] tracking-widest text-on-surface-variant uppercase mb-2">Network Growth</p>
+          <p class="font-display text-3xl font-bold text-tertiary">+12%</p>
+          <span class="font-label text-[9px] tracking-wider px-1.5 bg-tertiary/15 text-tertiary border border-tertiary/30 rounded-full">EXCELLENT</span>
+        </div>
+      </div>
+
+      <!-- Main grid -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+        <!-- Active Syndicates (2/3 width) -->
+        <div class="lg:col-span-2 space-y-5">
+          <div>
+            <div class="flex items-center justify-between mb-3">
+              <h2 class="font-display text-lg font-bold text-on-surface">Active Syndicates</h2>
+              <button onclick="eeOpenModal('syndicate-modal')" class="font-label text-[10px] font-semibold tracking-wider text-secondary hover:underline uppercase">View All Syndicates →</button>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4" id="syndicates-grid"></div>
+          </div>
+
+          <!-- Partners Table -->
+          <div class="glass-panel rounded-xl p-5">
+            <div class="flex items-center justify-between mb-4">
+              <h2 class="font-body text-[15px] font-semibold text-on-surface">Institutional Partners</h2>
+              <div class="flex gap-2">
+                <button class="p-1.5 hover:bg-surface-container rounded-lg transition-colors"><span class="material-symbols-outlined text-on-surface-variant text-base">filter_list</span></button>
+                <button class="p-1.5 hover:bg-surface-container rounded-lg transition-colors"><span class="material-symbols-outlined text-on-surface-variant text-base">search</span></button>
+              </div>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="w-full text-[12px]">
+                <thead>
+                  <tr class="border-b border-outline-variant/30">
+                    <th class="font-label text-[10px] tracking-widest text-on-surface-variant uppercase pb-3 text-left">Firm / Partner</th>
+                    <th class="font-label text-[10px] tracking-widest text-on-surface-variant uppercase pb-3 text-left hidden md:table-cell">Primary Contact</th>
+                    <th class="font-label text-[10px] tracking-widest text-on-surface-variant uppercase pb-3 text-left hidden lg:table-cell">Focus</th>
+                    <th class="font-label text-[10px] tracking-widest text-on-surface-variant uppercase pb-3 text-center hidden md:table-cell">Shared Deals</th>
+                    <th class="font-label text-[10px] tracking-widest text-on-surface-variant uppercase pb-3 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-outline-variant/20" id="partners-table"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: Requests + Discovery -->
+        <div class="space-y-5">
+
+          <!-- Network Requests -->
+          <div class="glass-panel rounded-xl p-5">
+            <div class="flex items-center justify-between mb-4">
+              <h2 class="font-body text-[14px] font-semibold text-on-surface">Network Requests</h2>
+              <span class="w-5 h-5 rounded-full bg-secondary flex items-center justify-center font-label text-[10px] font-bold text-on-secondary" id="req-badge">3</span>
+            </div>
+            <div class="space-y-3" id="requests-list"></div>
+          </div>
+
+          <!-- Discovery -->
+          <div class="glass-panel rounded-xl p-5">
+            <div class="flex items-center justify-between mb-4">
+              <h2 class="font-body text-[14px] font-semibold text-on-surface">Discovery</h2>
+              <span class="font-label text-[10px] text-on-surface-variant/60 uppercase">Aligned by deal flow</span>
+            </div>
+            <div class="space-y-3" id="discovery-list"></div>
+            <button onclick="window.location.href='discovery.html'" class="w-full mt-4 py-2 font-label text-[10px] font-semibold tracking-widest text-secondary hover:underline uppercase">Browse Directory →</button>
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+  </main>
+</div>
+<div id="ee-mobile-nav"></div>
+
+<script src="shared.js"></script>
+<script>
+const SYNDICATES = [
+  { name:'Global Green Energy', desc:'ESG-focus · 6 investors', members:12, aum:'$100.4M', deals:3, focus:['Clean Energy'], badge:'ESG' },
+  { name:'FinTech Alpha', desc:'Series B &amp; Early Growth', members:8, aum:'$41M', deals:5, focus:['FinTech'], badge:'ACTIVE' },
+  { name:'MedTech Ventures', desc:'Co-Investment Pool', members:19, aum:'$88.2M', deals:7, focus:['Life Sciences'], badge:'PAL' },
+];
+
+const PARTNERS = [
+  { firm:'Atlas LP', contact:'Sarah Jenkins', focus:['FinTech','SaaS'], deals:14, avatar:'AJ', verified:true },
+  { firm:'Sovereign Wealth Group', contact:'Marcus Chen', focus:['Real Estate'], deals:8, avatar:'MC', verified:true },
+  { firm:'Oak Ridge Private Equity', contact:'Julian Thorne', focus:['Clean Energy'], deals:21, avatar:'JT', verified:false },
+  { firm:'Meridian Capital', contact:'Elena Ricci', focus:['Healthcare'], deals:6, avatar:'ER', verified:true },
+  { firm:'Apex Ventures', contact:'David Kim', focus:['AI / ML','Deep Tech'], deals:11, avatar:'DK', verified:false },
+];
+
+const REQUESTS = [
+  { name:'Elena Vostrikova', firm:'Vostrikova Asset Management', time:'2h ago', mutual:3 },
+  { name:'Blue Marble Capital', firm:'Institutional Office · Singapore', time:'1d ago', mutual:1 },
+  { name:'Horizon LP', firm:'London · Multi-Family Office', time:'3d ago', mutual:5 },
+];
+
+const DISCOVERY_ITEMS = [
+  { name:'Nexus Capital', tag:'Allowed by deal flow', sector:'FinTech' },
+  { name:'Blue Marble', tag:'Allowed by deal flow', sector:'Clean Energy' },
+];
+
+function renderSyndicates() {
+  document.getElementById('syndicates-grid').innerHTML = SYNDICATES.map(s=>`
+    <div class="glass-panel rounded-xl p-4 hover:border-secondary/30 transition-colors cursor-pointer">
+      <div class="flex items-start justify-between mb-3">
+        <h3 class="font-body text-[13px] font-semibold text-on-surface leading-5 flex-1">${s.name}</h3>
+        <span class="font-label text-[9px] font-bold tracking-wider px-2 py-0.5 bg-tertiary/15 text-tertiary border border-tertiary/30 rounded-full ml-2">${s.badge}</span>
+      </div>
+      <p class="text-[11px] text-on-surface-variant mb-3">${s.desc}</p>
+      <div class="space-y-1.5 text-[11px] text-on-surface-variant mb-3">
+        <div class="flex justify-between"><span>Members</span><span class="font-semibold text-on-surface">${s.members} Family Offices</span></div>
+        <div class="flex justify-between"><span>Total AUM</span><span class="font-semibold text-secondary">${s.aum}</span></div>
+        <div class="flex justify-between"><span>Active Deals</span><span class="font-semibold text-on-surface">${s.deals}</span></div>
+      </div>
+      <button onclick="eeShowToast('Syndicate management view coming soon.')" class="w-full h-8 border border-outline-variant/50 text-on-surface-variant font-label text-[9px] font-semibold tracking-widest uppercase rounded-lg hover:border-secondary/40 hover:text-secondary transition-all">
+        Manage Syndicate →
+      </button>
+    </div>`).join('');
+}
+
+function renderPartnersTable() {
+  document.getElementById('partners-table').innerHTML = PARTNERS.map(p=>`
+    <tr class="hover:bg-surface-container/30 transition-colors cursor-pointer">
+      <td class="py-3 pr-4">
+        <div class="flex items-center gap-3">
+          <div class="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center font-label text-[11px] font-bold text-primary shrink-0">${p.avatar}</div>
+          <div>
+            <div class="flex items-center gap-1.5">
+              <span class="font-semibold text-on-surface">${p.firm}</span>
+              ${p.verified?'<span class="material-symbols-outlined text-secondary text-sm" style="font-variation-settings:\'FILL\' 1,\'wght\' 300,\'GRAD\' 0,\'opsz\' 24">verified</span>':''}
+            </div>
+          </div>
+        </div>
+      </td>
+      <td class="py-3 pr-4 hidden md:table-cell text-on-surface-variant">${p.contact}</td>
+      <td class="py-3 pr-4 hidden lg:table-cell">
+        <div class="flex flex-wrap gap-1">
+          ${p.focus.map(f=>`<span class="font-label text-[9px] tracking-wider px-1.5 py-0.5 bg-surface-container border border-outline-variant/30 rounded-full text-on-surface-variant">${f}</span>`).join('')}
+        </div>
+      </td>
+      <td class="py-3 pr-4 text-center hidden md:table-cell font-semibold text-on-surface">${p.deals}</td>
+      <td class="py-3 text-right">
+        <button onclick="eeOpenMessage('${p.firm}')" class="font-label text-[10px] font-semibold tracking-wider text-secondary hover:underline uppercase">Message</button>
+      </td>
+    </tr>`).join('');
+}
+
+function renderRequests() {
+  const list = document.getElementById('requests-list');
+  list.innerHTML = REQUESTS.map((r,i)=>`
+    <div class="border border-outline-variant/30 rounded-xl p-3 hover:border-secondary/30 transition-colors">
+      <div class="flex items-center gap-3 mb-2">
+        <div class="w-9 h-9 rounded-full bg-primary/15 flex items-center justify-center font-label text-[12px] font-bold text-primary shrink-0">${r.name.split(' ').map(w=>w[0]).join('')}</div>
+        <div class="flex-1 min-w-0">
+          <p class="text-[13px] font-semibold text-on-surface truncate">${r.name}</p>
+          <p class="text-[11px] text-on-surface-variant truncate">${r.firm}</p>
+          <p class="font-label text-[10px] text-on-surface-variant/50">${r.time} · ${r.mutual} mutual</p>
+        </div>
+      </div>
+      <div class="flex gap-2">
+        <button onclick="acceptRequest(${i})" class="flex-1 h-7 bg-tertiary/15 border border-tertiary/30 text-tertiary font-label text-[10px] font-bold tracking-wider uppercase rounded-lg hover:bg-tertiary/25 transition-all">Accept</button>
+        <button onclick="declineRequest(${i})" class="flex-1 h-7 border border-outline-variant text-on-surface-variant font-label text-[10px] font-semibold tracking-wider uppercase rounded-lg hover:bg-surface-container transition-all">Decline</button>
+      </div>
+    </div>`).join('');
+}
+
+function acceptRequest(i) {
+  eeShowToast(`Connection accepted with ${REQUESTS[i].name}. You can now message and co-invest.`);
+  REQUESTS.splice(i,1);
+  renderRequests();
+  document.getElementById('req-badge').textContent = REQUESTS.length;
+}
+function declineRequest(i) {
+  REQUESTS.splice(i,1);
+  renderRequests();
+  document.getElementById('req-badge').textContent = REQUESTS.length;
+}
+
+function renderDiscovery() {
+  document.getElementById('discovery-list').innerHTML = DISCOVERY_ITEMS.map(d=>`
+    <div class="flex items-center justify-between py-2 border-b border-outline-variant/20">
+      <div>
+        <p class="text-[13px] font-semibold text-on-surface">${d.name}</p>
+        <p class="text-[11px] text-on-surface-variant">${d.tag}</p>
+      </div>
+      <span class="font-label text-[9px] tracking-wider px-2 py-0.5 bg-surface-container border border-outline-variant/30 rounded-full text-on-surface-variant">${d.sector}</span>
+    </div>`).join('');
+}
+
+function init() {
+  const user = eeBootstrap('network.html');
+  if (!user) return;
+  renderSyndicates();
+  renderPartnersTable();
+  renderRequests();
+  renderDiscovery();
+}
+init();
+</script>
+</body>
+</html>

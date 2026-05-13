@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html class="dark" lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Equitas Elite — Strategic Alignment Report</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Playfair+Display:wght@600;700&family=IBM+Plex+Sans:wght@500;600&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+tailwind.config = {
+  darkMode: "class",
+  theme: {
+    extend: {
+      colors: {
+        "surface-container-highest": "#26364a",
+        "surface-container-high": "#1b2b3f",
+        "surface-container": "#102034",
+        "surface-container-low": "#0b1c30",
+        "surface-container-lowest": "#000f21",
+        "background": "#031427",
+        "surface": "#031427",
+        "surface-bright": "#2a3a4f",
+        "surface-variant": "#26364a",
+        "primary": "#bec6e0",
+        "on-primary": "#283044",
+        "primary-container": "#0f172a",
+        "on-primary-container": "#798098",
+        "secondary": "#e9c176",
+        "on-secondary": "#412d00",
+        "secondary-container": "#604403",
+        "on-secondary-container": "#dab36a",
+        "tertiary": "#4edea3",
+        "on-tertiary": "#003824",
+        "tertiary-container": "#001c10",
+        "on-tertiary-container": "#009365",
+        "on-surface": "#d3e4fe",
+        "on-surface-variant": "#c6c6cd",
+        "outline": "#909097",
+        "outline-variant": "#45464d",
+      },
+      borderRadius: {
+        "sm": "0.25rem",
+        "DEFAULT": "0.5rem",
+        "md": "0.75rem",
+        "lg": "1rem",
+        "xl": "1.5rem",
+        "full": "9999px",
+      },
+      fontFamily: {
+        "display": ["Playfair Display", "serif"],
+        "body": ["Inter", "sans-serif"],
+        "label": ["IBM Plex Sans", "sans-serif"],
+      },
+    },
+  },
+}
+</script>
+<style>
+  .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24; }
+  .glass-panel { background: rgba(16,32,52,0.6); backdrop-filter: blur(12px); border: 1px solid rgba(69,70,77,0.5); }
+  .score-ring-bg { fill: none; stroke: rgba(69,70,77,0.4); stroke-width: 8; }
+  .score-ring-fg { fill: none; stroke: #4edea3; stroke-width: 8; stroke-linecap: round; transform: rotate(-90deg); transform-origin: center; transition: stroke-dashoffset 1.5s ease; }
+  .bar-fill { transition: width 1s ease; }
+  .radar-poly-a { fill: rgba(233,193,118,0.15); stroke: #e9c176; stroke-width: 1.5; }
+  .radar-poly-b { fill: rgba(78,222,163,0.1); stroke: #4edea3; stroke-width: 1.5; }
+  @keyframes fadeInUp { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:translateY(0); } }
+  .animate-in { animation: fadeInUp 0.5s ease forwards; }
+  body { min-height: 100dvh; }
+  @media print {
+    .no-print { display: none !important; }
+    body { background: white; color: black; }
+  }
+</style>
+</head>
+<body class="bg-background text-on-surface font-body">
+
+<div id="ee-topbar" class="no-print"></div>
+
+<div class="flex pt-14 min-h-screen">
+  <div id="ee-sidebar" class="no-print"></div>
+
+  <!-- Main Content -->
+  <main class="flex-1 lg:ml-60 px-5 md:px-10 py-8 pb-24 lg:pb-8">
+    <div class="max-w-5xl mx-auto" id="report-root">
+      <!-- Loading state -->
+      <div class="text-center py-20 text-on-surface-variant" id="loading-state">
+        <span class="material-symbols-outlined text-4xl text-on-surface-variant/40 block mb-3">hourglass_empty</span>
+        Loading alignment data…
+      </div>
+    </div>
+  </main>
+</div>
+
+<div id="ee-mobile-nav" class="no-print"></div>
+
+<script src="shared.js"></script>
+<script>
+// ── Scoring Logic ──────────────────────────────────────────────
+function detailedScore(a, b) {
+  const aSectors = a.sectors || [], bSectors = b.sectors || [];
+  const sectorOverlap = aSectors.filter(s => bSectors.includes(s));
+  const sectorScore = Math.round((sectorOverlap.length / Math.max(aSectors.length, bSectors.length, 1)) * 100);
+
+  const aStages = a.stages || [], bStages = b.stages || [];
+  const stageOverlap = aStages.filter(s => bStages.includes(s));
+  const stageScore = Math.round((stageOverlap.length / Math.max(aStages.length, bStages.length, 1)) * 100);
+
+  const aMin = a.minCheck || 0, aMax = a.maxCheck || 999;
+  const bMin = b.minCheck || 0, bMax = b.maxCheck || 999;
+  let checkScore = 0;
+  if (aMin <= bMax && bMin <= aMax) {
+    const overlapMin = Math.max(aMin, bMin), overlapMax = Math.min(aMax, bMax);
+    const union = Math.max(aMax, bMax) - Math.min(aMin, bMin);
+    checkScore = union > 0 ? Math.round(((overlapMax - overlapMin) / union) * 100) : 50;
+  }
+
+  const geoScore = (a.geography === b.geography || a.geography === 'Global' || b.geography === 'Global') ? 100 : 20;
+
+  const riskMap = { Conservative: 0, Moderate: 1, Aggressive: 2 };
+  const rDiff = Math.abs((riskMap[a.riskTolerance] ?? 1) - (riskMap[b.riskTolerance] ?? 1));
+  const riskScore = rDiff === 0 ? 100 : rDiff === 1 ? 60 : 20;
+
+  const overall = Math.round(sectorScore * 0.35 + stageScore * 0.25 + checkScore * 0.2 + geoScore * 0.1 + riskScore * 0.1);
+
+  return { overall: Math.min(overall, 99), sectorScore, stageScore, checkScore, geoScore, riskScore, sectorOverlap };
+}
+
+function tierLabel(s) {
+  if (s >= 85) return 'Top 5% Match';
+  if (s >= 70) return 'Top 20% Match';
+  if (s >= 55) return 'Top 40% Match';
+  return 'Emerging Match';
+}
+
+// ── Radar SVG ──────────────────────────────────────────────────
+function radarPoint(angle, radius, cx, cy, maxR) {
+  const rad = (angle - 90) * Math.PI / 180;
+  return [cx + Math.cos(rad) * radius * maxR, cy + Math.sin(rad) * radius * maxR];
+}
+
+function buildRadar(scores) {
+  const dims = ['Sectors', 'Stages', 'Check Size', 'Geography', 'Risk Profile'];
+  const aScores = [scores.sectorScore, scores.stageScore, scores.checkScore, scores.geoScore, scores.riskScore].map(s => s / 100);
+  const angles = [0, 72, 144, 216, 288];
+  const cx = 110, cy = 110, maxR = 80;
+
+  const gridLines = [1, 0.75, 0.5, 0.25].map(r =>
+    `<polygon points="${angles.map(a => radarPoint(a,r,cx,cy,maxR).join(',')).join(' ')}" fill="none" stroke="rgba(69,70,77,0.4)" stroke-width="1"/>`
+  ).join('');
+
+  const axisLines = angles.map(a => {
+    const [x,y] = radarPoint(a,1,cx,cy,maxR);
+    return `<line x1="${cx}" y1="${cy}" x2="${x}" y2="${y}" stroke="rgba(69,70,77,0.4)" stroke-width="1"/>`;
+  }).join('');
+
+  const aPoints = angles.map((a,i) => radarPoint(a, aScores[i], cx, cy, maxR).join(',')).join(' ');
+  const bPoints = angles.map((a,i) => radarPoint(a, aScores[i]*0.85, cx, cy, maxR).join(',')).join(' ');
+
+  const labels = dims.map((d,i) => {
+    const [x,y] = radarPoint(angles[i], 1.22, cx, cy, maxR);
+    const anchor = x < cx-5 ? 'end' : x > cx+5 ? 'start' : 'middle';
+    return `<text x="${x}" y="${y}" text-anchor="${anchor}" font-size="8" font-family="IBM Plex Sans" font-weight="600" letter-spacing="0.06em" fill="#909097" dominant-baseline="middle">${d.toUpperCase()}</text>`;
+  }).join('');
+
+  return `<svg viewBox="0 0 220 220" class="w-full max-w-xs mx-auto">
+    ${gridLines}${axisLines}
+    <polygon points="${bPoints}" fill="rgba(78,222,163,0.1)" stroke="#4edea3" stroke-width="1.5"/>
+    <polygon points="${aPoints}" fill="rgba(233,193,118,0.12)" stroke="#e9c176" stroke-width="1.5"/>
+    ${labels}
+    <circle cx="${cx}" cy="${cy}" r="3" fill="#e9c176"/>
+  </svg>`;
+}
+
+// ── Render Report ──────────────────────────────────────────────
+function renderReport(user, candidate) {
+  const scores = detailedScore(user, candidate);
+  const userTypeLabel = user.type === 'angel' ? 'Angel Investor' : 'Family Office';
+  const candTypeLabel = candidate.type === 'angel' ? 'Angel Investor' : 'Family Office';
+  const circleR = 54;
+  const circleC = 2 * Math.PI * circleR;
+  const offset = circleC - (scores.overall / 100) * circleC;
+
+  const sectorSynergies = [...new Set([...(user.sectors||[]), ...(candidate.sectors||[])])].map(sec => {
+    const inA = (user.sectors||[]).includes(sec);
+    const inB = (candidate.sectors||[]).includes(sec);
+    let pct = 0, color = '#909097', badgeClass = 'bg-surface-container text-on-surface-variant';
+    if (inA && inB) { pct = 85 + Math.floor(Math.random()*14); color='#4edea3'; badgeClass='bg-tertiary/15 text-tertiary border border-tertiary/30'; }
+    else if (inA || inB) { pct = 30 + Math.floor(Math.random()*30); color='#e9c176'; badgeClass='bg-secondary/15 text-on-secondary-container border border-secondary/30'; }
+    return { sec, pct, color, badgeClass, inA, inB };
+  }).sort((a,b) => b.pct - a.pct);
+
+  const dimensionBars = [
+    { label: 'Sector Alignment', score: scores.sectorScore, weight: '35%' },
+    { label: 'Stage Alignment', score: scores.stageScore, weight: '25%' },
+    { label: 'Check Size Overlap', score: scores.checkScore, weight: '20%' },
+    { label: 'Geographic Fit', score: scores.geoScore, weight: '10%' },
+    { label: 'Risk Profile Match', score: scores.riskScore, weight: '10%' },
+  ];
+
+  const capComparisons = [
+    { label: 'MIN CHECK SIZE', aVal: `$${user.minCheck||'—'}M`, bVal: `$${candidate.minCheck||'—'}M`, aPct: Math.round(((user.minCheck||1)/20)*100), bPct: Math.round(((candidate.minCheck||1)/20)*100) },
+    { label: 'MAX EXPOSURE', aVal: `$${user.maxCheck||'—'}M`, bVal: `$${candidate.maxCheck||'—'}M`, aPct: Math.round(((user.maxCheck||1)/100)*100), bPct: Math.round(((candidate.maxCheck||1)/100)*100) },
+    { label: 'RISK TOLERANCE', aVal: user.riskTolerance||'—', bVal: candidate.riskTolerance||'—', aPct: {Conservative:33,Moderate:66,Aggressive:100}[user.riskTolerance]||50, bPct: {Conservative:33,Moderate:66,Aggressive:100}[candidate.riskTolerance]||50 },
+  ];
+
+  const html = `
+  <div class="animate-in">
+    <!-- Page Header -->
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-end mb-8 gap-4">
+      <div>
+        <span class="font-label text-[10px] tracking-[0.12em] text-on-surface-variant uppercase">Match Insights &amp; Analysis</span>
+        <h1 class="font-display text-[28px] md:text-[40px] font-bold leading-tight text-on-surface mt-1">Strategic Alignment Report</h1>
+      </div>
+      <div class="flex gap-3 no-print">
+        <button onclick="window.print()" class="h-10 px-5 border border-outline-variant text-on-surface font-label text-[10px] font-semibold tracking-widest uppercase rounded-lg hover:bg-surface-container transition-all flex items-center gap-2">
+          <span class="material-symbols-outlined text-base">download</span> Export PDF
+        </button>
+        <button onclick="initiateContact()" class="h-10 px-5 bg-secondary text-on-secondary font-label text-[10px] font-semibold tracking-widest uppercase rounded-lg hover:opacity-90 transition-all flex items-center gap-2">
+          <span class="material-symbols-outlined text-base">rocket_launch</span> Initiate Contact
+        </button>
+      </div>
+    </div>
+
+    <!-- Profile Comparison Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-px bg-outline-variant/30 rounded-xl overflow-hidden border border-outline-variant/30 mb-6">
+      <!-- User card -->
+      <div class="glass-panel p-5 flex items-center gap-4">
+        <div class="relative">
+          <div class="w-16 h-16 rounded-full bg-secondary/20 border border-secondary/40 flex items-center justify-center">
+            <span class="font-display text-2xl font-bold text-secondary">${(user.name||'U')[0]}</span>
+          </div>
+          <div class="absolute -bottom-1 -right-1 bg-secondary rounded-full p-1 border-2 border-background">
+            <span class="material-symbols-outlined text-on-secondary text-[12px]" style="font-variation-settings:'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 24">verified</span>
+          </div>
+        </div>
+        <div>
+          <h3 class="font-display text-lg font-bold text-on-surface">${user.firm || user.name}</h3>
+          <p class="font-label text-[10px] tracking-wider text-on-surface-variant">${user.title || userTypeLabel} · ${user.location || 'Global'}</p>
+          <div class="mt-2 inline-flex items-center px-2 py-0.5 bg-secondary/15 text-secondary rounded-full font-label text-[9px] font-bold tracking-wider border border-secondary/30">${userTypeLabel.toUpperCase()} · YOU</div>
+        </div>
+      </div>
+      <!-- Candidate card -->
+      <div class="glass-panel p-5 flex items-center gap-4">
+        <div class="relative">
+          <div class="w-16 h-16 rounded-full bg-tertiary/20 border border-tertiary/40 flex items-center justify-center">
+            <span class="font-display text-2xl font-bold text-tertiary">${(candidate.firm||candidate.name||'C')[0]}</span>
+          </div>
+          <div class="absolute -bottom-1 -right-1 bg-tertiary rounded-full p-1 border-2 border-background">
+            <span class="material-symbols-outlined text-on-tertiary text-[12px]" style="font-variation-settings:'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 24">shield</span>
+          </div>
+        </div>
+        <div>
+          <h3 class="font-display text-lg font-bold text-on-surface">${candidate.firm || candidate.name}</h3>
+          <p class="font-label text-[10px] tracking-wider text-on-surface-variant">${candidate.title} · ${candidate.location}</p>
+          <div class="mt-2 inline-flex items-center px-2 py-0.5 bg-tertiary/15 text-tertiary rounded-full font-label text-[9px] font-bold tracking-wider border border-tertiary/30">${candTypeLabel.toUpperCase()} · MATCH TARGET</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bento Insights Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-12 gap-5 mb-6">
+
+      <!-- Overall Score - donut -->
+      <div class="md:col-span-4 glass-panel rounded-xl p-6 flex flex-col items-center">
+        <span class="font-label text-[10px] tracking-widest text-on-surface-variant uppercase block mb-4 self-start">Overall Compatibility</span>
+        <div class="relative flex items-center justify-center mb-4">
+          <svg width="140" height="140" viewBox="0 0 140 140">
+            <circle class="score-ring-bg" cx="70" cy="70" r="${circleR}"/>
+            <circle class="score-ring-fg" id="score-ring" cx="70" cy="70" r="${circleR}"
+              stroke-dasharray="${circleC}" stroke-dashoffset="${circleC}"/>
+          </svg>
+          <div class="absolute inset-0 flex flex-col items-center justify-center">
+            <span class="font-display text-4xl font-bold text-on-surface" id="score-number">0</span>
+            <span class="font-label text-[10px] tracking-widest text-on-surface-variant uppercase">Score</span>
+          </div>
+        </div>
+        <p class="font-display text-lg font-bold text-on-surface mb-1">${eeScoreLabel(scores.overall)}</p>
+        <p class="font-label text-[10px] tracking-widest text-secondary uppercase">${tierLabel(scores.overall)}</p>
+        <p class="text-[12px] text-on-surface-variant text-center mt-3 leading-5">${scores.overall >= 75 ? 'Exceptional algorithmic alignment detected in sector focus and capital deployment strategy.' : scores.overall >= 55 ? 'Strong alignment detected across key investment parameters with high co-investment potential.' : 'Emerging alignment — some criteria diverge but core interests are compatible.'}</p>
+      </div>
+
+      <!-- Dimension Breakdown -->
+      <div class="md:col-span-8 glass-panel rounded-xl p-6">
+        <span class="font-label text-[10px] tracking-widest text-on-surface-variant uppercase block mb-5">Alignment Dimensions</span>
+        <div class="space-y-5">
+          ${dimensionBars.map(d => {
+            const color = d.score >= 75 ? '#4edea3' : d.score >= 50 ? '#e9c176' : '#909097';
+            return `
+            <div>
+              <div class="flex justify-between items-center mb-1.5">
+                <div class="flex items-center gap-2">
+                  <span class="font-label text-[11px] font-semibold text-on-surface">${d.label}</span>
+                  <span class="font-label text-[9px] tracking-wider text-on-surface-variant/60 uppercase">${d.weight} weight</span>
+                </div>
+                <span class="font-label text-[12px] font-bold" style="color:${color}">${d.score}%</span>
+              </div>
+              <div class="h-1.5 w-full bg-surface-container rounded-full overflow-hidden">
+                <div class="bar-fill h-full rounded-full" style="width:0%; background:${color}" data-target="${d.score}"></div>
+              </div>
+            </div>`;
+          }).join('')}
+        </div>
+      </div>
+
+      <!-- Capital Deployment Profile -->
+      <div class="md:col-span-6 glass-panel rounded-xl p-6">
+        <div class="flex justify-between items-center mb-5">
+          <span class="font-label text-[10px] tracking-widest text-on-surface-variant uppercase">Capital Deployment Profile</span>
+          <div class="flex gap-3 text-[10px]">
+            <div class="flex items-center gap-1.5"><div class="w-2.5 h-2.5 rounded-sm bg-secondary"></div><span class="font-label tracking-wider text-on-surface-variant">YOU</span></div>
+            <div class="flex items-center gap-1.5"><div class="w-2.5 h-2.5 rounded-sm bg-tertiary"></div><span class="font-label tracking-wider text-on-surface-variant">MATCH</span></div>
+          </div>
+        </div>
+        <div class="space-y-6">
+          ${capComparisons.map(c => `
+          <div>
+            <div class="flex justify-between mb-2">
+              <span class="font-label text-[10px] tracking-widest text-on-surface-variant uppercase">${c.label}</span>
+              <span class="font-label text-[11px] font-semibold text-on-surface">${c.aVal} vs ${c.bVal}</span>
+            </div>
+            <div class="space-y-1.5">
+              <div class="h-3 bg-surface-container rounded-sm overflow-hidden">
+                <div class="bar-fill h-full bg-secondary rounded-sm" style="width:0%" data-target="${Math.min(c.aPct,100)}"></div>
+              </div>
+              <div class="h-3 bg-surface-container rounded-sm overflow-hidden">
+                <div class="bar-fill h-full bg-tertiary rounded-sm" style="width:0%" data-target="${Math.min(c.bPct,100)}"></div>
+              </div>
+            </div>
+          </div>`).join('')}
+        </div>
+      </div>
+
+      <!-- Radar Chart -->
+      <div class="md:col-span-6 glass-panel rounded-xl p-6 flex flex-col">
+        <div class="flex justify-between items-center mb-5">
+          <span class="font-label text-[10px] tracking-widest text-on-surface-variant uppercase">Strategic Focus Vectors</span>
+          <div class="flex gap-3 text-[10px]">
+            <div class="flex items-center gap-1.5"><div class="w-2.5 h-0.5 bg-secondary"></div><span class="font-label tracking-wider text-on-surface-variant">YOU</span></div>
+            <div class="flex items-center gap-1.5"><div class="w-2.5 h-0.5 bg-tertiary"></div><span class="font-label tracking-wider text-on-surface-variant">MATCH</span></div>
+          </div>
+        </div>
+        <div class="flex-grow flex items-center justify-center">
+          ${buildRadar(scores)}
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Sector Synergies -->
+    <div class="glass-panel rounded-xl p-6 mb-6">
+      <div class="flex justify-between items-center mb-5">
+        <span class="font-label text-[10px] tracking-widest text-on-surface-variant uppercase">Sector Synergies</span>
+        <div class="flex gap-3 text-[10px]">
+          <div class="flex items-center gap-1.5"><div class="w-2 h-2 rounded-full bg-tertiary"></div><span class="font-label tracking-wider text-on-surface-variant">Shared Focus</span></div>
+          <div class="flex items-center gap-1.5"><div class="w-2 h-2 rounded-full bg-secondary"></div><span class="font-label tracking-wider text-on-surface-variant">Partial</span></div>
+        </div>
+      </div>
+      <div class="space-y-3">
+        ${sectorSynergies.map(s => {
+          const icon = {
+            'FinTech':'account_balance','Deep Tech':'precision_manufacturing','Life Sciences':'biotech',
+            'Clean Energy':'bolt','SaaS':'cloud','AI / ML':'psychology','Healthcare':'medical_services',
+            'Defense Tech':'security','Consumer':'shopping_bag','Real Estate':'home'
+          }[s.sec] || 'category';
+          return `
+          <div class="flex items-center gap-4 py-2 ${sectorSynergies.indexOf(s) < sectorSynergies.length-1 ? 'border-b border-outline-variant/20' : ''}">
+            <div class="w-9 h-9 rounded-lg bg-surface-container flex items-center justify-center shrink-0">
+              <span class="material-symbols-outlined text-on-surface-variant text-lg">${icon}</span>
+            </div>
+            <div class="flex-1">
+              <div class="flex justify-between items-center mb-1">
+                <span class="font-body text-[13px] font-semibold text-on-surface">${s.sec}</span>
+                <span class="font-label text-[10px] font-bold px-2 py-0.5 rounded-full ${s.badgeClass}">${s.inA && s.inB ? s.pct + '% OVERLAP' : s.inA ? 'YOUR FOCUS' : 'THEIR FOCUS'}</span>
+              </div>
+              <div class="h-1 w-full bg-surface-container rounded-full overflow-hidden">
+                <div class="h-full rounded-full bar-fill" style="width:0%; background:${s.color}" data-target="${s.pct}"></div>
+              </div>
+            </div>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>
+
+    <!-- Stage & Geography Match -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-5 mb-6">
+      <div class="glass-panel rounded-xl p-6">
+        <span class="font-label text-[10px] tracking-widest text-on-surface-variant uppercase block mb-4">Investment Stage Alignment</span>
+        <div class="space-y-3">
+          ${['Pre-Seed','Seed','Series A','Series B','Series B+','Growth'].map(stage => {
+            const inA = (user.stages||[]).includes(stage);
+            const inB = (candidate.stages||[]).includes(stage);
+            const match = inA && inB;
+            const partial = inA || inB;
+            return `
+            <div class="flex items-center gap-3">
+              <div class="w-5 h-5 rounded shrink-0 flex items-center justify-center ${match ? 'bg-tertiary' : partial ? 'bg-secondary' : 'bg-surface-container'}">
+                ${match ? `<span class="material-symbols-outlined text-on-tertiary text-[12px]" style="font-variation-settings:'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 24">check</span>` :
+                  partial ? `<span class="font-label text-[10px] font-bold text-on-secondary">~</span>` : ''}
+              </div>
+              <span class="font-body text-[13px] text-on-surface flex-1">${stage}</span>
+              <div class="flex gap-1.5">
+                ${inA ? `<span class="font-label text-[9px] tracking-wider px-1.5 py-0.5 bg-secondary/15 text-secondary rounded border border-secondary/30">YOU</span>` : ''}
+                ${inB ? `<span class="font-label text-[9px] tracking-wider px-1.5 py-0.5 bg-tertiary/15 text-tertiary rounded border border-tertiary/30">MATCH</span>` : ''}
+              </div>
+            </div>`;
+          }).join('')}
+        </div>
+      </div>
+
+      <div class="glass-panel rounded-xl p-6">
+        <span class="font-label text-[10px] tracking-widest text-on-surface-variant uppercase block mb-4">Profile Comparison</span>
+        <div class="space-y-3">
+          ${[
+            { label: 'AUM / Capital', a: user.aum||'—', b: candidate.aum||'—' },
+            { label: 'Geography', a: user.geography||'—', b: candidate.geography||'—' },
+            { label: 'Risk Tolerance', a: user.riskTolerance||'—', b: candidate.riskTolerance||'—' },
+            { label: 'Min Check', a: `$${user.minCheck||'—'}M`, b: `$${candidate.minCheck||'—'}M` },
+            { label: 'Max Check', a: `$${user.maxCheck||'—'}M`, b: `$${candidate.maxCheck||'—'}M` },
+            ...(candidate.mandate ? [{ label: 'Mandate', a: user.mandate||user.timeline||'—', b: candidate.mandate||'—' }] : []),
+            ...(candidate.concentration ? [{ label: 'Concentration', a: user.concentration||'—', b: candidate.concentration||'—' }] : []),
+          ].map(row => `
+          <div class="flex items-center gap-3 py-1.5 border-b border-outline-variant/20">
+            <span class="font-label text-[10px] tracking-wider text-on-surface-variant uppercase w-28 shrink-0">${row.label}</span>
+            <span class="flex-1 text-[12px] font-semibold text-secondary">${row.a}</span>
+            <span class="text-on-surface-variant/40 text-xs">vs</span>
+            <span class="flex-1 text-[12px] font-semibold text-tertiary text-right">${row.b}</span>
+          </div>`).join('')}
+        </div>
+      </div>
+    </div>
+
+    <!-- CTA Banner -->
+    <div class="glass-panel rounded-xl p-8 md:p-10 flex flex-col md:flex-row items-center justify-between gap-6 border border-secondary/20 bg-secondary/5 no-print" id="cta-banner">
+      <div class="max-w-xl text-center md:text-left">
+        <span class="font-label text-[10px] tracking-widest text-secondary uppercase block mb-2">Algorithmic Recommendation</span>
+        <h2 class="font-display text-2xl md:text-3xl font-bold text-on-surface mb-3">Secure This Connection</h2>
+        <p class="text-[13px] text-on-surface-variant leading-6">The algorithmic confidence for this partnership places it within the <strong class="text-on-surface">top ${scores.overall >= 85 ? '5' : scores.overall >= 70 ? '15' : '30'}%</strong> of all institutional matches this quarter. We recommend immediate engagement.</p>
+      </div>
+      <div class="flex flex-col gap-3 w-full md:w-auto shrink-0">
+        <button onclick="initiateContact()" class="h-12 px-8 bg-secondary text-on-secondary font-label text-[11px] font-semibold tracking-widest uppercase rounded-lg hover:opacity-90 transition-all flex items-center justify-center gap-2">
+          <span class="material-symbols-outlined text-base">send</span> Initiate Contact
+        </button>
+        <button onclick="scheduleBriefing()" class="h-12 px-8 border border-secondary/50 text-secondary font-label text-[11px] font-semibold tracking-widest uppercase rounded-lg hover:bg-secondary/10 transition-all flex items-center justify-center gap-2">
+          <span class="material-symbols-outlined text-base">calendar_today</span> Schedule Briefing
+        </button>
+      </div>
+    </div>
+
+    <!-- Back link -->
+    <div class="mt-6 flex items-center justify-between no-print">
+      <a href="discovery.html" class="font-label text-[11px] tracking-widest text-on-surface-variant/60 hover:text-on-surface-variant uppercase transition-colors">← Back to All Matches</a>
+      <button onclick="window.print()" class="flex items-center gap-2 font-label text-[11px] tracking-widest text-on-surface-variant/60 hover:text-on-surface-variant uppercase transition-colors">
+        <span class="material-symbols-outlined text-base">print</span>Export PDF
+      </button>
+    </div>
+  </div>`;
+
+  document.getElementById('report-root').innerHTML = html;
+
+  // Animate score ring
+  setTimeout(() => {
+    const ring = document.getElementById('score-ring');
+    if (ring) ring.style.strokeDashoffset = offset;
+
+    // Count up score number
+    let current = 0;
+    const target = scores.overall;
+    const numEl = document.getElementById('score-number');
+    const interval = setInterval(() => {
+      current += 2;
+      if (current >= target) { current = target; clearInterval(interval); }
+      if (numEl) numEl.textContent = current;
+    }, 20);
+
+    // Animate bars
+    document.querySelectorAll('.bar-fill').forEach(el => {
+      const target = el.dataset.target;
+      setTimeout(() => { el.style.width = target + '%'; }, 200);
+    });
+  }, 100);
+}
+
+function initiateContact() {
+  const candidate = JSON.parse(localStorage.getItem('ee_selected_candidate') || '{}');
+  eeOpenMessage(candidate.name || 'this contact');
+}
+
+function scheduleBriefing() {
+  eeShowToast('Calendar integration coming soon. Contact the Equitas Elite concierge team to arrange briefings.');
+}
+
+// ── Init ──────────────────────────────────────────────────────
+function init() {
+  const user = eeBootstrap('deal-room.html');
+  if (!user) return;
+
+  let candidate = JSON.parse(localStorage.getItem('ee_selected_candidate') || 'null');
+
+  if (!candidate) {
+    const isAngel = user.type === 'angel';
+    candidate = isAngel ? MOCK_FAMILY_OFFICES[0] : MOCK_ANGELS[0];
+  }
+
+  document.getElementById('loading-state')?.remove();
+  renderReport(user, candidate);
+}
+
+init();
+</script>
+</body>
+</html>

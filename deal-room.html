@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html class="dark" lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Equitas Elite — Deal Room</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Playfair+Display:wght@600;700&family=IBM+Plex+Sans:wght@500;600&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<script>
+tailwind.config={darkMode:"class",theme:{extend:{colors:{"surface-container-highest":"#26364a","surface-container-high":"#1b2b3f","surface-container":"#102034","surface-container-low":"#0b1c30","surface-container-lowest":"#000f21","background":"#031427","surface":"#031427","surface-bright":"#2a3a4f","surface-variant":"#26364a","primary":"#bec6e0","on-primary":"#283044","primary-container":"#0f172a","on-primary-container":"#798098","secondary":"#e9c176","on-secondary":"#412d00","secondary-container":"#604403","on-secondary-container":"#dab36a","tertiary":"#4edea3","on-tertiary":"#003824","tertiary-container":"#001c10","on-tertiary-container":"#009365","on-surface":"#d3e4fe","on-surface-variant":"#c6c6cd","outline":"#909097","outline-variant":"#45464d"},borderRadius:{"sm":"0.25rem","DEFAULT":"0.5rem","md":"0.75rem","lg":"1rem","xl":"1.5rem","full":"9999px"},fontFamily:{"display":["Playfair Display","serif"],"body":["Inter","sans-serif"],"label":["IBM Plex Sans","sans-serif"]}}}}
+</script>
+<style>
+  .material-symbols-outlined{font-variation-settings:'FILL' 0,'wght' 300,'GRAD' 0,'opsz' 24}
+  .glass-panel{background:rgba(16,32,52,0.6);backdrop-filter:blur(12px);border:1px solid rgba(69,70,77,0.5)}
+  .chat-bubble-out{background:rgba(233,193,118,0.15);border:1px solid rgba(233,193,118,0.25)}
+  .chat-bubble-in{background:rgba(16,32,52,0.8);border:1px solid rgba(69,70,77,0.4)}
+  .folder-tree li{list-style:none}
+  select option{background:#102034}
+  body{min-height:100dvh}
+</style>
+</head>
+<body class="bg-background text-on-surface font-body">
+
+<div id="ee-topbar"></div>
+
+<div class="flex pt-14 min-h-screen">
+  <div id="ee-sidebar"></div>
+
+  <main class="flex-1 lg:ml-60 px-5 md:px-8 py-6 pb-24 lg:pb-6">
+    <div class="max-w-7xl mx-auto">
+
+      <!-- Deal Selector -->
+      <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-6">
+        <div>
+          <span class="font-label text-[10px] tracking-widest text-on-surface-variant uppercase">Active Deal</span>
+          <div class="flex items-center gap-3 mt-1">
+            <h1 class="font-display text-[22px] md:text-[28px] font-bold leading-tight text-on-surface" id="deal-title">Aurelius Capital Series B</h1>
+            <span class="font-label text-[9px] font-bold tracking-wider px-2.5 py-1 bg-tertiary/15 text-tertiary border border-tertiary/30 rounded-full flex items-center gap-1">
+              <span class="material-symbols-outlined text-xs" style="font-variation-settings:'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 24">verified</span>VERIFIED
+            </span>
+          </div>
+          <p class="text-[12px] text-on-surface-variant mt-0.5" id="deal-subtitle">Transition to Renewable Energy Grid Infrastructure</p>
+        </div>
+        <div class="flex items-center gap-3 shrink-0">
+          <div class="text-right hidden md:block">
+            <p class="font-label text-[10px] tracking-wider text-on-surface-variant uppercase">Funding Target</p>
+            <p class="font-display text-xl font-bold text-secondary" id="deal-target">$25.0M</p>
+          </div>
+          <div class="w-px h-8 bg-outline-variant/40 hidden md:block"></div>
+          <div class="text-right hidden md:block">
+            <p class="font-label text-[10px] tracking-wider text-on-surface-variant uppercase">Status</p>
+            <p class="font-label text-[11px] font-bold text-tertiary uppercase" id="deal-status">Active</p>
+          </div>
+          <select id="deal-selector" onchange="selectDeal(this.value)" class="bg-surface-container border border-outline-variant/50 text-[12px] font-label text-on-surface rounded-lg px-3 py-2 outline-none">
+            <option value="0">Aurelius Capital Series B</option>
+            <option value="1">Nova Labs AI — Series A</option>
+            <option value="2">GreenHorizon Seed</option>
+            <option value="3">Vault Therapeutics Series B</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Funding progress bar -->
+      <div class="glass-panel rounded-xl p-4 mb-5">
+        <div class="flex items-center justify-between mb-2">
+          <span class="font-label text-[10px] tracking-widest text-on-surface-variant uppercase">Funding Progress</span>
+          <span class="font-label text-[11px] font-semibold text-secondary" id="deal-pct">73%</span>
+        </div>
+        <div class="h-2.5 w-full bg-surface-container rounded-full overflow-hidden">
+          <div class="h-full bg-secondary rounded-full transition-all duration-700" id="deal-progress" style="width:73%"></div>
+        </div>
+        <div class="flex justify-between mt-1.5 text-[11px] text-on-surface-variant">
+          <span>Raised: <span class="text-on-surface font-semibold" id="deal-raised">$18.4M</span></span>
+          <span>Target: <span class="text-on-surface font-semibold" id="deal-target-sm">$25.0M</span></span>
+        </div>
+      </div>
+
+      <!-- Action buttons -->
+      <div class="flex flex-wrap gap-3 mb-6">
+        <button onclick="submitCommitment()" class="h-10 px-5 bg-secondary text-on-secondary font-label text-[10px] font-bold tracking-widest uppercase rounded-lg hover:opacity-90 transition-all flex items-center gap-2">
+          <span class="material-symbols-outlined text-base">handshake</span>Submit Commitment
+        </button>
+        <button onclick="eeOpenMessage('Deal Team')" class="h-10 px-5 border border-outline-variant text-on-surface font-label text-[10px] font-semibold tracking-widest uppercase rounded-lg hover:bg-surface-container transition-all flex items-center gap-2">
+          <span class="material-symbols-outlined text-base">calendar_today</span>Request Meeting
+        </button>
+        <button onclick="eeOpenModal('upload-modal')" class="h-10 px-5 border border-outline-variant text-on-surface font-label text-[10px] font-semibold tracking-widest uppercase rounded-lg hover:bg-surface-container transition-all flex items-center gap-2">
+          <span class="material-symbols-outlined text-base">upload_file</span>Upload Document
+        </button>
+        <button onclick="window.location.href='alignment.html'" class="h-10 px-5 border border-secondary/40 text-secondary font-label text-[10px] font-semibold tracking-widest uppercase rounded-lg hover:bg-secondary/10 transition-all flex items-center gap-2">
+          <span class="material-symbols-outlined text-base">analytics</span>View Alignment
+        </button>
+      </div>
+
+      <!-- Main 3-col layout -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-5">
+
+        <!-- Document Vault -->
+        <div class="lg:col-span-4 glass-panel rounded-xl p-5 flex flex-col">
+          <div class="flex items-center justify-between mb-4">
+            <div class="flex items-center gap-2">
+              <span class="font-label text-[10px] tracking-widest text-on-surface-variant uppercase">Document Vault</span>
+              <span class="font-label text-[9px] font-bold tracking-wider px-2 py-0.5 bg-tertiary/15 text-tertiary border border-tertiary/30 rounded-full">SECURE</span>
+            </div>
+            <button onclick="eeOpenModal('upload-modal')" class="p-1.5 hover:bg-surface-container rounded-lg transition-colors" title="Upload">
+              <span class="material-symbols-outlined text-on-surface-variant text-base">upload_file</span>
+            </button>
+          </div>
+
+          <!-- Folder tree -->
+          <ul id="vault-tree" class="folder-tree space-y-1 flex-1 text-[13px]">
+            <!-- injected by JS -->
+          </ul>
+
+          <div class="mt-4 pt-3 border-t border-outline-variant/30">
+            <button onclick="eeOpenModal('upload-modal')" class="w-full h-9 border border-dashed border-outline-variant/50 text-on-surface-variant font-label text-[10px] font-semibold tracking-wider uppercase rounded-lg hover:border-secondary/50 hover:text-secondary transition-all flex items-center justify-center gap-2">
+              <span class="material-symbols-outlined text-sm">add</span>Add Document
+            </button>
+          </div>
+        </div>
+
+        <!-- Activity Stream -->
+        <div class="lg:col-span-4 glass-panel rounded-xl p-5 flex flex-col">
+          <span class="font-label text-[10px] tracking-widest text-on-surface-variant uppercase mb-4">Activity Stream</span>
+          <div class="space-y-4 flex-1 overflow-y-auto max-h-96 lg:max-h-none" id="activity-stream">
+            <!-- injected by JS -->
+          </div>
+        </div>
+
+        <!-- Secure Chat -->
+        <div class="lg:col-span-4 glass-panel rounded-xl flex flex-col overflow-hidden" style="min-height:420px">
+          <div class="flex items-center justify-between px-4 py-3 border-b border-outline-variant/30 shrink-0">
+            <div>
+              <span class="font-label text-[10px] tracking-widest text-on-surface-variant uppercase">Secure Chat</span>
+              <div class="flex items-center gap-2 mt-0.5">
+                <div class="w-1.5 h-1.5 rounded-full bg-tertiary"></div>
+                <span class="font-label text-[10px] text-tertiary">3 Active</span>
+                <span class="font-label text-[10px] text-on-surface-variant/50">· 1 Pending</span>
+              </div>
+            </div>
+            <button class="font-label text-[10px] font-semibold tracking-wider text-secondary hover:underline uppercase">···</button>
+          </div>
+          <div class="flex-1 overflow-y-auto px-4 py-3 space-y-3" id="chat-messages">
+            <!-- injected by JS -->
+          </div>
+          <div class="px-4 py-3 border-t border-outline-variant/30 shrink-0">
+            <div class="flex gap-2 items-end">
+              <textarea id="chat-input" rows="2" placeholder="Send a secure message…" onkeydown="handleChatKey(event)"
+                class="flex-1 bg-surface-container border border-outline-variant/50 focus:border-secondary rounded-lg px-3 py-2 text-[13px] text-on-surface placeholder:text-on-surface-variant/40 outline-none resize-none transition-colors"></textarea>
+              <button onclick="sendChatMessage()" class="h-10 px-4 bg-secondary text-on-secondary font-label text-[10px] font-bold uppercase rounded-lg hover:opacity-90 transition-all shrink-0">
+                <span class="material-symbols-outlined text-base">send</span>
+              </button>
+            </div>
+            <div class="flex items-center gap-2 mt-2">
+              <button class="p-1.5 hover:bg-surface-container rounded transition-colors"><span class="material-symbols-outlined text-on-surface-variant text-base">attach_file</span></button>
+              <button class="p-1.5 hover:bg-surface-container rounded transition-colors"><span class="material-symbols-outlined text-on-surface-variant text-base">emoji_emotions</span></button>
+              <span class="font-label text-[9px] text-on-surface-variant/40 ml-auto flex items-center gap-1"><span class="material-symbols-outlined text-[10px]">lock</span>End-to-end encrypted</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Key Stakeholders -->
+      <div class="glass-panel rounded-xl p-5 mt-5">
+        <div class="flex items-center justify-between mb-4">
+          <span class="font-label text-[10px] tracking-widest text-on-surface-variant uppercase">Key Stakeholders</span>
+          <button onclick="eeOpenModal('invite-modal')" class="font-label text-[10px] font-semibold tracking-wider text-secondary hover:underline uppercase flex items-center gap-1">
+            <span class="material-symbols-outlined text-sm">person_add</span>Invite
+          </button>
+        </div>
+        <div class="flex flex-wrap gap-3" id="stakeholder-list">
+          <!-- injected by JS -->
+        </div>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<div id="ee-mobile-nav"></div>
+
+<script src="shared.js"></script>
+<script>
+const VAULT_TREE = [
+  { label:'Due Diligence', icon:'folder', open:true, children:[
+    { label:'Cap_Table_Q3_24.xlsx', icon:'table_chart', size:'2.4 MB', date:'Today', new:true },
+    { label:'Technical_Audit_Summary.pdf', icon:'description', size:'1.8 MB', date:'Oct 14' },
+  ]},
+  { label:'DRIVE_PRES…', icon:'folder', open:false, children:[
+    { label:'Investor_Deck_v7.pptx', icon:'slideshow', size:'12.1 MB', date:'Oct 12' },
+  ]},
+  { label:'Financial_Projections_5Y.xlsx', icon:'table_chart', size:'3.2 MB', date:'Oct 10' },
+  { label:'Legal', icon:'folder', open:false, children:[
+    { label:'Term_Sheet_Draft_v2.pdf', icon:'gavel', size:'890 KB', date:'Oct 9' },
+    { label:'SHA_Draft.pdf', icon:'gavel', size:'1.1 MB', date:'Oct 8' },
+  ]},
+];
+
+const ACTIVITY_ITEMS = [
+  { icon:'upload_file', color:'text-secondary', bg:'bg-secondary/15', title:'New Term Sheet Uploaded', body:'Today, 09:40 AM · By Marcus Aurelius', time:'Just now', new:true },
+  { icon:'verified_user', color:'text-tertiary', bg:'bg-tertiary/15', title:'Legal Review Completed', body:'Sutton & Co. · External legal audit initiated', time:'2h ago' },
+  { icon:'manage_search', color:'text-primary', bg:'bg-primary/15', title:'Due Diligence Started', body:'Oct 23, 2024 · Private access granted', time:'Oct 23' },
+  { icon:'lock_open', color:'text-on-surface-variant', bg:'bg-surface-container', title:'Deal Room Initialized', body:'Oct 22, 2024 · Private access granted', time:'Oct 22' },
+];
+
+const CHAT_MSGS = [
+  { from:'Julian Thorne', mine:false, time:'11:32 AM', text:"Has everyone reviewed the latest Cap Table? We've updated the employee pool allocation per the discussion on Friday." },
+  { from:'Me', mine:true, time:'11:45 AM', text:'Reviewing now. The delta on the ESOP looks correct. I\'ll confirm with our analysts by EOD.' },
+  { from:'Sarah Chen', mine:false, time:'11:52 AM', text:"Great, I'll flag this for the board meeting. Reply when you're ready to execute." },
+];
+
+const STAKEHOLDERS = [
+  { name:'Sarah Chen', role:'Managing Director', firm:'Aurelius Capital', initials:'SC', color:'bg-secondary/20 text-secondary' },
+  { name:'Julian Thorne', role:'Founding Partner', firm:'Nexus Ventures', initials:'JT', color:'bg-primary/20 text-primary' },
+  { name:'Elena Ricci', role:'Legal Counsel', firm:'Sutton & Co.', initials:'ER', color:'bg-tertiary/20 text-tertiary' },
+  { name:'Marcus Cole', role:'Co-Investor', firm:'Cole Frontier Capital', initials:'MC', color:'bg-on-primary-container/20 text-on-primary-container' },
+];
+
+const DEALS = MOCK_DEALS; // from shared.js
+
+function renderVaultTree(items, depth) {
+  return items.map(item => {
+    if (item.children) {
+      return `
+      <li>
+        <button onclick="this.nextElementSibling.classList.toggle('hidden')" class="flex items-center gap-2 w-full text-left px-2 py-1.5 hover:bg-surface-container rounded-lg transition-colors group">
+          <span class="material-symbols-outlined text-secondary text-base" style="font-variation-settings:'FILL' 1,'wght' 300,'GRAD' 0,'opsz' 24">folder</span>
+          <span class="flex-1 text-[13px] text-on-surface">${item.label}</span>
+          <span class="material-symbols-outlined text-on-surface-variant/50 text-sm group-hover:text-on-surface-variant transition-colors">${item.open?'expand_less':'expand_more'}</span>
+        </button>
+        <ul class="${item.open?'':'hidden'} ml-5 space-y-0.5 mt-0.5">
+          ${renderVaultTree(item.children, depth+1)}
+        </ul>
+      </li>`;
+    }
+    return `
+    <li>
+      <div class="flex items-center gap-2 px-2 py-1.5 hover:bg-surface-container rounded-lg group cursor-pointer">
+        <span class="material-symbols-outlined text-on-surface-variant text-base">${item.icon||'description'}</span>
+        <div class="flex-1 min-w-0">
+          <p class="text-[12px] text-on-surface truncate">${item.label} ${item.new?'<span class="font-label text-[9px] px-1.5 bg-secondary/20 text-secondary rounded-full">NEW</span>':''}</p>
+          <p class="text-[10px] text-on-surface-variant/60">${item.size} · ${item.date}</p>
+        </div>
+        <button class="opacity-0 group-hover:opacity-100 p-1 hover:bg-surface-container-high rounded transition-all" title="Download">
+          <span class="material-symbols-outlined text-on-surface-variant text-sm">download</span>
+        </button>
+      </div>
+    </li>`;
+  }).join('');
+}
+
+function renderActivity() {
+  document.getElementById('activity-stream').innerHTML = ACTIVITY_ITEMS.map(a=>`
+    <div class="flex gap-3 items-start">
+      <div class="w-8 h-8 rounded-full ${a.bg} flex items-center justify-center shrink-0 mt-0.5">
+        <span class="material-symbols-outlined ${a.color} text-sm" style="font-variation-settings:'FILL' 1,'wght' 300,'GRAD' 0,'opsz' 24">${a.icon}</span>
+      </div>
+      <div class="flex-1">
+        <div class="flex items-center gap-2">
+          <p class="text-[13px] font-semibold text-on-surface">${a.title}</p>
+          ${a.new?'<span class="font-label text-[9px] px-1.5 bg-secondary/20 text-secondary rounded-full">NEW</span>':''}
+        </div>
+        <p class="text-[11px] text-on-surface-variant mt-0.5">${a.body}</p>
+        <p class="font-label text-[10px] text-on-surface-variant/40 mt-1">${a.time}</p>
+      </div>
+    </div>`).join('');
+}
+
+function renderChat() {
+  document.getElementById('chat-messages').innerHTML = CHAT_MSGS.map(m=>`
+    <div class="flex ${m.mine?'justify-end':'justify-start'} gap-2 items-end">
+      ${!m.mine?`<div class="w-7 h-7 rounded-full bg-primary/20 flex items-center justify-center shrink-0 text-[11px] font-bold text-primary">${m.from.split(' ').map(w=>w[0]).join('')}</div>`:''}
+      <div class="max-w-[80%]">
+        ${!m.mine?`<p class="font-label text-[10px] tracking-wider text-on-surface-variant mb-1">${m.from}</p>`:''}
+        <div class="${m.mine?'chat-bubble-out':'chat-bubble-in'} rounded-xl px-3.5 py-2.5">
+          <p class="text-[13px] text-on-surface leading-5">${m.text}</p>
+        </div>
+        <p class="font-label text-[10px] text-on-surface-variant/40 mt-1 ${m.mine?'text-right':''}">${m.time}</p>
+      </div>
+    </div>`).join('');
+  const chatEl = document.getElementById('chat-messages');
+  chatEl.scrollTop = chatEl.scrollHeight;
+}
+
+function sendChatMessage() {
+  const input = document.getElementById('chat-input');
+  const text = input.value.trim();
+  if (!text) return;
+  CHAT_MSGS.push({ from:'Me', mine:true, time:'Just now', text });
+  input.value = '';
+  renderChat();
+}
+
+function handleChatKey(e) {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChatMessage(); }
+}
+
+function renderStakeholders() {
+  document.getElementById('stakeholder-list').innerHTML = STAKEHOLDERS.map(s=>`
+    <div class="flex items-center gap-3 glass-panel rounded-xl p-3 cursor-pointer hover:border-secondary/30 transition-colors" onclick="eeOpenMessage('${s.name.replace(/'/g,"\\'")}')" style="min-width:180px;flex:1 1 auto;max-width:240px">
+      <div class="w-10 h-10 rounded-full ${s.color} flex items-center justify-center font-label text-[13px] font-bold shrink-0">${s.initials}</div>
+      <div class="min-w-0">
+        <p class="text-[13px] font-semibold text-on-surface truncate">${s.name}</p>
+        <p class="text-[11px] text-on-surface-variant truncate">${s.role}</p>
+        <p class="font-label text-[10px] text-on-surface-variant/50 truncate">${s.firm}</p>
+      </div>
+    </div>`).join('');
+}
+
+function selectDeal(idx) {
+  const d = MOCK_DEALS[idx];
+  if (!d) return;
+  document.getElementById('deal-title').textContent = d.name;
+  document.getElementById('deal-subtitle').textContent = d.description;
+  document.getElementById('deal-target').textContent = `$${d.target}M`;
+  document.getElementById('deal-status').textContent = d.status;
+  document.getElementById('deal-target-sm').textContent = `$${d.target}M`;
+  document.getElementById('deal-raised').textContent = `$${d.raised}M`;
+  document.getElementById('deal-pct').textContent = `${d.pct}%`;
+  document.getElementById('deal-progress').style.width = d.pct + '%';
+}
+
+function submitCommitment() {
+  const name = document.getElementById('deal-title').textContent;
+  eeShowToast(`Commitment submitted for "${name}". The deal team will confirm within 48 hours.`);
+}
+
+function init() {
+  const user = eeBootstrap('deal-room.html');
+  if (!user) return;
+  document.getElementById('vault-tree').innerHTML = `<ul class="space-y-1">${renderVaultTree(VAULT_TREE, 0)}</ul>`;
+  renderActivity();
+  renderChat();
+  renderStakeholders();
+}
+init();
+</script>
+</body>
+</html>

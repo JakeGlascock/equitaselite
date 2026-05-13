@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html class="dark" lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Equitas Elite — Dashboard</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Playfair+Display:wght@600;700&family=IBM+Plex+Sans:wght@500;600&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+tailwind.config = {
+  darkMode: "class",
+  theme: {
+    extend: {
+      colors: {
+        "surface-container-highest": "#26364a",
+        "surface-container-high": "#1b2b3f",
+        "surface-container": "#102034",
+        "surface-container-low": "#0b1c30",
+        "surface-container-lowest": "#000f21",
+        "background": "#031427",
+        "surface": "#031427",
+        "surface-bright": "#2a3a4f",
+        "surface-variant": "#26364a",
+        "primary": "#bec6e0",
+        "on-primary": "#283044",
+        "primary-container": "#0f172a",
+        "on-primary-container": "#798098",
+        "secondary": "#e9c176",
+        "on-secondary": "#412d00",
+        "secondary-container": "#604403",
+        "on-secondary-container": "#dab36a",
+        "tertiary": "#4edea3",
+        "on-tertiary": "#003824",
+        "tertiary-container": "#001c10",
+        "on-tertiary-container": "#009365",
+        "on-surface": "#d3e4fe",
+        "on-surface-variant": "#c6c6cd",
+        "outline": "#909097",
+        "outline-variant": "#45464d",
+      },
+      borderRadius: {
+        "sm": "0.25rem",
+        "DEFAULT": "0.5rem",
+        "md": "0.75rem",
+        "lg": "1rem",
+        "xl": "1.5rem",
+        "full": "9999px",
+      },
+      fontFamily: {
+        "display": ["Playfair Display", "serif"],
+        "body": ["Inter", "sans-serif"],
+        "label": ["IBM Plex Sans", "sans-serif"],
+      },
+    },
+  },
+}
+</script>
+<style>
+  .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24; }
+  .nav-active { background: rgba(233,193,118,0.12); color: #e9c176; border-right: 2px solid #e9c176; }
+  .glass-panel { background: rgba(16,32,52,0.6); backdrop-filter: blur(12px); border: 1px solid rgba(69,70,77,0.5); }
+  .score-ring { stroke-dasharray: 226; stroke-dashoffset: 0; transition: stroke-dashoffset 1s ease; }
+  body { min-height: 100dvh; }
+</style>
+</head>
+<body class="bg-background text-on-surface font-body" id="app">
+
+<div id="ee-topbar"></div>
+
+<div class="flex pt-14 min-h-screen">
+  <div id="ee-sidebar"></div>
+
+  <!-- Main Content -->
+  <main class="flex-1 lg:ml-60 px-5 md:px-8 py-8 pb-24 lg:pb-8">
+    <div class="max-w-6xl mx-auto">
+
+      <!-- Page Header -->
+      <div class="mb-8">
+        <span class="font-label text-[10px] tracking-[0.12em] text-on-surface-variant uppercase">Executive Overview</span>
+        <h1 class="font-display text-[28px] md:text-[36px] font-bold leading-tight text-on-surface mt-1" id="dashboard-headline">Dashboard</h1>
+        <p class="text-[13px] text-on-surface-variant mt-1" id="dashboard-sub">Welcome back</p>
+      </div>
+
+      <!-- Metric Cards -->
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8" id="metric-cards">
+        <!-- injected by JS -->
+      </div>
+
+      <!-- Main Grid -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+        <!-- Top Matches -->
+        <div class="lg:col-span-2 glass-panel rounded-xl p-5">
+          <div class="flex items-center justify-between mb-5">
+            <div>
+              <span class="font-label text-[10px] tracking-widest text-on-surface-variant uppercase">Curated Intelligence</span>
+              <h2 class="font-display text-lg font-bold text-on-surface" id="matches-title">Top Matches For You</h2>
+            </div>
+            <a href="matches.html" class="font-label text-[11px] font-semibold tracking-wider text-secondary hover:underline uppercase">View All</a>
+          </div>
+          <div id="match-list" class="space-y-3">
+            <!-- injected by JS -->
+          </div>
+        </div>
+
+        <!-- Alignment Summary & Activity -->
+        <div class="space-y-5">
+          <!-- My Mandate Summary -->
+          <div class="glass-panel rounded-xl p-5">
+            <span class="font-label text-[10px] tracking-widest text-on-surface-variant uppercase block mb-4">My Mandate</span>
+            <div id="mandate-summary" class="space-y-3">
+              <!-- injected by JS -->
+            </div>
+          </div>
+
+          <!-- Recent Activity -->
+          <div class="glass-panel rounded-xl p-5">
+            <span class="font-label text-[10px] tracking-widest text-on-surface-variant uppercase block mb-4">Recent Activity</span>
+            <div class="space-y-3" id="activity-list">
+              <div class="flex gap-3 items-start">
+                <div class="w-8 h-8 rounded-full bg-tertiary/20 flex items-center justify-center shrink-0 mt-0.5">
+                  <span class="material-symbols-outlined text-tertiary text-sm" style="font-variation-settings:'FILL' 1,'wght' 300,'GRAD' 0,'opsz' 24">check_circle</span>
+                </div>
+                <div>
+                  <p class="text-[13px] font-semibold text-on-surface">Profile Verified</p>
+                  <p class="text-[11px] text-on-surface-variant mt-0.5">Your institutional profile has been approved.</p>
+                  <p class="font-label text-[10px] text-on-surface-variant/50 mt-1">Just now</p>
+                </div>
+              </div>
+              <div class="flex gap-3 items-start">
+                <div class="w-8 h-8 rounded-full bg-secondary/20 flex items-center justify-center shrink-0 mt-0.5">
+                  <span class="material-symbols-outlined text-secondary text-sm">hub</span>
+                </div>
+                <div>
+                  <p class="text-[13px] font-semibold text-on-surface">New Matches Found</p>
+                  <p class="text-[11px] text-on-surface-variant mt-0.5">Algorithm identified 3 high-alignment opportunities.</p>
+                  <p class="font-label text-[10px] text-on-surface-variant/50 mt-1">2 hours ago</p>
+                </div>
+              </div>
+              <div class="flex gap-3 items-start">
+                <div class="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center shrink-0 mt-0.5">
+                  <span class="material-symbols-outlined text-primary text-sm">mail</span>
+                </div>
+                <div>
+                  <p class="text-[13px] font-semibold text-on-surface">Message Received</p>
+                  <p class="text-[11px] text-on-surface-variant mt-0.5">Blackwood Capital Partners sent an introduction.</p>
+                  <p class="font-label text-[10px] text-on-surface-variant/50 mt-1">1 day ago</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Sector Allocation -->
+      <div class="mt-6 glass-panel rounded-xl p-5">
+        <div class="flex items-center justify-between mb-5">
+          <div>
+            <span class="font-label text-[10px] tracking-widest text-on-surface-variant uppercase">Distribution Analysis</span>
+            <h2 class="font-display text-lg font-bold text-on-surface">Sector Alignment Map</h2>
+          </div>
+        </div>
+        <div id="sector-chart" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3">
+          <!-- injected by JS -->
+        </div>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<div id="ee-mobile-nav"></div>
+
+<script src="shared.js"></script>
+<script>
+function getSectorColor(score) {
+  if (score >= 80) return '#4edea3';
+  if (score >= 60) return '#e9c176';
+  return '#909097';
+}
+
+function init() {
+  const user = eeBootstrap('dashboard.html');
+  if (!user) return;
+
+  const isAngel = user.type === 'angel';
+  const shortName = user.name ? user.name.split(' ')[0] : 'Member';
+
+  document.getElementById('dashboard-headline').textContent = `Welcome back, ${shortName}`;
+  document.getElementById('dashboard-sub').textContent = isAngel
+    ? `${user.firm || 'Your firm'} · Angel Investor`
+    : `${user.firm || 'Your firm'} · Family Office`;
+
+  // Match candidates
+  const candidates = isAngel ? MOCK_FAMILY_OFFICES : MOCK_ANGELS;
+  const scored = candidates.map(c => ({ ...c, score: eeMatchScore(user, c) })).sort((a,b) => b.score - a.score);
+
+  // Metric cards
+  const topScore = scored[0]?.score || 0;
+  const activeMatches = scored.filter(c => c.score >= 55).length;
+  const metricsHtml = [
+    { label: 'AUM / Capital', value: user.aum || '—', icon: 'account_balance_wallet', color: 'text-primary' },
+    { label: 'Active Matches', value: activeMatches, icon: 'hub', color: 'text-tertiary' },
+    { label: 'Top Alignment', value: topScore + '%', icon: 'trending_up', color: 'text-secondary' },
+    { label: 'Deal Room', value: '3 Active', icon: 'handshake', color: 'text-on-surface-variant' },
+  ].map(m => `
+    <div class="glass-panel rounded-xl p-4 flex flex-col gap-2">
+      <div class="flex items-center justify-between">
+        <span class="font-label text-[10px] tracking-widest text-on-surface-variant uppercase">${m.label}</span>
+        <span class="material-symbols-outlined ${m.color} text-lg">${m.icon}</span>
+      </div>
+      <p class="font-display text-2xl font-bold text-on-surface">${m.value}</p>
+    </div>`).join('');
+  document.getElementById('metric-cards').innerHTML = metricsHtml;
+
+  // Match list (top 3)
+  document.getElementById('matches-title').textContent = isAngel ? 'Top Family Office Matches' : 'Top Angel Investor Matches';
+  const matchHtml = scored.slice(0,3).map(c => {
+    const sOverlap = (user.sectors||[]).filter(s => (c.sectors||[]).includes(s));
+    const scoreColor = c.score >= 80 ? 'text-tertiary' : c.score >= 65 ? 'text-secondary' : 'text-on-surface-variant';
+    const scoreBg = c.score >= 80 ? 'bg-tertiary/15 border-tertiary/30' : c.score >= 65 ? 'bg-secondary/15 border-secondary/30' : 'bg-surface-container border-outline-variant/30';
+    const encodedC = encodeURIComponent(JSON.stringify(c));
+    return `
+    <div class="border border-outline-variant/30 rounded-lg p-4 hover:border-outline-variant/60 hover:bg-surface-container/40 transition-all cursor-pointer" onclick="openAlignment('${encodedC}')">
+      <div class="flex items-start justify-between gap-3">
+        <div class="flex items-center gap-3 flex-1 min-w-0">
+          <div class="w-10 h-10 rounded-lg bg-primary/15 flex items-center justify-center shrink-0">
+            <span class="material-symbols-outlined text-primary text-lg" style="font-variation-settings:'FILL' 1,'wght' 300,'GRAD' 0,'opsz' 24">${c.type === 'family_office' ? 'account_balance' : 'person_raised_hand'}</span>
+          </div>
+          <div class="min-w-0">
+            <p class="font-body text-[14px] font-semibold text-on-surface truncate">${c.firm || c.name}</p>
+            <p class="font-label text-[10px] tracking-wider text-on-surface-variant">${c.title} · ${c.location}</p>
+          </div>
+        </div>
+        <div class="flex flex-col items-end shrink-0">
+          <div class="px-2 py-1 ${scoreBg} border rounded-full flex items-center gap-1">
+            <span class="font-label text-[11px] font-bold ${scoreColor}">${c.score}%</span>
+          </div>
+          <span class="font-label text-[9px] tracking-wider text-on-surface-variant mt-0.5 uppercase">${eeScoreLabel(c.score)}</span>
+        </div>
+      </div>
+      <div class="mt-3 flex flex-wrap gap-1.5">
+        ${sOverlap.slice(0,3).map(s => `<span class="font-label text-[10px] tracking-wider px-2 py-0.5 bg-tertiary/15 text-tertiary rounded-full border border-tertiary/30">${s}</span>`).join('')}
+        ${c.sectors.filter(s => !sOverlap.includes(s)).slice(0,2).map(s => `<span class="font-label text-[10px] tracking-wider px-2 py-0.5 bg-surface-container text-on-surface-variant rounded-full border border-outline-variant/30">${s}</span>`).join('')}
+      </div>
+      <div class="mt-3 flex items-center justify-between">
+        <span class="text-[12px] text-on-surface-variant">${c.aum} · Stages: ${(c.stages||[]).join(', ')}</span>
+        <button class="font-label text-[10px] font-semibold tracking-wider text-secondary uppercase hover:underline">View Alignment →</button>
+      </div>
+    </div>`;
+  }).join('');
+  document.getElementById('match-list').innerHTML = matchHtml || '<p class="text-[13px] text-on-surface-variant text-center py-4">No matches yet. Complete your profile to receive curated recommendations.</p>';
+
+  // Mandate Summary
+  const sectors = user.sectors || [];
+  const stages = user.stages || [];
+  document.getElementById('mandate-summary').innerHTML = `
+    <div class="flex justify-between items-center py-1.5 border-b border-outline-variant/20">
+      <span class="text-[11px] text-on-surface-variant">AUM / Capital</span>
+      <span class="font-label text-[11px] font-semibold text-on-surface">${user.aum || '—'}</span>
+    </div>
+    <div class="flex justify-between items-center py-1.5 border-b border-outline-variant/20">
+      <span class="text-[11px] text-on-surface-variant">Check Range</span>
+      <span class="font-label text-[11px] font-semibold text-on-surface">$${user.minCheck}M – $${user.maxCheck}M</span>
+    </div>
+    <div class="flex justify-between items-center py-1.5 border-b border-outline-variant/20">
+      <span class="text-[11px] text-on-surface-variant">Stages</span>
+      <span class="font-label text-[11px] font-semibold text-on-surface">${stages.slice(0,2).join(', ')}${stages.length > 2 ? '…' : ''}</span>
+    </div>
+    <div class="flex justify-between items-center py-1.5 border-b border-outline-variant/20">
+      <span class="text-[11px] text-on-surface-variant">Geography</span>
+      <span class="font-label text-[11px] font-semibold text-on-surface">${user.geography || '—'}</span>
+    </div>
+    <div class="flex justify-between items-center py-1.5 border-b border-outline-variant/20">
+      <span class="text-[11px] text-on-surface-variant">Risk</span>
+      <span class="font-label text-[11px] font-semibold text-on-surface">${user.riskTolerance || '—'}</span>
+    </div>
+    <div class="pt-1">
+      <span class="text-[11px] text-on-surface-variant block mb-2">Focus Sectors</span>
+      <div class="flex flex-wrap gap-1">
+        ${sectors.map(s => `<span class="font-label text-[10px] tracking-wider px-2 py-0.5 bg-secondary/15 text-secondary rounded-full border border-secondary/30">${s}</span>`).join('') || '<span class="text-[11px] text-on-surface-variant/50">None defined</span>'}
+      </div>
+    </div>`;
+
+  // Sector chart
+  const ALL_SECTORS = ['FinTech','Deep Tech','Life Sciences','Clean Energy','SaaS','AI / ML','Healthcare','Defense Tech','Consumer','Real Estate'];
+  const userSectors = user.sectors || [];
+  const sectorScores = ALL_SECTORS.map(sec => {
+    const matchCount = candidates.filter(c => (c.sectors||[]).includes(sec)).length;
+    const isUser = userSectors.includes(sec);
+    const pct = Math.round((matchCount / candidates.length) * 100);
+    return { sec, pct, isUser };
+  }).filter(x => x.pct > 0 || x.isUser).sort((a,b) => b.pct - a.pct);
+
+  document.getElementById('sector-chart').innerHTML = sectorScores.slice(0,10).map(x => `
+    <div class="glass-panel rounded-lg p-3 ${x.isUser ? 'border-secondary/40' : ''}">
+      <div class="flex items-center justify-between mb-2">
+        <span class="font-label text-[10px] tracking-wider text-on-surface-variant uppercase truncate">${x.sec}</span>
+        ${x.isUser ? '<span class="material-symbols-outlined text-secondary text-sm" style="font-variation-settings:\'FILL\' 1,\'wght\' 300,\'GRAD\' 0,\'opsz\' 24">star</span>' : ''}
+      </div>
+      <div class="w-full h-1.5 bg-surface-container rounded-full overflow-hidden">
+        <div class="h-full rounded-full transition-all" style="width:${x.pct}%; background:${getSectorColor(x.pct)}"></div>
+      </div>
+      <p class="font-label text-[11px] font-semibold mt-1.5" style="color:${getSectorColor(x.pct)}">${x.pct}% match pool</p>
+    </div>`).join('');
+}
+
+function openAlignment(encodedCandidate) {
+  const candidate = JSON.parse(decodeURIComponent(encodedCandidate));
+  localStorage.setItem('ee_selected_candidate', JSON.stringify(candidate));
+  window.location.href = 'alignment.html';
+}
+
+init();
+</script>
+</body>
+</html>

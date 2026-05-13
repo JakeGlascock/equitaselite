@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html class="dark" lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Equitas Elite — Notifications</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Playfair+Display:wght@600;700&family=IBM+Plex+Sans:wght@500;600&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<script>
+tailwind.config={darkMode:"class",theme:{extend:{colors:{"surface-container-highest":"#26364a","surface-container-high":"#1b2b3f","surface-container":"#102034","surface-container-low":"#0b1c30","surface-container-lowest":"#000f21","background":"#031427","surface":"#031427","surface-bright":"#2a3a4f","surface-variant":"#26364a","primary":"#bec6e0","on-primary":"#283044","primary-container":"#0f172a","on-primary-container":"#798098","secondary":"#e9c176","on-secondary":"#412d00","secondary-container":"#604403","on-secondary-container":"#dab36a","tertiary":"#4edea3","on-tertiary":"#003824","tertiary-container":"#001c10","on-tertiary-container":"#009365","on-surface":"#d3e4fe","on-surface-variant":"#c6c6cd","outline":"#909097","outline-variant":"#45464d"},borderRadius:{"sm":"0.25rem","DEFAULT":"0.5rem","md":"0.75rem","lg":"1rem","xl":"1.5rem","full":"9999px"},fontFamily:{"display":["Playfair Display","serif"],"body":["Inter","sans-serif"],"label":["IBM Plex Sans","sans-serif"]}}}}
+</script>
+<style>
+  .material-symbols-outlined{font-variation-settings:'FILL' 0,'wght' 300,'GRAD' 0,'opsz' 24}
+  .glass-panel{background:rgba(16,32,52,0.6);backdrop-filter:blur(12px);border:1px solid rgba(69,70,77,0.5)}
+  .tab-active{border-bottom:2px solid #e9c176;color:#e9c176}
+  body{min-height:100dvh}
+</style>
+</head>
+<body class="bg-background text-on-surface font-body">
+
+<div id="ee-topbar"></div>
+<div class="flex pt-14 min-h-screen">
+  <div id="ee-sidebar"></div>
+
+  <main class="flex-1 lg:ml-60 px-5 md:px-8 py-8 pb-24 lg:pb-8">
+    <div class="max-w-3xl mx-auto">
+
+      <!-- Header -->
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+        <div>
+          <span class="font-label text-[10px] tracking-[.12em] text-on-surface-variant uppercase">Activity Center</span>
+          <h1 class="font-display text-[28px] md:text-[36px] font-bold leading-tight text-on-surface mt-1">Notifications</h1>
+          <p class="text-[13px] text-on-surface-variant mt-1">Stay updated on your private equity matches and syndicate activities.</p>
+        </div>
+        <div class="flex items-center gap-3 shrink-0">
+          <button onclick="markAllRead()" class="h-9 px-4 border border-outline-variant text-on-surface font-label text-[10px] font-semibold tracking-widest uppercase rounded-lg hover:bg-surface-container transition-all flex items-center gap-2">
+            <span class="material-symbols-outlined text-base">done_all</span>Mark all as read
+          </button>
+          <a href="settings.html" class="p-2 hover:bg-surface-container rounded-lg transition-colors" title="Notification settings">
+            <span class="material-symbols-outlined text-on-surface-variant">settings</span>
+          </a>
+        </div>
+      </div>
+
+      <!-- Tabs -->
+      <div class="flex border-b border-outline-variant/30 mb-6 gap-1">
+        <button onclick="setTab('all')" id="tab-all" class="tab-active font-label text-[11px] font-semibold tracking-widest uppercase px-4 py-3 transition-colors">All</button>
+        <button onclick="setTab('matches')" id="tab-matches" class="font-label text-[11px] font-semibold tracking-widest uppercase px-4 py-3 text-on-surface-variant hover:text-on-surface transition-colors">Matches</button>
+        <button onclick="setTab('deal_room')" id="tab-deal_room" class="font-label text-[11px] font-semibold tracking-widest uppercase px-4 py-3 text-on-surface-variant hover:text-on-surface transition-colors">Deal Room</button>
+        <button onclick="setTab('account')" id="tab-account" class="font-label text-[11px] font-semibold tracking-widest uppercase px-4 py-3 text-on-surface-variant hover:text-on-surface transition-colors">Account</button>
+      </div>
+
+      <!-- Notification List -->
+      <div id="notif-list" class="space-y-3"></div>
+
+      <!-- Empty state -->
+      <div id="empty-state" class="hidden text-center py-16">
+        <span class="material-symbols-outlined text-4xl text-on-surface-variant/30 block mb-3">notifications_off</span>
+        <p class="font-body text-[14px] text-on-surface-variant">No notifications in this category.</p>
+      </div>
+
+      <!-- Load more -->
+      <div class="mt-6 text-center">
+        <button class="font-label text-[11px] font-semibold tracking-widest text-on-surface-variant/60 hover:text-on-surface-variant uppercase transition-colors">Load Older Notifications</button>
+      </div>
+
+    </div>
+  </main>
+</div>
+<div id="ee-mobile-nav"></div>
+
+<script src="shared.js"></script>
+<script>
+let activeTab = 'all';
+let notifications = JSON.parse(JSON.stringify(MOCK_NOTIFICATIONS));
+
+function setTab(tab) {
+  activeTab = tab;
+  ['all','matches','deal_room','account'].forEach(t=>{
+    const el = document.getElementById(`tab-${t}`);
+    if(t===tab){ el.classList.add('tab-active'); el.classList.remove('text-on-surface-variant'); }
+    else { el.classList.remove('tab-active'); el.classList.add('text-on-surface-variant'); }
+  });
+  renderList();
+}
+
+function markAllRead() {
+  notifications.forEach(n=>n.read=true);
+  renderList();
+  eeShowToast('All notifications marked as read.');
+}
+
+function dismissNotif(id) {
+  notifications = notifications.filter(n=>n.id!==id);
+  renderList();
+}
+
+function actionClick(id, actionLabel, href) {
+  notifications.find(n=>n.id===id)?.actions?.forEach(a=>{ if(a.label===actionLabel) a.done=true; });
+  if (href) { window.location.href = href; return; }
+  eeShowToast(`Action "${actionLabel}" completed.`);
+  notifications.find(n=>n.id===id).read=true;
+  renderList();
+}
+
+function renderList() {
+  const items = activeTab==='all' ? notifications : notifications.filter(n=>n.tab===activeTab);
+  const list = document.getElementById('notif-list');
+  const empty = document.getElementById('empty-state');
+  if (!items.length) { list.innerHTML=''; empty.classList.remove('hidden'); return; }
+  empty.classList.add('hidden');
+
+  list.innerHTML = items.map(n=>`
+    <div class="glass-panel rounded-xl p-5 transition-all ${n.read?'opacity-70':''}" id="notif-${n.id}">
+      <div class="flex gap-4 items-start">
+        <div class="w-10 h-10 rounded-full ${n.iconBg} flex items-center justify-center shrink-0 mt-0.5">
+          <span class="material-symbols-outlined ${n.iconColor} text-lg" style="font-variation-settings:'FILL' 1,'wght' 300,'GRAD' 0,'opsz' 24">${n.icon}</span>
+        </div>
+        <div class="flex-1 min-w-0">
+          <div class="flex items-start justify-between gap-3">
+            <div class="flex items-center gap-2 flex-wrap">
+              <p class="text-[14px] font-semibold text-on-surface leading-5">${n.title}</p>
+              ${!n.read?'<div class="w-2 h-2 rounded-full bg-secondary shrink-0"></div>':''}
+            </div>
+            <div class="flex items-center gap-2 shrink-0">
+              <span class="font-label text-[10px] text-on-surface-variant/60 whitespace-nowrap">${n.time}</span>
+              <button onclick="dismissNotif('${n.id}')" class="p-1 hover:bg-surface-container rounded transition-colors opacity-60 hover:opacity-100">
+                <span class="material-symbols-outlined text-on-surface-variant text-sm">close</span>
+              </button>
+            </div>
+          </div>
+          <p class="text-[13px] text-on-surface-variant mt-1 leading-5">${n.body}</p>
+          ${n.actions.length?`
+          <div class="flex flex-wrap gap-2 mt-3">
+            ${n.actions.map(a=>`
+            <button onclick="actionClick('${n.id}','${a.label}','${a.href||''}')"
+              class="h-8 px-4 font-label text-[10px] font-bold tracking-wider uppercase rounded-lg transition-all ${
+                a.style==='primary' ? 'bg-secondary text-on-secondary hover:opacity-90' :
+                a.style==='positive' ? 'bg-tertiary/20 text-tertiary border border-tertiary/30 hover:bg-tertiary/30' :
+                'border border-outline-variant text-on-surface-variant hover:bg-surface-container'
+              }">
+              ${a.label}
+            </button>`).join('')}
+          </div>`:''}
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+function init() {
+  const user = eeBootstrap('notifications.html');
+  if (!user) return;
+  renderList();
+}
+init();
+</script>
+</body>
+</html>
