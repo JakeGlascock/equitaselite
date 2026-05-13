@@ -40,5 +40,5 @@
     "@testing-library/react": "^16.0.0",
     "@testing-library/jest-dom": "^6.0.0",
     "jsdom": "^25.0.0"
-  },
+  }
 }
