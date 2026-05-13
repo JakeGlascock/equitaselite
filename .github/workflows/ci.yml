@@ -128,7 +128,9 @@ jobs:
           # CKV_AWS_144  — S3 cross-region replication deferred; single-region MVP, will add for multi-region HA
           # CKV2_AWS_57  — Secrets Manager auto-rotation requires rotation Lambda; deferred until app Lambda layer is built
           # CKV2_AWS_71  — Wildcard ACM cert (*.equitaselite.com) is intentional to cover staging + future subdomains
-          skip_check: CKV2_AWS_62,CKV_AWS_144,CKV2_AWS_57,CKV2_AWS_71
+          # CKV2_AWS_28 — WAF IS attached via aws_wafv2_web_acl_association in waf.tf;
+          #               Checkov only inspects the aws_lb resource itself and misses the association
+          skip_check: CKV2_AWS_62,CKV_AWS_144,CKV2_AWS_57,CKV2_AWS_71,CKV2_AWS_28
 
       - name: Upload Checkov SARIF to GitHub Security tab
         uses: github/codeql-action/upload-sarif@v3

@@ -1,9 +1,5 @@
 FROM node:22-slim AS base
 WORKDIR /app
-
-# Enable Node.js FIPS mode — required for FIPS 140-2/3 boundary compliance.
-# Delegates all crypto to OpenSSL's FIPS provider (built into node:22-slim via OpenSSL 3).
-ENV NODE_OPTIONS="--openssl-fips"
 ENV NODE_ENV=production
 
 # ---- deps ----
@@ -20,6 +16,11 @@ RUN npm run build
 
 # ---- runner ----
 FROM base AS runner
+# Enable Node.js FIPS mode at runtime only — npm install during build does not
+# need FIPS and CI runners may not have the FIPS provider configured.
+# FIPS 140-2/3: delegates all crypto to OpenSSL's FIPS provider (OpenSSL 3, node:22-slim).
+ENV NODE_OPTIONS="--openssl-fips"
+
 # Non-root user for defense-in-depth
 RUN addgroup --system --gid 1001 nodejs && \
     adduser  --system --uid 1001 nextjs

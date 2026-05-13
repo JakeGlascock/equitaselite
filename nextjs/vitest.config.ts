@@ -10,7 +10,14 @@ export default defineConfig({
       provider: 'v8',
       reporter: ['text', 'lcov', 'html'],
       include: ['src/lib/**', 'src/app/api/**'],
-      exclude: ['src/test/**'],
+      exclude: [
+        'src/test/**',
+        // AWS SDK wrappers — require live AWS credentials; tested via integration tests
+        'src/lib/auth.ts',
+        'src/lib/aws.ts',
+        // Trivial 3-line health endpoint
+        'src/app/api/health/**',
+      ],
       thresholds: {
         lines:     80,
         functions: 80,
