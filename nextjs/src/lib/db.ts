@@ -1,4 +1,4 @@
-import { Pool, QueryResult } from 'pg'
+import { Pool } from 'pg'
 
 let pool: Pool | null = null
 
@@ -18,9 +18,10 @@ function getPool(): Pool {
   return pool
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function query<T>(sql: string, params?: unknown[]): Promise<T[]> {
-  const result: QueryResult<T> = await getPool().query(sql, params)
-  return result.rows
+  const result = await getPool().query<any>(sql, params)
+  return result.rows as T[]
 }
 
 export async function queryOne<T>(sql: string, params?: unknown[]): Promise<T | null> {
