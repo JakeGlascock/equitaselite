@@ -3,7 +3,9 @@ resource "aws_cognito_user_pool" "main" {
 
   # MFA enforcement — required for SOC 2 / ISO 27001
   mfa_configuration = "ON"
-  software_token_mfa_configuration { enabled = true }
+  software_token_mfa_configuration {
+    enabled = true
+  }
 
   password_policy {
     minimum_length                   = 16
@@ -41,25 +43,34 @@ resource "aws_cognito_user_pool" "main" {
   }
 
   schema {
-    name                     = "email"
-    attribute_data_type      = "String"
-    required                 = true
-    mutable                  = true
-    string_attribute_constraints { min_length = 5; max_length = 256 }
+    name                = "email"
+    attribute_data_type = "String"
+    required            = true
+    mutable             = true
+    string_attribute_constraints {
+      min_length = 5
+      max_length = 256
+    }
   }
 
   schema {
     name                = "role"
     attribute_data_type = "String"
     mutable             = true
-    string_attribute_constraints { min_length = 1; max_length = 32 }
+    string_attribute_constraints {
+      min_length = 1
+      max_length = 32
+    }
   }
 
   schema {
     name                = "firm_name"
     attribute_data_type = "String"
     mutable             = true
-    string_attribute_constraints { min_length = 1; max_length = 128 }
+    string_attribute_constraints {
+      min_length = 1
+      max_length = 128
+    }
   }
 
   user_pool_add_ons {

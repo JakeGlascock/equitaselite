@@ -2,13 +2,17 @@ resource "aws_wafv2_web_acl" "main" {
   name  = "${var.app_name}-${var.environment}"
   scope = "REGIONAL"
 
-  default_action { allow {} }
+  default_action {
+    allow {}
+  }
 
   # AWS Managed Rules — Core Rule Set (OWASP Top 10)
   rule {
     name     = "AWSManagedRulesCRS"
     priority = 10
-    override_action { none {} }
+    override_action {
+      none {}
+    }
     statement {
       managed_rule_group_statement {
         name        = "AWSManagedRulesCommonRuleSet"
@@ -26,7 +30,9 @@ resource "aws_wafv2_web_acl" "main" {
   rule {
     name     = "AWSManagedRulesKBI"
     priority = 20
-    override_action { none {} }
+    override_action {
+      none {}
+    }
     statement {
       managed_rule_group_statement {
         name        = "AWSManagedRulesKnownBadInputsRuleSet"
@@ -44,7 +50,9 @@ resource "aws_wafv2_web_acl" "main" {
   rule {
     name     = "AWSManagedRulesSQLi"
     priority = 30
-    override_action { none {} }
+    override_action {
+      none {}
+    }
     statement {
       managed_rule_group_statement {
         name        = "AWSManagedRulesSQLiRuleSet"
@@ -62,7 +70,9 @@ resource "aws_wafv2_web_acl" "main" {
   rule {
     name     = "AWSManagedRulesAmazonIpReputation"
     priority = 40
-    override_action { none {} }
+    override_action {
+      none {}
+    }
     statement {
       managed_rule_group_statement {
         name        = "AWSManagedRulesAmazonIpReputationList"
@@ -80,7 +90,9 @@ resource "aws_wafv2_web_acl" "main" {
   rule {
     name     = "RateLimitPerIP"
     priority = 50
-    action { block {} }
+    action {
+      block {}
+    }
     statement {
       rate_based_statement {
         limit              = 1000
@@ -98,7 +110,9 @@ resource "aws_wafv2_web_acl" "main" {
   rule {
     name     = "RateLimitAuthEndpoints"
     priority = 60
-    action { block {} }
+    action {
+      block {}
+    }
     statement {
       rate_based_statement {
         limit              = 50
@@ -107,8 +121,13 @@ resource "aws_wafv2_web_acl" "main" {
           byte_match_statement {
             search_string         = "/api/auth"
             positional_constraint = "STARTS_WITH"
-            field_to_match { uri_path {} }
-            text_transformation { priority = 0; type = "LOWERCASE" }
+            field_to_match {
+              uri_path {}
+            }
+            text_transformation {
+              priority = 0
+              type     = "LOWERCASE"
+            }
           }
         }
       }
