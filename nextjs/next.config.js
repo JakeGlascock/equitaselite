@@ -1,5 +1,12 @@
+const path = require('path')
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  webpack(config) {
+    config.resolve.alias['@'] = path.join(__dirname, 'src')
+    return config
+  },
+
   output: 'standalone',
 
   // Enforce HTTPS headers
