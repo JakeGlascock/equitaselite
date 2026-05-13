@@ -125,6 +125,10 @@ resource "aws_iam_role_policy" "flow_logs" {
 }
 
 # Security Groups
+# Cross-SG rules are extracted into separate resources below to avoid a
+# dependency cycle (alb ↔ app ↔ rds). Only "self-contained" rules
+# (CIDR-based or empty) remain inline.
+
 resource "aws_security_group" "alb" {
   name        = "${var.app_name}-alb-${var.environment}"
   description = "ALB — HTTPS inbound only"
@@ -137,14 +141,6 @@ resource "aws_security_group" "alb" {
     cidr_blocks = var.allowed_cidr_blocks
     description = "HTTPS"
   }
-  # Egress restricted to app tier only — ALB only needs to reach ECS tasks on port 3000
-  egress {
-    from_port       = 3000
-    to_port         = 3000
-    protocol        = "tcp"
-    security_groups = [aws_security_group.app.id]
-    description     = "To ECS tasks"
-  }
 }
 
 resource "aws_security_group" "app" {
@@ -152,13 +148,6 @@ resource "aws_security_group" "app" {
   description = "ECS tasks — inbound from ALB only"
   vpc_id      = aws_vpc.main.id
 
-  ingress {
-    from_port       = 3000
-    to_port         = 3000
-    protocol        = "tcp"
-    security_groups = [aws_security_group.alb.id]
-    description     = "From ALB"
-  }
   # HTTPS to reach AWS service endpoints (Cognito, S3, Secrets Manager, ECR) via NAT
   egress {
     from_port   = 443
@@ -175,28 +164,50 @@ resource "aws_security_group" "app" {
     cidr_blocks = ["0.0.0.0/0"]
     description = "DNS"
   }
-  # PostgreSQL to RDS
-  egress {
-    from_port       = 5432
-    to_port         = 5432
-    protocol        = "tcp"
-    security_groups = [aws_security_group.rds.id]
-    description     = "PostgreSQL to RDS"
-  }
 }
 
 resource "aws_security_group" "rds" {
   name        = "${var.app_name}-rds-${var.environment}"
   description = "RDS — inbound from ECS only"
   vpc_id      = aws_vpc.main.id
+}
 
-  ingress {
-    from_port       = 5432
-    to_port         = 5432
-    protocol        = "tcp"
-    security_groups = [aws_security_group.app.id]
-    description     = "PostgreSQL from ECS"
-  }
+# ALB → ECS tasks
+resource "aws_vpc_security_group_egress_rule" "alb_to_app" {
+  security_group_id            = aws_security_group.alb.id
+  referenced_security_group_id = aws_security_group.app.id
+  ip_protocol                  = "tcp"
+  from_port                    = 3000
+  to_port                      = 3000
+  description                  = "To ECS tasks"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "app_from_alb" {
+  security_group_id            = aws_security_group.app.id
+  referenced_security_group_id = aws_security_group.alb.id
+  ip_protocol                  = "tcp"
+  from_port                    = 3000
+  to_port                      = 3000
+  description                  = "From ALB"
+}
+
+# ECS tasks → RDS
+resource "aws_vpc_security_group_egress_rule" "app_to_rds" {
+  security_group_id            = aws_security_group.app.id
+  referenced_security_group_id = aws_security_group.rds.id
+  ip_protocol                  = "tcp"
+  from_port                    = 5432
+  to_port                      = 5432
+  description                  = "PostgreSQL to RDS"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "rds_from_app" {
+  security_group_id            = aws_security_group.rds.id
+  referenced_security_group_id = aws_security_group.app.id
+  ip_protocol                  = "tcp"
+  from_port                    = 5432
+  to_port                      = 5432
+  description                  = "PostgreSQL from ECS"
 }
 
 data "aws_availability_zones" "available" {
