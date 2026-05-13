@@ -1,6 +1,5 @@
 FROM node:22-slim AS base
 WORKDIR /app
-ENV NODE_ENV=production
 
 # ---- deps ----
 FROM base AS deps
@@ -8,6 +7,9 @@ COPY package.json package-lock.json* ./
 RUN npm install --omit=dev
 
 # ---- builder ----
+# NODE_ENV intentionally not set to production here — npm install skips
+# devDependencies when NODE_ENV=production, but tailwindcss/postcss/typescript
+# are devDeps required for next build to succeed.
 FROM base AS builder
 COPY package.json package-lock.json* ./
 RUN npm install
@@ -16,6 +18,7 @@ RUN npm run build
 
 # ---- runner ----
 FROM base AS runner
+ENV NODE_ENV=production
 # Enable Node.js FIPS mode at runtime only — npm install during build does not
 # need FIPS and CI runners may not have the FIPS provider configured.
 # FIPS 140-2/3: delegates all crypto to OpenSSL's FIPS provider (OpenSSL 3, node:22-slim).
