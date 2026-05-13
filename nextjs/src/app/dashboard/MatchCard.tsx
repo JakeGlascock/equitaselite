@@ -1,6 +1,13 @@
 'use client'
 
+import { useState } from 'react'
 import type { MatchScore } from '@/types'
+
+export interface IntroState {
+  status:       'pending' | 'accepted' | 'declined' | null
+  direction:    'outgoing' | 'incoming' | null
+  contactEmail: string | null
+}
 
 interface Match {
   id: string
@@ -16,6 +23,7 @@ interface Match {
   checkSizeMin: number
   checkSizeMax: number
   score: MatchScore
+  intro: IntroState
 }
 
 const RING_R  = 36
@@ -79,6 +87,71 @@ function checkDisplay(min: number, max: number): string {
   return `${fmt(min)}–${fmt(max)}`
 }
 
+function IntroAction({ recipientId, initial }: { recipientId: string; initial: IntroState }) {
+  const [intro, setIntro] = useState<IntroState>(initial)
+  const [loading, setLoading] = useState(false)
+  const [error, setError]     = useState('')
+
+  async function request() {
+    setLoading(true); setError('')
+    try {
+      const res = await fetch('/api/introductions', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ recipient_id: recipientId }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? 'Failed')
+      setIntro({ status: 'pending', direction: 'outgoing', contactEmail: null })
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  if (intro.status === 'accepted' && intro.contactEmail) {
+    return (
+      <a
+        href={`mailto:${intro.contactEmail}`}
+        className="text-xs px-3 py-1.5 rounded-full border border-ee-emerald/40 bg-ee-emerald/10 text-ee-emerald hover:brightness-110 whitespace-nowrap"
+      >
+        Introduced · email
+      </a>
+    )
+  }
+  if (intro.status === 'pending' && intro.direction === 'outgoing') {
+    return <span className="text-xs px-3 py-1.5 rounded-full border border-ee-border text-ee-muted whitespace-nowrap">Awaiting response</span>
+  }
+  if (intro.status === 'pending' && intro.direction === 'incoming') {
+    return (
+      <a
+        href="/connections"
+        className="text-xs px-3 py-1.5 rounded-full border border-ee-gold/40 bg-ee-gold/10 text-ee-gold hover:brightness-110 whitespace-nowrap"
+      >
+        Respond →
+      </a>
+    )
+  }
+  if (intro.status === 'declined') {
+    return <span className="text-xs px-3 py-1.5 rounded-full border border-ee-border text-ee-muted/60 whitespace-nowrap">Declined</span>
+  }
+
+  return (
+    <div className="flex flex-col items-end gap-1">
+      <button
+        type="button"
+        onClick={request}
+        disabled={loading}
+        className="text-xs px-3 py-1.5 rounded-full bg-ee-gold text-ee-bg font-semibold hover:brightness-110 disabled:opacity-50 whitespace-nowrap"
+      >
+        {loading ? 'Requesting…' : 'Request introduction'}
+      </button>
+      {error && <span className="text-xs text-red-400">{error}</span>}
+    </div>
+  )
+}
+
 export default function MatchCard({ match }: { match: Match }) {
   const { score } = match
   const color = LABEL_COLOR[score.label]
@@ -136,6 +209,11 @@ export default function MatchCard({ match }: { match: Match }) {
           <SubScore label="Stages"    value={score.stage} />
           <SubScore label="Check sz." value={score.checkSize} />
           <SubScore label="Geography" value={score.geography} />
+        </div>
+
+        {/* Introduction action */}
+        <div className="flex justify-end pt-2">
+          <IntroAction recipientId={match.id} initial={match.intro} />
         </div>
       </div>
     </div>

@@ -2,7 +2,15 @@ import { headers } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { query, queryOne } from '@/lib/db'
 import { computeMatchScore } from '@/lib/scoring'
-import MatchCard from './MatchCard'
+import MatchCard, { type IntroState } from './MatchCard'
+
+interface IntroRow {
+  requester_id: string
+  recipient_id: string
+  status: 'pending' | 'accepted' | 'declined'
+  requester_email: string
+  recipient_email: string
+}
 
 interface DbProfile {
   id: string
@@ -64,6 +72,29 @@ export default async function DashboardPage() {
     [oppositeRole, userId]
   )
 
+  const intros = await query<IntroRow>(
+    `SELECT i.requester_id, i.recipient_id, i.status,
+            rp.email AS requester_email, cp.email AS recipient_email
+     FROM introductions i
+     JOIN profiles rp ON rp.id = i.requester_id
+     JOIN profiles cp ON cp.id = i.recipient_id
+     WHERE i.requester_id = $1 OR i.recipient_id = $1`,
+    [userId]
+  )
+
+  const introByOtherId = new Map<string, IntroState>()
+  for (const i of intros) {
+    const isOutgoing = i.requester_id === userId
+    const otherId    = isOutgoing ? i.recipient_id : i.requester_id
+    introByOtherId.set(otherId, {
+      status:       i.status,
+      direction:    isOutgoing ? 'outgoing' : 'incoming',
+      contactEmail: i.status === 'accepted'
+        ? (isOutgoing ? i.recipient_email : i.requester_email)
+        : null,
+    })
+  }
+
   const matches = candidates
     .map(c => ({
       id:           c.id,
@@ -79,8 +110,13 @@ export default async function DashboardPage() {
       checkSizeMin: Number(c.check_size_min),
       checkSizeMax: Number(c.check_size_max),
       score:        computeMatchScore(toScoring(me), toScoring(c)),
+      intro:        introByOtherId.get(c.id) ?? {
+        status: null, direction: null, contactEmail: null,
+      } satisfies IntroState,
     }))
     .sort((a, b) => b.score.total - a.score.total)
+
+  const pendingIncoming = intros.filter(i => i.recipient_id === userId && i.status === 'pending').length
 
   const firstName = me.full_name.split(' ')[0]
   const roleLabel = me.role === 'angel' ? 'Family Offices' : 'Angel Investors'
@@ -105,6 +141,14 @@ export default async function DashboardPage() {
             </p>
           </div>
           <div className="flex items-center gap-4">
+            <a href="/connections" className="text-xs text-ee-muted hover:text-ee-primary transition-colors flex items-center gap-1.5">
+              Connections
+              {pendingIncoming > 0 && (
+                <span className="bg-ee-gold text-ee-bg text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none">
+                  {pendingIncoming}
+                </span>
+              )}
+            </a>
             {isAdmin && (
               <a href="/admin" className="text-xs text-ee-gold hover:brightness-110 transition-all">
                 Admin
