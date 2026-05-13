@@ -27,8 +27,8 @@ resource "aws_cognito_user_pool" "main" {
     allow_admin_create_user_only = true
     invite_message_template {
       email_subject = "Your Equitas Elite invitation"
-      email_message = "You have been invited to Equitas Elite. Your temporary password is {####}. Please log in and change it immediately."
-      sms_message   = "Your Equitas Elite temporary password: {####}"
+      email_message = "You have been invited to Equitas Elite. Your username is {username} and your temporary password is {####}. Please log in and change it immediately."
+      sms_message   = "Equitas Elite — username {username}, temporary password {####}"
     }
   }
 
