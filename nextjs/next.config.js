@@ -30,9 +30,7 @@ const nextConfig = {
     ]
   },
 
-  experimental: {
-    serverComponentsExternalPackages: ['pg'],
-  },
+  serverExternalPackages: ['pg'],
 }
 
 module.exports = nextConfig
