@@ -67,7 +67,7 @@ resource "aws_kms_alias" "s3" {
 }
 
 resource "aws_kms_key" "logs" {
-  description             = "CloudWatch Logs encryption — ${var.app_name} ${var.environment}"
+  description             = "CloudWatch Logs + CloudTrail encryption - ${var.app_name} ${var.environment}"
   deletion_window_in_days = 30
   enable_key_rotation     = true
 
@@ -87,6 +87,18 @@ resource "aws_kms_key" "logs" {
         Principal = { Service = "logs.${var.aws_region}.amazonaws.com" }
         Action   = ["kms:Encrypt", "kms:Decrypt", "kms:GenerateDataKey", "kms:DescribeKey", "kms:ReEncrypt*"]
         Resource = "*"
+      },
+      {
+        Sid    = "Allow CloudTrail to encrypt S3 logs"
+        Effect = "Allow"
+        Principal = { Service = "cloudtrail.amazonaws.com" }
+        Action   = ["kms:GenerateDataKey*", "kms:DescribeKey"]
+        Resource = "*"
+        Condition = {
+          StringLike = {
+            "kms:EncryptionContext:aws:cloudtrail:arn" = "arn:aws:cloudtrail:*:${data.aws_caller_identity.current.account_id}:trail/*"
+          }
+        }
       }
     ]
   })

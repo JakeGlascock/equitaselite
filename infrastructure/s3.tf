@@ -49,8 +49,9 @@ resource "aws_s3_bucket_logging" "documents" {
 resource "aws_s3_bucket" "access_logs" {
   bucket        = "${var.app_name}-${var.environment}-access-logs"
   force_destroy = false
-  #checkov:skip=CKV_AWS_144:Cross-region replication deferred — single-region MVP
-  #checkov:skip=CKV_AWS_18:This IS the access log bucket — self-referential logging not applicable
+  #checkov:skip=CKV_AWS_144:Cross-region replication deferred - single-region MVP
+  #checkov:skip=CKV_AWS_18:This IS the access log bucket - self-referential logging not applicable
+  #checkov:skip=CKV_AWS_145:ALB access logs do not support customer-managed KMS keys (only SSE-S3 or aws/s3 managed key)
 }
 
 resource "aws_s3_bucket_versioning" "access_logs" {
@@ -69,11 +70,44 @@ resource "aws_s3_bucket_public_access_block" "access_logs" {
 resource "aws_s3_bucket_server_side_encryption_configuration" "access_logs" {
   bucket = aws_s3_bucket.access_logs.id
   rule {
+    # ALB only supports SSE-S3 or the AWS-managed aws/s3 key for access logs.
     apply_server_side_encryption_by_default {
-      sse_algorithm     = "aws:kms"
-      kms_master_key_id = aws_kms_key.s3.arn
+      sse_algorithm = "AES256"
     }
   }
+}
+
+# ELB account ID for us-east-1 (older region pattern; service principal works
+# only for regions launched after Aug 2022).
+resource "aws_s3_bucket_policy" "access_logs" {
+  bucket = aws_s3_bucket.access_logs.id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid       = "AllowELBLogDelivery"
+        Effect    = "Allow"
+        Principal = { AWS = "arn:aws:iam::127311923021:root" }
+        Action    = "s3:PutObject"
+        Resource  = "${aws_s3_bucket.access_logs.arn}/*"
+      },
+      {
+        Sid       = "AllowLogDeliveryService"
+        Effect    = "Allow"
+        Principal = { Service = "delivery.logs.amazonaws.com" }
+        Action    = "s3:PutObject"
+        Resource  = "${aws_s3_bucket.access_logs.arn}/*"
+        Condition = { StringEquals = { "s3:x-amz-acl" = "bucket-owner-full-control" } }
+      },
+      {
+        Sid       = "AllowLogDeliveryAclCheck"
+        Effect    = "Allow"
+        Principal = { Service = "delivery.logs.amazonaws.com" }
+        Action    = "s3:GetBucketAcl"
+        Resource  = aws_s3_bucket.access_logs.arn
+      }
+    ]
+  })
 }
 
 resource "aws_s3_bucket_lifecycle_configuration" "access_logs" {

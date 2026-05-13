@@ -1,6 +1,8 @@
 resource "aws_cognito_user_pool" "main" {
   name = "${var.app_name}-${var.environment}"
 
+  auto_verified_attributes = ["email"]
+
   # MFA enforcement — required for SOC 2 / ISO 27001
   mfa_configuration = "ON"
   software_token_mfa_configuration {
