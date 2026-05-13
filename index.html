@@ -81,13 +81,8 @@ tailwind.config = {
 </head>
 <body class="bg-background text-on-surface font-body min-h-screen flex flex-col overflow-hidden">
 
-<!-- Header -->
-<header class="w-full flex justify-center items-center px-5 h-14 z-10 relative">
-  <div class="flex flex-col items-center gap-0.5">
-    <span class="material-symbols-outlined text-secondary text-2xl" style="font-variation-settings:'FILL' 1,'wght' 300,'GRAD' 0,'opsz' 24">shield</span>
-    <span class="font-label text-[11px] font-semibold tracking-[0.12em] text-secondary uppercase">Equitas Elite</span>
-  </div>
-</header>
+<!-- Header (spacer) -->
+<header class="w-full h-6 z-10 relative"></header>
 
 <main class="flex-grow flex items-center justify-center px-5 relative">
   <!-- Ambient glows -->
@@ -97,10 +92,9 @@ tailwind.config = {
   </div>
 
   <div class="w-full max-w-md z-10">
-    <!-- Hero -->
-    <div class="text-center mb-8">
-      <h1 class="font-display text-[32px] font-bold leading-[40px] tracking-[-0.02em] text-on-surface mb-3">Welcome Back</h1>
-      <p class="text-[14px] text-on-surface-variant max-w-[280px] mx-auto leading-5">Access your institutional portfolio with military-grade encryption.</p>
+    <!-- Logo -->
+    <div class="flex justify-center mb-8">
+      <img src="logo.png" alt="Equitas Elite" class="h-24 w-auto rounded-xl" style="background:#fff; padding:8px 16px;"/>
     </div>
 
     <!-- Login Form -->

@@ -114,11 +114,11 @@ function eeSidebarHTML(activePage, user) {
   <aside class="fixed left-0 top-14 bottom-0 w-60 bg-surface-container-low border-r border-outline-variant/40 flex-col hidden lg:flex z-40">
     <div class="p-4 border-b border-outline-variant/30">
       <div class="flex items-center gap-3">
-        <div class="w-10 h-10 rounded-lg bg-secondary/20 flex items-center justify-center">
+        <div class="w-10 h-10 rounded-lg bg-secondary/20 flex items-center justify-center shrink-0">
           <span class="material-symbols-outlined text-secondary" style="font-variation-settings:'FILL' 1,'wght' 300,'GRAD' 0,'opsz' 24">${icon}</span>
         </div>
-        <div>
-          <p class="font-body text-[13px] font-semibold text-on-surface truncate max-w-[120px]">${user?.name||'Member'}</p>
+        <div class="min-w-0">
+          <p class="font-body text-[13px] font-semibold text-on-surface truncate">${user?.name||'Member'}</p>
           <p class="font-label text-[10px] tracking-wider text-secondary uppercase">${isAngel?'Angel Investor':'Family Office'}</p>
         </div>
       </div>
@@ -157,9 +157,8 @@ function eeTopbarHTML(activePage, user) {
   return `
   <header class="fixed top-0 left-0 right-0 h-14 bg-surface-container-low/90 backdrop-blur-md border-b border-outline-variant/40 flex items-center justify-between px-5 md:px-8 z-50">
     <div class="flex items-center gap-5">
-      <a href="dashboard.html" class="flex items-center gap-2">
-        <span class="material-symbols-outlined text-secondary text-xl" style="font-variation-settings:'FILL' 1,'wght' 300,'GRAD' 0,'opsz' 24">shield</span>
-        <span class="font-display text-lg font-bold text-secondary tracking-tight hidden sm:block">Equitas Elite</span>
+      <a href="dashboard.html" class="flex items-center">
+        <img src="logo.png" alt="Equitas Elite" class="h-9 w-auto rounded-md" style="background:#fff; padding:2px 6px;"/>
       </a>
       <nav class="hidden lg:flex items-center gap-0.5">
         ${navLinks.map(l=>`<a href="${l.href}" class="font-label text-[11px] font-semibold tracking-widest uppercase px-3 py-1.5 transition-colors ${activePage===l.href?'text-secondary border-b-2 border-secondary':'text-on-surface-variant hover:text-on-surface'}">${l.label}</a>`).join('')}
