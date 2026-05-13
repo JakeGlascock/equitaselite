@@ -14,7 +14,7 @@ We'll automate this with GitHub Actions after the first manual deploy succeeds.
 |---------------|----------|----------------------------------------------------|
 | AWS CLI v2    | latest   | `brew install awscli`                              |
 | Terraform     | ≥ 1.5    | `brew tap hashicorp/tap && brew install hashicorp/tap/terraform` |
-| Docker        | latest   | Docker Desktop                                     |
+| Docker        | latest   | `brew install --cask docker` (then launch Docker.app once to start the daemon) |
 | psql client   | ≥ 14     | `brew install libpq && brew link --force libpq`    |
 | jq            | latest   | `brew install jq`                                  |
 
