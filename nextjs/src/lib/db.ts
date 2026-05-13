@@ -18,8 +18,8 @@ function getPool(): Pool {
   return pool
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function query<T>(sql: string, params?: unknown[]): Promise<T[]> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const result = await getPool().query<any>(sql, params)
   return result.rows as T[]
 }
