@@ -1,0 +1,156 @@
+name: CI
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+    branches: [master, main]
+
+permissions:
+  contents: read
+  security-events: write  # required for uploading SARIF results
+
+jobs:
+  # ── 1. Type-check + lint ──────────────────────────────────────────────────
+  typecheck-lint:
+    name: Type-check & Lint
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: nextjs
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: nextjs/package-lock.json
+
+      - run: npm ci
+
+      - name: Type-check
+        run: npm run type-check
+
+      - name: Lint
+        run: npm run lint
+
+  # ── 2. Unit tests + coverage ─────────────────────────────────────────────
+  test:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: nextjs
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: nextjs/package-lock.json
+
+      - run: npm ci
+
+      - name: Run tests with coverage
+        run: npm run test:coverage
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-report
+          path: nextjs/coverage/
+          retention-days: 14
+
+  # ── 3. Dependency vulnerability audit ────────────────────────────────────
+  npm-audit:
+    name: npm Audit
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: nextjs
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: nextjs/package-lock.json
+
+      - run: npm ci
+
+      - name: Audit dependencies (fail on high/critical)
+        run: npm audit --audit-level=high --omit=dev
+
+  # ── 4. Container vulnerability scan (Trivy) ───────────────────────────────
+  trivy:
+    name: Container Scan (Trivy)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: docker build -t equitaselite:ci nextjs/
+
+      - name: Scan image for HIGH/CRITICAL CVEs
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: equitaselite:ci
+          format: sarif
+          output: trivy-results.sarif
+          severity: HIGH,CRITICAL
+          exit-code: '1'
+
+      - name: Upload Trivy SARIF to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: trivy-results.sarif
+
+  # ── 5. Terraform static analysis (Checkov) ───────────────────────────────
+  checkov:
+    name: Terraform IaC Scan (Checkov)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run Checkov on infrastructure/
+        uses: bridgecrewio/checkov-action@master
+        with:
+          directory: infrastructure/
+          framework: terraform
+          output_format: sarif
+          output_file_path: checkov-results.sarif
+          # Suppress checks that are intentionally handled at the control plane:
+          # CKV_AWS_7  — KMS rotation is enabled (enable_key_rotation = true)
+          # CKV2_AWS_62 — S3 event notifications intentionally omitted (noise)
+          skip_check: CKV2_AWS_62
+
+      - name: Upload Checkov SARIF to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: checkov-results.sarif
+
+  # ── 6. Secret scanning (Gitleaks) ────────────────────────────────────────
+  gitleaks:
+    name: Secret Scan (Gitleaks)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # full history required for git-diff detection
+
+      - name: Scan for leaked secrets
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

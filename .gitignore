@@ -1,1 +1,14 @@
 .DS_Store
+
+# Next.js
+nextjs/.next/
+nextjs/node_modules/
+nextjs/.env.local
+nextjs/coverage/
+
+# Terraform
+**/.terraform/
+*.tfstate
+*.tfstate.backup
+*.tfvars
+.terraform.lock.hcl
