@@ -35,8 +35,10 @@ export async function middleware(req: NextRequest) {
   if (!idToken) return redirectToLogin(req)
 
   try {
-    await jwtVerify(idToken, JWKS, { issuer: ISSUER })
-    return NextResponse.next()
+    const { payload } = await jwtVerify(idToken, JWKS, { issuer: ISSUER })
+    const headers = new Headers(req.headers)
+    headers.set('x-user-id', payload.sub!)
+    return NextResponse.next({ request: { headers } })
   } catch {
     return redirectToLogin(req)
   }
