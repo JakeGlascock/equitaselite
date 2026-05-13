@@ -158,7 +158,7 @@ function eeTopbarHTML(activePage, user) {
   <header class="fixed top-0 left-0 right-0 h-14 bg-surface-container-low/90 backdrop-blur-md border-b border-outline-variant/40 flex items-center justify-between px-5 md:px-8 z-50">
     <div class="flex items-center gap-5">
       <a href="dashboard.html" class="flex items-center">
-        <img src="logo.png" alt="Equitas Elite" class="h-9 w-auto rounded-md" style="background:#fff; padding:2px 6px;"/>
+        <img src="logo.png" alt="Equitas Elite" class="h-9 w-auto rounded-md"/>
       </a>
       <nav class="hidden lg:flex items-center gap-0.5">
         ${navLinks.map(l=>`<a href="${l.href}" class="font-label text-[11px] font-semibold tracking-widest uppercase px-3 py-1.5 transition-colors ${activePage===l.href?'text-secondary border-b-2 border-secondary':'text-on-surface-variant hover:text-on-surface'}">${l.label}</a>`).join('')}
