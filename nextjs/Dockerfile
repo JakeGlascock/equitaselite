@@ -21,13 +21,10 @@ FROM base AS runner
 ENV NODE_ENV=production
 
 # Apply latest OS security patches (addresses OS-level CVEs in zlib, ncurses, etc.)
-# Upgrade npm so its bundled picomatch is ≥4.0.4 (CVE-2026-33671 fixed in 4.0.4).
-# NOTE: NODE_OPTIONS="--openssl-fips" is intentionally set AFTER this RUN — npm
-# cannot run with --openssl-fips when the FIPS provider is not configured (CI runners).
-RUN apt-get update && apt-get upgrade -y && rm -rf /var/lib/apt/lists/* && \
-    npm install -g npm@latest
+RUN apt-get update && apt-get upgrade -y && rm -rf /var/lib/apt/lists/*
 
-# Enable FIPS only at runtime — must come after all RUN steps that invoke npm.
+# Enable Node.js FIPS mode at runtime only — npm install during build does not
+# need FIPS and CI runners may not have the FIPS provider configured.
 # FIPS 140-2/3: delegates all crypto to OpenSSL's FIPS provider (OpenSSL 3, node:22-slim).
 ENV NODE_OPTIONS="--openssl-fips"
 

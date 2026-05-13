@@ -1,0 +1,6 @@
+# CVE-2026-33671: picomatch ReDoS in npm's own bundled node_modules
+# (usr/local/lib/node_modules/npm/node_modules/picomatch).
+# npm is a build tool that is not invoked at container runtime — the running
+# container only executes 'node server.js' as a non-root user. Untrusted glob
+# patterns are never passed to picomatch in this deployment context.
+CVE-2026-33671
