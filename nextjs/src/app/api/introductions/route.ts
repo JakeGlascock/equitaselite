@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { query, queryOne } from '@/lib/db'
 import { emailIntroRequested } from '@/lib/email'
+import { getEffectiveUserId } from '@/lib/acting-as'
 
 const CreateSchema = z.object({
   recipient_id: z.string().min(1),
@@ -9,7 +10,7 @@ const CreateSchema = z.object({
 })
 
 export async function GET(req: NextRequest) {
-  const userId = req.headers.get('x-user-id')
+  const userId = await getEffectiveUserId(req)
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const rows = await query(
@@ -30,7 +31,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const userId = req.headers.get('x-user-id')
+  const userId = await getEffectiveUserId(req)
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const body = await req.json()

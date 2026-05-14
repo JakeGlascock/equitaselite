@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { query, queryOne } from '@/lib/db'
 import { emailIntroAccepted, emailIntroDeclined } from '@/lib/email'
+import { getEffectiveUserId } from '@/lib/acting-as'
 
 const RespondSchema = z.object({
   status: z.enum(['accepted', 'declined']),
@@ -16,7 +17,7 @@ interface UpdatedIntro {
 
 export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params
-  const userId = req.headers.get('x-user-id')
+  const userId = await getEffectiveUserId(req)
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const body = await req.json()

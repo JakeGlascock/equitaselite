@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { query } from '@/lib/db'
+import { getEffectiveUserId } from '@/lib/acting-as'
 
 export async function GET(req: NextRequest) {
-  const userId = req.headers.get('x-user-id')
+  const userId = await getEffectiveUserId(req)
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   try {

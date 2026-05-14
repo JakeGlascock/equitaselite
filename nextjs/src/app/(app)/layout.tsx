@@ -2,6 +2,7 @@ import { headers } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { queryOne } from '@/lib/db'
 import { isUserAdmin } from '@/lib/admin'
+import { getActingAsState, type ManagedProfileLite } from '@/lib/acting-as'
 import AppShell from '@/components/AppShell'
 
 interface ShellProfile {
@@ -17,7 +18,6 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const userEmail = h.get('x-user-email')
   if (!userId) redirect('/signin')
 
-  // is_concierge may not exist pre-init — try with, fall back without
   let profile: ShellProfile | null = null
   try {
     profile = await queryOne<ShellProfile>(
@@ -33,11 +33,16 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   if (!profile || !profile.onboarding_completed) redirect('/onboarding')
 
-  const isAdmin = await isUserAdmin(userId, userEmail)
-  const isConcierge = !!profile.is_concierge
+  const isAdmin      = await isUserAdmin(userId, userEmail)
+  const isConcierge  = !!profile.is_concierge
+  const actingAs     = isConcierge ? await getActingAsState() : null
+  const managedAs: ManagedProfileLite | null = actingAs?.managedProfile ?? null
 
   return (
-    <AppShell user={{ fullName: profile.full_name, role: profile.role, isAdmin, isConcierge }}>
+    <AppShell
+      user={{ fullName: profile.full_name, role: profile.role, isAdmin, isConcierge }}
+      actingAs={managedAs}
+    >
       {children}
     </AppShell>
   )

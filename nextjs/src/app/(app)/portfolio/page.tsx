@@ -1,7 +1,7 @@
-import { headers } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { query } from '@/lib/db'
 import { getMe } from '@/lib/matches'
+import { getActingAsState } from '@/lib/acting-as'
 
 interface DealRow {
   intro_id: string
@@ -32,9 +32,9 @@ function relativeDate(s: string): string {
 }
 
 export default async function PortfolioPage() {
-  const h = await headers()
-  const userId = h.get('x-user-id')
-  if (!userId) redirect('/signin')
+  const state = await getActingAsState()
+  if (!state) redirect('/signin')
+  const userId = state.effectiveUserId
 
   const me = await getMe(userId)
   if (!me || !me.onboarding_completed) redirect('/onboarding')

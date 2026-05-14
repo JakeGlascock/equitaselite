@@ -1,15 +1,15 @@
-import { headers } from 'next/headers'
 import { redirect } from 'next/navigation'
 import MatchCard from '@/components/MatchCard'
 import {
   getMe, getCandidates, getIntroductions,
   buildIntroMap, toMatchView,
 } from '@/lib/matches'
+import { getActingAsState } from '@/lib/acting-as'
 
 export default async function DashboardPage() {
-  const h = await headers()
-  const userId = h.get('x-user-id')
-  if (!userId) redirect('/signin')
+  const state = await getActingAsState()
+  if (!state) redirect('/signin')
+  const userId = state.effectiveUserId
 
   const me = await getMe(userId)
   if (!me || !me.onboarding_completed) redirect('/onboarding')

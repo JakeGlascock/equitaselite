@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { headers } from 'next/headers'
 import { queryOne, query } from '@/lib/db'
 import ConciergeForm from './ConciergeForm'
+import OperateAsButton from './OperateAsButton'
 
 interface ManagedRow {
   id: string
@@ -124,6 +125,7 @@ export default async function ConciergePage() {
                     <th className="text-left  px-6 py-3 font-normal">Role</th>
                     <th className="text-left  px-6 py-3 font-normal">Check size</th>
                     <th className="text-left  px-6 py-3 font-normal">Top sectors</th>
+                    <th className="text-right px-6 py-3 font-normal">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -152,6 +154,9 @@ export default async function ConciergePage() {
                           )}
                         </div>
                       </td>
+                      <td className="px-6 py-3 text-right">
+                        <OperateAsButton id={m.id} />
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -160,7 +165,7 @@ export default async function ConciergePage() {
           )}
 
           <p className="text-xs text-ee-muted text-center">
-            Acting as a managed account (request introductions, accept incoming) is coming soon.
+            Click <strong className="text-ee-emerald">Operate as →</strong> to switch into a managed account. The whole app reflects that profile&apos;s data while you act on their behalf — banner at the top lets you exit anytime.
           </p>
         </div>
       </div>

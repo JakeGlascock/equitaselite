@@ -1,6 +1,6 @@
-import { headers } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { query } from '@/lib/db'
+import { getActingAsState } from '@/lib/acting-as'
 import RespondButtons from './RespondButtons'
 
 interface IntroRow {
@@ -36,9 +36,9 @@ function statusBadge(status: IntroRow['status']) {
 }
 
 export default async function ConnectionsPage() {
-  const headersList = await headers()
-  const userId = headersList.get('x-user-id')
-  if (!userId) redirect('/signin')
+  const state = await getActingAsState()
+  if (!state) redirect('/signin')
+  const userId = state.effectiveUserId
 
   const intros = await query<IntroRow>(
     `SELECT i.id, i.requester_id, i.recipient_id, i.status, i.message, i.created_at,

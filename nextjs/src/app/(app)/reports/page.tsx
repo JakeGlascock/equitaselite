@@ -1,9 +1,9 @@
-import { headers } from 'next/headers'
 import { redirect } from 'next/navigation'
 import {
   getMe, getCandidates, getIntroductions,
   buildIntroMap, toMatchView,
 } from '@/lib/matches'
+import { getActingAsState } from '@/lib/acting-as'
 
 function StatCard({ label, value, sub, accent }: {
   label: string; value: string | number; sub?: string; accent?: 'gold' | 'emerald'
@@ -36,9 +36,9 @@ function HorizontalBar({ label, count, total, color }: {
 }
 
 export default async function ReportsPage() {
-  const h = await headers()
-  const userId = h.get('x-user-id')
-  if (!userId) redirect('/signin')
+  const state = await getActingAsState()
+  if (!state) redirect('/signin')
+  const userId = state.effectiveUserId
 
   const me = await getMe(userId)
   if (!me || !me.onboarding_completed) redirect('/onboarding')

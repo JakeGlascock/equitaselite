@@ -57,19 +57,73 @@ function NavLink({ item, active }: { item: NavItem; active: boolean }) {
   )
 }
 
-export default function AppShell({ user, children }: { user: ShellUser; children: React.ReactNode }) {
+interface ActingAsLite {
+  id:        string
+  full_name: string
+  firm_name: string
+  role:      'angel' | 'family_office'
+}
+
+async function exitActingAs() {
+  try { await fetch('/api/concierge/act-as/clear', { method: 'POST' }) }
+  catch { /* ignore */ }
+  window.location.href = '/concierge'
+}
+
+export default function AppShell({
+  user, actingAs, children,
+}: {
+  user: ShellUser
+  actingAs?: ActingAsLite | null
+  children: React.ReactNode
+}) {
   const pathname = usePathname()
   const [mobileOpen, setMobileOpen] = useState(false)
 
-  const isAngel  = user.role === 'angel'
-  const roleIcon  = user.isConcierge ? 'support_agent' : isAngel ? 'person_raised_hand' : 'account_balance'
-  const roleLabel = user.isConcierge ? 'Concierge'    : isAngel ? 'Angel Investor'    : 'Family Office'
-  const initial  = (user.fullName || '?')[0].toUpperCase()
+  // When actively impersonating a managed profile, swap the role badge to
+  // reflect the profile (not the concierge's own label) so the UX matches
+  // what the concierge is operating on.
+  const isAngel  = (actingAs?.role ?? user.role) === 'angel'
+  const roleIcon  = actingAs
+    ? (isAngel ? 'person_raised_hand' : 'account_balance')
+    : user.isConcierge ? 'support_agent' : isAngel ? 'person_raised_hand' : 'account_balance'
+  const roleLabel = actingAs
+    ? (isAngel ? 'Angel Investor' : 'Family Office')
+    : user.isConcierge ? 'Concierge'    : isAngel ? 'Angel Investor'    : 'Family Office'
+  const displayName = actingAs?.full_name ?? user.fullName
+  const initial     = (displayName || '?')[0].toUpperCase()
 
   return (
     <div className="min-h-screen">
-      {/* Top bar */}
-      <header className="fixed top-0 left-0 right-0 h-14 bg-ee-surface-low/90 backdrop-blur-md border-b border-ee-outline/40 z-50 flex items-center justify-between px-4 md:px-6">
+      {/* Acting-as banner */}
+      {actingAs && (
+        <div className="fixed top-0 left-0 right-0 h-9 bg-ee-emerald/15 border-b border-ee-emerald/40 z-[60] flex items-center justify-between px-4 md:px-6 text-xs">
+          <span className="text-ee-emerald flex items-center gap-2 min-w-0">
+            <span
+              className="material-symbols-outlined text-base shrink-0"
+              style={{ fontVariationSettings: "'FILL' 1, 'wght' 300, 'GRAD' 0, 'opsz' 20" }}
+            >
+              support_agent
+            </span>
+            <span className="truncate">
+              Operating as <strong>{actingAs.full_name}</strong> ({actingAs.firm_name})
+            </span>
+          </span>
+          <button
+            type="button"
+            onClick={exitActingAs}
+            className="font-data uppercase tracking-widest text-[10px] text-ee-emerald hover:underline whitespace-nowrap"
+          >
+            Exit
+          </button>
+        </div>
+      )}
+
+      {/* Top bar — shifted down when the acting-as banner is visible */}
+      <header
+        className="fixed left-0 right-0 h-14 bg-ee-surface-low/90 backdrop-blur-md border-b border-ee-outline/40 z-50 flex items-center justify-between px-4 md:px-6"
+        style={{ top: actingAs ? 36 : 0 }}
+      >
         <div className="flex items-center gap-5 min-w-0">
           <button
             type="button"
@@ -128,7 +182,10 @@ export default function AppShell({ user, children }: { user: ShellUser; children
       </header>
 
       {/* Left sidebar (desktop) */}
-      <aside className="fixed left-0 top-14 bottom-0 w-60 bg-ee-surface-low border-r border-ee-outline/40 hidden lg:flex flex-col z-40">
+      <aside
+        className="fixed left-0 bottom-0 w-60 bg-ee-surface-low border-r border-ee-outline/40 hidden lg:flex flex-col z-40"
+        style={{ top: actingAs ? 36 + 56 : 56 }}
+      >
         <div className="p-4 border-b border-ee-outline/30">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-ee-gold/20 flex items-center justify-center shrink-0">
@@ -170,7 +227,10 @@ export default function AppShell({ user, children }: { user: ShellUser; children
       {mobileOpen && (
         <>
           <div className="lg:hidden fixed inset-0 bg-black/60 z-40" onClick={() => setMobileOpen(false)} />
-          <aside className="lg:hidden fixed left-0 top-14 bottom-0 w-72 bg-ee-surface-low border-r border-ee-outline/40 z-50 flex flex-col">
+          <aside
+            className="lg:hidden fixed left-0 bottom-0 w-72 bg-ee-surface-low border-r border-ee-outline/40 z-50 flex flex-col"
+            style={{ top: actingAs ? 36 + 56 : 56 }}
+          >
             <div className="p-4 border-b border-ee-outline/30">
               <p className="text-[13px] font-semibold text-ee-primary truncate">{user.fullName}</p>
               <p className="font-data text-[10px] tracking-wider text-ee-gold uppercase">{roleLabel}</p>
@@ -210,7 +270,10 @@ export default function AppShell({ user, children }: { user: ShellUser; children
       )}
 
       {/* Main content */}
-      <main className="pt-14 lg:pl-60 min-h-screen">
+      <main
+        className="lg:pl-60 min-h-screen"
+        style={{ paddingTop: actingAs ? 36 + 56 : 56 }}
+      >
         {children}
       </main>
     </div>
