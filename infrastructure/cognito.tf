@@ -35,10 +35,9 @@ resource "aws_cognito_user_pool" "main" {
   }
 
   email_configuration {
-    # Using Cognito's built-in mailer (no-reply@verificationemail.com).
-    # To switch to branded SES sending: verify a domain identity (DNS records),
-    # then change this back to DEVELOPER + source_arn = aws_ses_domain_identity.
-    email_sending_account = "COGNITO_DEFAULT"
+    email_sending_account = "DEVELOPER"
+    source_arn            = aws_ses_domain_identity.main.arn
+    from_email_address    = "Equitas Elite <noreply@${var.domain_name}>"
   }
 
   user_attribute_update_settings {
@@ -122,10 +121,5 @@ resource "aws_cognito_user_pool_client" "web" {
 resource "aws_cognito_user_pool_domain" "main" {
   domain       = "${var.app_name}-${var.environment}"
   user_pool_id = aws_cognito_user_pool.main.id
-}
-
-# SES identity for transactional email
-resource "aws_ses_email_identity" "noreply" {
-  email = "noreply@${var.domain_name}"
 }
 
