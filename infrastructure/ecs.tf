@@ -353,3 +353,27 @@ resource "aws_iam_role_policy" "ecs_task_ses" {
     }]
   })
 }
+
+# Cognito admin actions for the /admin invite flow, all scoped to this single
+# user pool. AdminCreateUser is what /api/admin/invite calls; the rest are
+# expected near-future needs (resend invite, look up user, disable account).
+resource "aws_iam_role_policy" "ecs_task_cognito_admin" {
+  role = aws_iam_role.ecs_task.id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect = "Allow"
+      Action = [
+        "cognito-idp:AdminCreateUser",
+        "cognito-idp:AdminGetUser",
+        "cognito-idp:AdminDeleteUser",
+        "cognito-idp:AdminDisableUser",
+        "cognito-idp:AdminEnableUser",
+        "cognito-idp:AdminResetUserPassword",
+        "cognito-idp:AdminUserGlobalSignOut",
+        "cognito-idp:ListUsers",
+      ]
+      Resource = aws_cognito_user_pool.main.arn
+    }]
+  })
+}
