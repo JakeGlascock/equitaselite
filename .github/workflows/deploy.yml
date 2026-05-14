@@ -97,6 +97,79 @@ jobs:
           echo "Registered $NEW_ARN"
           echo "task_definition_arn=$NEW_ARN" >> "$GITHUB_OUTPUT"
 
+      - name: Run DB migrations
+        id: migrate
+        env:
+          NEW_TASK_DEF: ${{ steps.register.outputs.task_definition_arn }}
+        run: |
+          set -euo pipefail
+
+          # Reuse the service's existing networkConfiguration so the one-off
+          # task lands in the same private subnets + security group (and can
+          # reach RDS via the existing app→DB egress rule).
+          NET_CONFIG=$(
+            aws ecs describe-services \
+              --cluster "$ECS_CLUSTER" --services "$ECS_SERVICE" \
+              --query 'services[0].networkConfiguration' \
+              --output json
+          )
+
+          OVERRIDES=$(
+            jq -n --arg name "$CONTAINER_NAME" \
+              '{containerOverrides:[{name:$name,command:["node","scripts/migrate.mjs"]}]}'
+          )
+
+          echo "Launching migration task with $NEW_TASK_DEF"
+          TASK_ARN=$(
+            aws ecs run-task \
+              --cluster "$ECS_CLUSTER" \
+              --task-definition "$NEW_TASK_DEF" \
+              --launch-type FARGATE \
+              --network-configuration "$NET_CONFIG" \
+              --overrides "$OVERRIDES" \
+              --started-by "migrate-${GITHUB_SHA:0:8}" \
+              --query 'tasks[0].taskArn' --output text
+          )
+          echo "Task: $TASK_ARN"
+          echo "task_arn=$TASK_ARN" >> "$GITHUB_OUTPUT"
+
+          echo "Waiting for task to stop (timeout ~10 min)…"
+          aws ecs wait tasks-stopped \
+            --cluster "$ECS_CLUSTER" --tasks "$TASK_ARN"
+
+          EXIT_CODE=$(
+            aws ecs describe-tasks \
+              --cluster "$ECS_CLUSTER" --tasks "$TASK_ARN" \
+              --query 'tasks[0].containers[0].exitCode' --output text
+          )
+          STOP_REASON=$(
+            aws ecs describe-tasks \
+              --cluster "$ECS_CLUSTER" --tasks "$TASK_ARN" \
+              --query 'tasks[0].stoppedReason' --output text
+          )
+          echo "Migration task exit code: ${EXIT_CODE:-none} (stopped reason: $STOP_REASON)"
+
+          if [ "$EXIT_CODE" != "0" ]; then
+            echo "::error::Migration task failed — aborting deploy"
+            exit 1
+          fi
+
+      - name: Migration task logs
+        if: always() && steps.migrate.outputs.task_arn != ''
+        env:
+          TASK_ARN: ${{ steps.migrate.outputs.task_arn }}
+        run: |
+          # ECS log stream name: <prefix>/<container>/<task-uuid>
+          TASK_ID=$(echo "$TASK_ARN" | awk -F'/' '{print $NF}')
+          STREAM="ecs/$CONTAINER_NAME/$TASK_ID"
+          echo "Log stream: /ecs/$TASK_FAMILY :: $STREAM"
+          aws logs get-log-events \
+            --log-group-name "/ecs/$TASK_FAMILY" \
+            --log-stream-name "$STREAM" \
+            --start-from-head \
+            --query 'events[*].message' --output text \
+            2>/dev/null || echo "(no logs)"
+
       - name: Update ECS service
         run: |
           aws ecs update-service \

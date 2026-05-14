@@ -82,6 +82,42 @@ resource "aws_iam_role_policy" "github_deploy_ses_alerts" {
   })
 }
 
+# Permissions for the migration one-off task launched from deploy.yml. The
+# step runs an ECS Fargate task with the same task definition as the main
+# service but a `node scripts/migrate.mjs` command override, waits for it to
+# stop, and tails CloudWatch on failure.
+resource "aws_iam_role_policy" "github_deploy_ecs_run_task" {
+  name = "ecs-run-migration-task"
+  role = aws_iam_role.github_deploy.id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "RunAndDescribeMigrationTask"
+        Effect = "Allow"
+        Action = [
+          "ecs:RunTask",
+          "ecs:DescribeTasks",
+          "ecs:StopTask",
+        ]
+        # ECS task ARNs are dynamic (cluster + task-uuid), so the action set
+        # has to be on "*". iam:PassRole below is what actually constrains
+        # which task definitions can be launched.
+        Resource = "*"
+      },
+      {
+        Sid      = "ReadMigrationLogs"
+        Effect   = "Allow"
+        Action   = [
+          "logs:GetLogEvents",
+          "logs:DescribeLogStreams",
+        ]
+        Resource = "arn:aws:logs:${var.aws_region}:${data.aws_caller_identity.current.account_id}:log-group:/ecs/${var.app_name}-${var.environment}:*"
+      },
+    ]
+  })
+}
+
 resource "aws_iam_role_policy" "github_deploy_ecs" {
   name = "ecs-deploy"
   role = aws_iam_role.github_deploy.id

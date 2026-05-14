@@ -31,6 +31,12 @@ COPY --from=builder /app/public          ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
+# Migration runner: scripts/migrate.mjs reads db/migrations/*.sql at runtime.
+# Standalone trace doesn't include these paths, so copy them explicitly.
+# The runner reuses `pg` from standalone node_modules (already traced via @/lib/db).
+COPY --from=builder --chown=nextjs:nodejs /app/scripts            ./scripts
+COPY --from=builder --chown=nextjs:nodejs /app/db/migrations      ./db/migrations
+
 USER nextjs
 EXPOSE 3000
 ENV PORT=3000 HOSTNAME="0.0.0.0"
