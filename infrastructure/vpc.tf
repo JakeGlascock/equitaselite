@@ -164,6 +164,16 @@ resource "aws_security_group" "app" {
     cidr_blocks = ["0.0.0.0/0"]
     description = "DNS"
   }
+  # PostgreSQL to RDS — kept inline because the separate
+  # aws_vpc_security_group_egress_rule resource conflicts with the inline
+  # rules above (the aws_security_group resource thinks it owns all egress).
+  egress {
+    from_port       = 5432
+    to_port         = 5432
+    protocol        = "tcp"
+    security_groups = [aws_security_group.rds.id]
+    description     = "PostgreSQL to RDS"
+  }
 }
 
 resource "aws_security_group" "rds" {
@@ -191,15 +201,8 @@ resource "aws_vpc_security_group_ingress_rule" "app_from_alb" {
   description                  = "From ALB"
 }
 
-# ECS tasks → RDS
-resource "aws_vpc_security_group_egress_rule" "app_to_rds" {
-  security_group_id            = aws_security_group.app.id
-  referenced_security_group_id = aws_security_group.rds.id
-  ip_protocol                  = "tcp"
-  from_port                    = 5432
-  to_port                      = 5432
-  description                  = "PostgreSQL to RDS"
-}
+# ECS tasks → RDS (egress side is inline on aws_security_group.app to avoid
+# the inline-vs-separate-rule conflict that swallowed this rule on apply)
 
 resource "aws_vpc_security_group_ingress_rule" "rds_from_app" {
   security_group_id            = aws_security_group.rds.id
