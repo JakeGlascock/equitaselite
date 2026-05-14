@@ -143,12 +143,41 @@ export default function OnboardingForm({ email, mode = 'onboard', initialData }:
     }
   }
 
-  const canAdvance = (): boolean => {
-    if (step === 1) return !!data.role && !!data.full_name.trim() && !!data.firm_name.trim()
-    if (step === 2) return data.sectors.length > 0 && data.stages.length > 0
-    if (step === 3) return data.check_size_min > 0 && data.check_size_max >= data.check_size_min
-    return true
+  function validateStep(s: number): string | null {
+    if (s === 1) {
+      if (!data.role)                          return 'Please select a role.'
+      if (data.full_name.trim().length < 2)    return 'Enter your full name (at least 2 characters).'
+      if (data.firm_name.trim().length < 2)    return `Enter your ${data.role === 'angel' ? 'firm/fund' : 'family office'} name.`
+      if (data.role === 'family_office' && !data.aum) return 'Select your AUM range.'
+      return null
+    }
+    if (s === 2) {
+      if (data.sectors.length === 0)   return 'Pick at least one sector.'
+      if (data.stages.length === 0)    return 'Pick at least one stage.'
+      if (data.geography.length === 0) return 'Pick at least one geography.'
+      return null
+    }
+    if (s === 3) {
+      if (data.check_size_min <= 0)               return 'Set a minimum check size above zero.'
+      if (data.check_size_max < data.check_size_min) return 'Maximum check size must be at least the minimum.'
+      if (!data.risk_tolerance)                   return 'Select your risk tolerance.'
+      return null
+    }
+    if (s === 4) {
+      if (data.role === 'angel') {
+        if (!data.expected_return) return 'Select a target return multiple.'
+        if (!data.timeline)        return 'Select an investment horizon.'
+      } else if (data.role === 'family_office') {
+        if (!data.mandate_type)    return 'Select a mandate type.'
+        if (!data.concentration)   return 'Select a deal structure preference.'
+      }
+      return null
+    }
+    return null
   }
+
+  const stepError = validateStep(step)
+  const Req = () => <span className="text-ee-gold/80 ml-0.5" aria-label="required">*</span>
 
   return (
     <div className="w-full max-w-xl mx-auto">
@@ -175,7 +204,7 @@ export default function OnboardingForm({ email, mode = 'onboard', initialData }:
             </div>
 
             <div>
-              <p className="text-xs text-ee-muted mb-2 font-data uppercase tracking-wider">I am a</p>
+              <p className="text-xs text-ee-muted mb-2 font-data uppercase tracking-wider">I am a<Req /></p>
               <div className="grid grid-cols-2 gap-3">
                 {(['angel', 'family_office'] as const).map(r => (
                   <button
@@ -204,58 +233,68 @@ export default function OnboardingForm({ email, mode = 'onboard', initialData }:
             <div className="space-y-4">
               <div>
                 <label className="block text-xs text-ee-muted mb-1.5 font-data uppercase tracking-wider">
-                  Full name
+                  Full name<Req />
                 </label>
                 <input
                   className="input-field"
                   value={data.full_name}
                   onChange={e => set('full_name', e.target.value)}
                   placeholder="Alexandra Chen"
+                  maxLength={120}
+                  autoComplete="name"
+                  required
                 />
               </div>
               <div>
                 <label className="block text-xs text-ee-muted mb-1.5 font-data uppercase tracking-wider">
-                  Title
+                  Title <span className="text-ee-muted/60">(optional)</span>
                 </label>
                 <input
                   className="input-field"
                   value={data.title}
                   onChange={e => set('title', e.target.value)}
                   placeholder="Managing Partner"
+                  maxLength={120}
+                  autoComplete="organization-title"
                 />
               </div>
               <div>
                 <label className="block text-xs text-ee-muted mb-1.5 font-data uppercase tracking-wider">
-                  {data.role === 'angel' ? 'Firm / Fund name' : 'Family office name'}
+                  {data.role === 'angel' ? 'Firm / Fund name' : 'Family office name'}<Req />
                 </label>
                 <input
                   className="input-field"
                   value={data.firm_name}
                   onChange={e => set('firm_name', e.target.value)}
                   placeholder={data.role === 'angel' ? 'Horizon Ventures' : 'Chen Family Office'}
+                  maxLength={160}
+                  autoComplete="organization"
+                  required
                 />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs text-ee-muted mb-1.5 font-data uppercase tracking-wider">
-                    Location
+                    Location <span className="text-ee-muted/60">(optional)</span>
                   </label>
                   <input
                     className="input-field"
                     value={data.location}
                     onChange={e => set('location', e.target.value)}
                     placeholder="San Francisco, CA"
+                    maxLength={120}
                   />
                 </div>
                 {data.role === 'family_office' && (
                   <div>
                     <label className="block text-xs text-ee-muted mb-1.5 font-data uppercase tracking-wider">
-                      AUM
+                      AUM<Req />
                     </label>
                     <select
                       className="input-field"
                       value={data.aum}
                       onChange={e => set('aum', e.target.value)}
+                      required
                     >
                       <option value="">Select…</option>
                       {AUM_OPTIONS.map(o => (
@@ -278,7 +317,7 @@ export default function OnboardingForm({ email, mode = 'onboard', initialData }:
             </div>
 
             <div>
-              <p className="text-xs text-ee-muted mb-2 font-data uppercase tracking-wider">Sectors</p>
+              <p className="text-xs text-ee-muted mb-2 font-data uppercase tracking-wider">Sectors<Req /></p>
               <div className="flex flex-wrap gap-2">
                 {SECTORS.map(s => (
                   <Chip
@@ -292,7 +331,7 @@ export default function OnboardingForm({ email, mode = 'onboard', initialData }:
             </div>
 
             <div>
-              <p className="text-xs text-ee-muted mb-2 font-data uppercase tracking-wider">Stages</p>
+              <p className="text-xs text-ee-muted mb-2 font-data uppercase tracking-wider">Stages<Req /></p>
               <div className="flex flex-wrap gap-2">
                 {STAGES.map(s => (
                   <Chip
@@ -306,7 +345,7 @@ export default function OnboardingForm({ email, mode = 'onboard', initialData }:
             </div>
 
             <div>
-              <p className="text-xs text-ee-muted mb-2 font-data uppercase tracking-wider">Geography</p>
+              <p className="text-xs text-ee-muted mb-2 font-data uppercase tracking-wider">Geography<Req /></p>
               <div className="flex flex-wrap gap-2">
                 {GEOGRAPHIES.map(g => (
                   <Chip
@@ -341,7 +380,7 @@ export default function OnboardingForm({ email, mode = 'onboard', initialData }:
             />
 
             <div>
-              <p className="text-xs text-ee-muted mb-2 font-data uppercase tracking-wider">Risk tolerance</p>
+              <p className="text-xs text-ee-muted mb-2 font-data uppercase tracking-wider">Risk tolerance<Req /></p>
               <div className="flex gap-3">
                 {['Conservative', 'Moderate', 'Aggressive'].map(r => (
                   <button
@@ -376,7 +415,7 @@ export default function OnboardingForm({ email, mode = 'onboard', initialData }:
               <>
                 <div>
                   <p className="text-xs text-ee-muted mb-2 font-data uppercase tracking-wider">
-                    Target return multiple
+                    Target return multiple<Req />
                   </p>
                   <div className="flex flex-col gap-2">
                     {['2x–5x', '5x–10x', '10x+'].map(r => (
@@ -398,7 +437,7 @@ export default function OnboardingForm({ email, mode = 'onboard', initialData }:
 
                 <div>
                   <p className="text-xs text-ee-muted mb-2 font-data uppercase tracking-wider">
-                    Investment horizon
+                    Investment horizon<Req />
                   </p>
                   <div className="flex flex-col gap-2">
                     {['3–5 years', '5–7 years', '7–10 years', '10+ years'].map(t => (
@@ -422,7 +461,7 @@ export default function OnboardingForm({ email, mode = 'onboard', initialData }:
               <>
                 <div>
                   <p className="text-xs text-ee-muted mb-2 font-data uppercase tracking-wider">
-                    Mandate type
+                    Mandate type<Req />
                   </p>
                   <div className="flex flex-wrap gap-2">
                     {['Growth', 'Value', 'Balanced', 'Venture', 'Impact'].map(m => (
@@ -438,7 +477,7 @@ export default function OnboardingForm({ email, mode = 'onboard', initialData }:
 
                 <div>
                   <p className="text-xs text-ee-muted mb-2 font-data uppercase tracking-wider">
-                    Deal structure preference
+                    Deal structure preference<Req />
                   </p>
                   <div className="flex gap-3">
                     {['Direct', 'Syndicated', 'Both'].map(c => (
@@ -482,6 +521,7 @@ export default function OnboardingForm({ email, mode = 'onboard', initialData }:
         )}
 
         {error && <p className="text-red-400 text-sm">{error}</p>}
+        {stepError && <p className="text-xs text-ee-muted text-center" role="status">{stepError}</p>}
 
         {/* Navigation */}
         <div className="flex gap-3 pt-2">
@@ -498,7 +538,8 @@ export default function OnboardingForm({ email, mode = 'onboard', initialData }:
             <button
               type="button"
               onClick={() => setStep(s => s + 1)}
-              disabled={!canAdvance()}
+              disabled={!!stepError}
+              title={stepError ?? undefined}
               className="btn-gold flex-1 justify-center disabled:opacity-40 disabled:cursor-not-allowed"
             >
               Continue
@@ -507,8 +548,9 @@ export default function OnboardingForm({ email, mode = 'onboard', initialData }:
             <button
               type="button"
               onClick={submit}
-              disabled={saving}
-              className="btn-gold flex-1 justify-center"
+              disabled={saving || !!stepError}
+              title={stepError ?? undefined}
+              className="btn-gold flex-1 justify-center disabled:opacity-40 disabled:cursor-not-allowed"
             >
               {saving ? 'Saving…' : mode === 'edit' ? 'Save changes' : 'Complete profile'}
             </button>

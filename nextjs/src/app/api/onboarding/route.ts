@@ -5,22 +5,49 @@ import { queryOne } from '@/lib/db'
 const OnboardingSchema = z.object({
   email:            z.string().email(),
   role:             z.enum(['angel', 'family_office']),
-  full_name:        z.string().min(1),
-  title:            z.string().optional(),
-  firm_name:        z.string().min(1),
-  location:         z.string().optional(),
-  aum:              z.string().optional(),
-  sectors:          z.array(z.string()).default([]),
-  stages:           z.array(z.string()).default([]),
-  geography:        z.array(z.string()).default([]),
-  check_size_min:   z.number().min(0).default(0),
-  check_size_max:   z.number().min(0).default(0),
-  risk_tolerance:   z.enum(['Conservative', 'Moderate', 'Aggressive']).optional(),
+  full_name:        z.string().trim().min(2).max(120),
+  title:            z.string().trim().max(120).optional(),
+  firm_name:        z.string().trim().min(2).max(160),
+  location:         z.string().trim().max(120).optional(),
+  aum:              z.string().trim().max(40).optional(),
+  sectors:          z.array(z.string()).min(1),
+  stages:           z.array(z.string()).min(1),
+  geography:        z.array(z.string()).min(1),
+  check_size_min:   z.number().positive(),
+  check_size_max:   z.number().positive(),
+  risk_tolerance:   z.enum(['Conservative', 'Moderate', 'Aggressive']),
   expected_return:  z.string().optional(),
   timeline:         z.string().optional(),
   mandate_type:     z.string().optional(),
   concentration:    z.string().optional(),
   email_notifications_enabled: z.boolean().optional(),
+}).superRefine((d, ctx) => {
+  if (d.check_size_max < d.check_size_min) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['check_size_max'],
+      message: 'Maximum check size must be at least the minimum.',
+    })
+  }
+  if (d.role === 'family_office') {
+    if (!d.aum) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['aum'], message: 'AUM is required for family offices.' })
+    }
+    if (!d.mandate_type) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['mandate_type'], message: 'Mandate type is required.' })
+    }
+    if (!d.concentration) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['concentration'], message: 'Deal structure preference is required.' })
+    }
+  }
+  if (d.role === 'angel') {
+    if (!d.expected_return) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['expected_return'], message: 'Target return multiple is required.' })
+    }
+    if (!d.timeline) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['timeline'], message: 'Investment horizon is required.' })
+    }
+  }
 })
 
 export async function POST(req: NextRequest) {
@@ -30,7 +57,12 @@ export async function POST(req: NextRequest) {
   const body = await req.json()
   const parsed = OnboardingSchema.safeParse(body)
   if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 })
+    const first = parsed.error.issues[0]
+    const where = first.path.length ? `${first.path.join('.')}: ` : ''
+    return NextResponse.json(
+      { error: `${where}${first.message}`, details: parsed.error.flatten() },
+      { status: 400 }
+    )
   }
 
   const d = parsed.data
