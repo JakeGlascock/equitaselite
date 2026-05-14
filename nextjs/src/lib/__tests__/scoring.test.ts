@@ -154,6 +154,15 @@ describe('computeMatchScore', () => {
       // overlap = hi - lo = 2M - 2M = 0 → score 0
       expect(score.checkSize).toBe(0)
     })
+
+    it('scores 100 when both ranges collapse to the same single point (span === 0)', () => {
+      // min === max on both sides — span is zero, branch returns 1.
+      const score = computeMatchScore(
+        makeUser({ checkSizeMin: 1_000_000, checkSizeMax: 1_000_000 }),
+        makeCandidate({ checkSizeMin: 1_000_000, checkSizeMax: 1_000_000 }),
+      )
+      expect(score.checkSize).toBe(100)
+    })
   })
 
   describe('geography overlap (10% weight)', () => {
