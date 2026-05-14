@@ -22,15 +22,17 @@ resource "aws_route53_record" "ses_dkim" {
   records = ["${aws_ses_domain_dkim.main.dkim_tokens[count.index]}.dkim.amazonses.com"]
 }
 
-# SPF — authorizes amazonses.com to send mail as @equitaselite.com.
-# Published as TXT at the apex; ~all = soft-fail unauthorized senders
-# (start permissive, tighten to -all once we're confident no other senders).
+# SPF — authorizes amazonses.com (transactional mail from the app) and
+# _spf.google.com (Google Workspace at access@equitaselite.com) to send
+# mail as @equitaselite.com. Published as TXT at the apex; ~all =
+# soft-fail unauthorized senders (start permissive, tighten to -all once
+# we're confident no other senders exist).
 resource "aws_route53_record" "ses_spf" {
   zone_id = aws_route53_zone.main.zone_id
   name    = var.domain_name
   type    = "TXT"
   ttl     = 600
-  records = ["v=spf1 include:amazonses.com ~all"]
+  records = ["v=spf1 include:amazonses.com include:_spf.google.com ~all"]
 }
 
 # DMARC — tells inbox providers what to do when SPF/DKIM fail.

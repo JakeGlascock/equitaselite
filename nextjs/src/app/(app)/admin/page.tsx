@@ -8,6 +8,7 @@ import SeedDemoButton from './SeedDemoButton'
 import InitNotificationsButton from './InitNotificationsButton'
 import InitEmailPrefButton from './InitEmailPrefButton'
 import InitIsAdminButton from './InitIsAdminButton'
+import InitAccessRequestsButton from './InitAccessRequestsButton'
 import AdminToggle from './AdminToggle'
 
 interface ProfileRow {
@@ -157,11 +158,22 @@ export default async function AdminPage() {
           </p>
         </div>
 
+        <div className="glass-panel p-5 flex items-center justify-between gap-4">
+          <div>
+            <h2 className="font-display text-base text-ee-primary mb-1">Access requests</h2>
+            <p className="text-xs text-ee-muted">
+              Submissions from <code className="font-data">/request-access</code> on the landing page.
+            </p>
+          </div>
+          <a href="/admin/access-requests" className="btn-ghost whitespace-nowrap">View →</a>
+        </div>
+
         <InviteForm />
         <SeedDemoButton />
         <InitNotificationsButton />
         <InitEmailPrefButton />
         <InitIsAdminButton />
+        <InitAccessRequestsButton />
 
         <div className="glass-panel overflow-hidden">
           <div className="px-6 py-4 border-b border-ee-border">

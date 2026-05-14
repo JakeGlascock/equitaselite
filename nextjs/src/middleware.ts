@@ -13,8 +13,8 @@ const JWKS = ISSUER
   : null
 
 const PUBLIC_PREFIXES = ['/_next/', '/favicon.ico', '/logo.png']
-const PUBLIC_EXACT    = ['/', '/signin', '/pricing']
-const PUBLIC_API      = ['/api/auth/', '/api/health']
+const PUBLIC_EXACT    = ['/', '/signin', '/pricing', '/request-access']
+const PUBLIC_API      = ['/api/auth/', '/api/health', '/api/request-access']
 
 function isPublic(pathname: string): boolean {
   if (PUBLIC_EXACT.includes(pathname))                   return true

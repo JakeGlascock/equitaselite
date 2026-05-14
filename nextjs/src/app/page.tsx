@@ -49,13 +49,13 @@ function Hero() {
           introductions. No middlemen, no noise — just aligned counterparties.
         </p>
         <div className="mt-10 flex flex-col sm:flex-row gap-3 justify-center">
-          <a
-            href="mailto:access@equitaselite.com?subject=Request%20access%20to%20Equitas%20Elite"
+          <Link
+            href="/request-access"
             className="btn-gold inline-flex items-center justify-center gap-2"
           >
             Request access
             <span className="material-symbols-outlined text-base">arrow_forward</span>
-          </a>
+          </Link>
           <Link
             href="/signin"
             className="btn-ghost inline-flex items-center justify-center"
@@ -265,7 +265,7 @@ function FAQ() {
     },
     {
       q: 'How do I request access?',
-      a: <>Email <a className="text-ee-gold hover:underline" href="mailto:access@equitaselite.com">access@equitaselite.com</a> with a brief note about your firm and mandate. We typically respond within two business days.</>,
+      a: <>Submit the <Link className="text-ee-gold hover:underline" href="/request-access">access request form</Link> with a brief note about your firm and mandate. We typically respond within two business days.</>,
     },
   ]
   return (
@@ -315,13 +315,13 @@ function FinalCTA() {
           Membership is invitation-only and reviewed manually. Reach out and we&apos;ll be in touch.
         </p>
         <div className="mt-8 flex flex-col sm:flex-row gap-3 justify-center">
-          <a
-            href="mailto:access@equitaselite.com?subject=Request%20access%20to%20Equitas%20Elite"
+          <Link
+            href="/request-access"
             className="btn-gold inline-flex items-center justify-center gap-2"
           >
             Request access
             <span className="material-symbols-outlined text-base">arrow_forward</span>
-          </a>
+          </Link>
           <Link href="/signin" className="btn-ghost inline-flex items-center justify-center">
             Sign in
           </Link>

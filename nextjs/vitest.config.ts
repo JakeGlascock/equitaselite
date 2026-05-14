@@ -33,6 +33,7 @@ export default defineConfig({
         'src/app/api/matches/**',
         'src/app/api/introductions/**',
         'src/app/api/notifications/**',
+        'src/app/api/request-access/**',
         // Admin route calls Cognito Admin API; tested via integration tests
         'src/app/api/admin/**',
       ],
