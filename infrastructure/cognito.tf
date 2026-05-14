@@ -35,9 +35,10 @@ resource "aws_cognito_user_pool" "main" {
   }
 
   email_configuration {
-    email_sending_account = "DEVELOPER"
-    source_arn            = aws_ses_email_identity.noreply.arn
-    from_email_address    = "noreply@${var.domain_name}"
+    # Using Cognito's built-in mailer (no-reply@verificationemail.com).
+    # To switch to branded SES sending: verify a domain identity (DNS records),
+    # then change this back to DEVELOPER + source_arn = aws_ses_domain_identity.
+    email_sending_account = "COGNITO_DEFAULT"
   }
 
   user_attribute_update_settings {
