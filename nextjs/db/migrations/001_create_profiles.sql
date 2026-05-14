@@ -1,4 +1,4 @@
-CREATE TABLE profiles (
+CREATE TABLE IF NOT EXISTS profiles (
   id                   TEXT PRIMARY KEY,
   email                TEXT NOT NULL UNIQUE,
   role                 TEXT NOT NULL CHECK (role IN ('angel', 'family_office')),
@@ -22,8 +22,8 @@ CREATE TABLE profiles (
   updated_at           TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX profiles_role_idx ON profiles (role);
-CREATE INDEX profiles_onboarding_idx ON profiles (onboarding_completed);
+CREATE INDEX IF NOT EXISTS profiles_role_idx        ON profiles (role);
+CREATE INDEX IF NOT EXISTS profiles_onboarding_idx  ON profiles (onboarding_completed);
 
 CREATE OR REPLACE FUNCTION set_updated_at()
 RETURNS TRIGGER LANGUAGE plpgsql AS $$
@@ -33,6 +33,9 @@ BEGIN
 END;
 $$;
 
+-- CREATE TRIGGER lacks IF NOT EXISTS (until PG 17.5 / 18). Drop-then-create
+-- keeps this safe on re-runs without changing semantics.
+DROP TRIGGER IF EXISTS profiles_updated_at ON profiles;
 CREATE TRIGGER profiles_updated_at
   BEFORE UPDATE ON profiles
   FOR EACH ROW EXECUTE FUNCTION set_updated_at();
