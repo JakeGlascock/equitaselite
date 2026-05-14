@@ -20,7 +20,7 @@ interface ConnectionRow {
 export default async function NetworkPage() {
   const h = await headers()
   const userId = h.get('x-user-id')
-  if (!userId) redirect('/')
+  if (!userId) redirect('/signin')
 
   const me = await getMe(userId)
   if (!me || !me.onboarding_completed) redirect('/onboarding')

@@ -38,7 +38,7 @@ function statusBadge(status: IntroRow['status']) {
 export default async function ConnectionsPage() {
   const headersList = await headers()
   const userId = headersList.get('x-user-id')
-  if (!userId) redirect('/')
+  if (!userId) redirect('/signin')
 
   const intros = await query<IntroRow>(
     `SELECT i.id, i.requester_id, i.recipient_id, i.status, i.message, i.created_at,

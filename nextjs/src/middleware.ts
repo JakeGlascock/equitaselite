@@ -13,7 +13,7 @@ const JWKS = ISSUER
   : null
 
 const PUBLIC_PREFIXES = ['/_next/', '/favicon.ico', '/logo.png']
-const PUBLIC_EXACT    = ['/', '/pricing']
+const PUBLIC_EXACT    = ['/', '/signin', '/pricing']
 const PUBLIC_API      = ['/api/auth/', '/api/health']
 
 function isPublic(pathname: string): boolean {
@@ -46,7 +46,7 @@ export async function middleware(req: NextRequest) {
 }
 
 function redirectToLogin(req: NextRequest): NextResponse {
-  const res = NextResponse.redirect(new URL('/', req.url))
+  const res = NextResponse.redirect(new URL('/signin', req.url))
   res.cookies.delete('ee_id')
   res.cookies.delete('ee_access')
   res.cookies.delete('ee_refresh')

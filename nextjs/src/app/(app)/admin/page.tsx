@@ -33,7 +33,7 @@ export default async function AdminPage() {
   const headersList = await headers()
   const userId    = headersList.get('x-user-id')
   const userEmail = headersList.get('x-user-email')
-  if (!userId) redirect('/')
+  if (!userId) redirect('/signin')
   if (!isAdmin(userEmail)) redirect('/dashboard')
 
   const members = await query<MemberRow>(

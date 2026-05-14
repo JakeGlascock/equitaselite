@@ -34,7 +34,7 @@ function relativeDate(s: string): string {
 export default async function PortfolioPage() {
   const h = await headers()
   const userId = h.get('x-user-id')
-  if (!userId) redirect('/')
+  if (!userId) redirect('/signin')
 
   const me = await getMe(userId)
   if (!me || !me.onboarding_completed) redirect('/onboarding')

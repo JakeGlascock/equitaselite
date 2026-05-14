@@ -12,7 +12,7 @@ export default async function OnboardingPage() {
   const headersList = await headers()
   const userId = headersList.get('x-user-id')
 
-  if (!userId) redirect('/')
+  if (!userId) redirect('/signin')
 
   const profile = await queryOne<Profile>(
     'SELECT onboarding_completed, email FROM profiles WHERE id = $1',

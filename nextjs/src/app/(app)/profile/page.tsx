@@ -29,7 +29,7 @@ interface DbProfile {
 export default async function ProfilePage() {
   const headersList = await headers()
   const userId = headersList.get('x-user-id')
-  if (!userId) redirect('/')
+  if (!userId) redirect('/signin')
 
   const profile = await queryOne<DbProfile>(
     'SELECT * FROM profiles WHERE id = $1',
