@@ -20,6 +20,9 @@ permissions:
   id-token: write  # required for OIDC
 
 env:
+  # Run JS-based actions (checkout, setup-node, configure-aws-credentials, etc.)
+  # on Node 24 ahead of the June 2026 deprecation of Node 20 on GitHub runners.
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
   AWS_REGION:        us-east-1
   AWS_ACCOUNT_ID:    "625227331957"
   ECR_REGISTRY:      625227331957.dkr.ecr-fips.us-east-1.amazonaws.com
