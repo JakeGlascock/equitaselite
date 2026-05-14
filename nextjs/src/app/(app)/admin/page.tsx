@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import { query } from '@/lib/db'
 import InviteForm from './InviteForm'
 import SeedDemoButton from './SeedDemoButton'
+import InitNotificationsButton from './InitNotificationsButton'
 
 interface MemberRow {
   id: string
@@ -58,6 +59,8 @@ export default async function AdminPage() {
         <InviteForm />
 
         <SeedDemoButton />
+
+        <InitNotificationsButton />
 
         <div className="glass-panel overflow-hidden">
           <div className="px-6 py-4 border-b border-ee-border">

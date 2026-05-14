@@ -1,10 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import { queryOne } from '@/lib/db'
+import { query, queryOne } from '@/lib/db'
 
 const RespondSchema = z.object({
   status: z.enum(['accepted', 'declined']),
 })
+
+interface UpdatedIntro {
+  id: string
+  requester_id: string
+  recipient_id: string
+  status: 'accepted' | 'declined'
+}
 
 export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params
@@ -15,7 +22,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
   const parsed = RespondSchema.safeParse(body)
   if (!parsed.success) return NextResponse.json({ error: 'Invalid status' }, { status: 400 })
 
-  const updated = await queryOne(
+  const updated = await queryOne<UpdatedIntro>(
     `UPDATE introductions
      SET status = $3, responded_at = NOW()
      WHERE id = $1 AND recipient_id = $2 AND status = 'pending'
@@ -29,6 +36,29 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
       { status: 404 }
     )
   }
+
+  // Notify the requester that their intro got a response.
+  try {
+    const me = await queryOne<{ full_name: string; firm_name: string }>(
+      'SELECT full_name, firm_name FROM profiles WHERE id = $1',
+      [userId]
+    )
+    if (me) {
+      const verb  = updated.status === 'accepted' ? 'accepted' : 'declined'
+      const type  = updated.status === 'accepted' ? 'intro_accepted' : 'intro_declined'
+      await query(
+        `INSERT INTO notifications (user_id, type, title, body, link_url, related_id)
+         VALUES ($1, $2, $3, $4, '/connections', $5)`,
+        [
+          updated.requester_id,
+          type,
+          `${me.full_name} ${verb} your introduction`,
+          `${me.firm_name}`,
+          updated.id,
+        ]
+      )
+    }
+  } catch { /* notifications table not yet initialized */ }
 
   return NextResponse.json(updated)
 }

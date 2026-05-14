@@ -3,6 +3,7 @@
 import { usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { useState } from 'react'
+import NotificationsBell from './NotificationsBell'
 
 interface ShellUser {
   fullName: string
@@ -98,6 +99,7 @@ export default function AppShell({ user, children }: { user: ShellUser; children
               Admin
             </Link>
           )}
+          <NotificationsBell />
           <Link
             href="/profile"
             className="p-2 hover:bg-ee-surface-mid rounded-lg transition-colors"
