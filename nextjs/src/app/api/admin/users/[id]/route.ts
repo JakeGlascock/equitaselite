@@ -4,7 +4,10 @@ import { queryOne } from '@/lib/db'
 import { isUserAdmin } from '@/lib/admin'
 
 const PatchSchema = z.object({
-  is_admin: z.boolean(),
+  is_admin:     z.boolean().optional(),
+  is_concierge: z.boolean().optional(),
+}).refine(d => d.is_admin !== undefined || d.is_concierge !== undefined, {
+  message: 'Provide at least one field to update.',
 })
 
 export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
@@ -20,8 +23,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     return NextResponse.json({ error: 'Invalid request' }, { status: 400 })
   }
 
-  // Safety: don't let an admin revoke their own access (could lock everyone
-  // out if they're the last admin).
+  // Safety: an admin can't revoke their own admin (lockout risk)
   if (id === userId && parsed.data.is_admin === false) {
     return NextResponse.json(
       { error: 'You cannot revoke your own admin access. Ask another admin to do it.' },
@@ -29,12 +31,14 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     )
   }
 
-  const updated = await queryOne<{ id: string; is_admin: boolean }>(
+  // COALESCE leaves unchanged fields alone
+  const updated = await queryOne<{ id: string; is_admin: boolean; is_concierge: boolean }>(
     `UPDATE profiles
-     SET is_admin = $2
+     SET is_admin     = COALESCE($2, is_admin),
+         is_concierge = COALESCE($3, is_concierge)
      WHERE id = $1
-     RETURNING id, is_admin`,
-    [id, parsed.data.is_admin]
+     RETURNING id, is_admin, is_concierge`,
+    [id, parsed.data.is_admin ?? null, parsed.data.is_concierge ?? null]
   )
 
   if (!updated) return NextResponse.json({ error: 'Not found' }, { status: 404 })

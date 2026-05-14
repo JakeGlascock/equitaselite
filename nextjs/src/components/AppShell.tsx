@@ -6,9 +6,10 @@ import { useState } from 'react'
 import NotificationsBell from './NotificationsBell'
 
 interface ShellUser {
-  fullName: string
-  role:     'angel' | 'family_office'
-  isAdmin:  boolean
+  fullName:    string
+  role:        'angel' | 'family_office'
+  isAdmin:     boolean
+  isConcierge: boolean
 }
 
 interface NavItem {
@@ -61,8 +62,8 @@ export default function AppShell({ user, children }: { user: ShellUser; children
   const [mobileOpen, setMobileOpen] = useState(false)
 
   const isAngel  = user.role === 'angel'
-  const roleIcon = isAngel ? 'person_raised_hand' : 'account_balance'
-  const roleLabel = isAngel ? 'Angel Investor' : 'Family Office'
+  const roleIcon  = user.isConcierge ? 'support_agent' : isAngel ? 'person_raised_hand' : 'account_balance'
+  const roleLabel = user.isConcierge ? 'Concierge'    : isAngel ? 'Angel Investor'    : 'Family Office'
   const initial  = (user.fullName || '?')[0].toUpperCase()
 
   return (

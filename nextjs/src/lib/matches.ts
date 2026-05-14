@@ -77,14 +77,29 @@ export async function getMe(userId: string): Promise<DbProfile | null> {
 
 export async function getCandidates(me: DbProfile): Promise<DbProfile[]> {
   const oppositeRole = me.role === 'angel' ? 'family_office' : 'angel'
-  return query<DbProfile>(
-    `SELECT id, email, full_name, title, firm_name, location, aum, role,
-            sectors, stages, geography, check_size_min, check_size_max,
-            onboarding_completed
-     FROM profiles
-     WHERE role = $1 AND onboarding_completed = TRUE AND id != $2`,
-    [oppositeRole, me.id]
-  )
+  // Concierges aren't investable counterparties — they're staff who manage
+  // other profiles. Pre-init the column may not exist, so fall back to the
+  // unfiltered query if the WHERE clause errors.
+  try {
+    return await query<DbProfile>(
+      `SELECT id, email, full_name, title, firm_name, location, aum, role,
+              sectors, stages, geography, check_size_min, check_size_max,
+              onboarding_completed
+       FROM profiles
+       WHERE role = $1 AND onboarding_completed = TRUE AND id != $2
+         AND (is_concierge IS NULL OR is_concierge = FALSE)`,
+      [oppositeRole, me.id]
+    )
+  } catch {
+    return query<DbProfile>(
+      `SELECT id, email, full_name, title, firm_name, location, aum, role,
+              sectors, stages, geography, check_size_min, check_size_max,
+              onboarding_completed
+       FROM profiles
+       WHERE role = $1 AND onboarding_completed = TRUE AND id != $2`,
+      [oppositeRole, me.id]
+    )
+  }
 }
 
 export async function getIntroductions(userId: string): Promise<IntroRow[]> {

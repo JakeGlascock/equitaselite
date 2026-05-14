@@ -8,8 +8,10 @@ import SeedDemoButton from './SeedDemoButton'
 import InitNotificationsButton from './InitNotificationsButton'
 import InitEmailPrefButton from './InitEmailPrefButton'
 import InitIsAdminButton from './InitIsAdminButton'
+import InitConciergeButton from './InitConciergeButton'
 import InitAccessRequestsButton from './InitAccessRequestsButton'
 import AdminToggle from './AdminToggle'
+import ConciergeToggle from './ConciergeToggle'
 
 interface ProfileRow {
   id: string
@@ -19,6 +21,7 @@ interface ProfileRow {
   role: 'angel' | 'family_office' | null
   onboarding_completed: boolean
   is_admin: boolean | null
+  is_concierge: boolean | null
   created_at: Date | string
 }
 
@@ -33,6 +36,7 @@ interface MergedRow {
   joined:   string
   userId:   string | null       // profile id, if any
   isAdmin:  boolean              // current admin state
+  isConcierge: boolean            // current concierge state
   togglable: boolean             // whether the toggle should be enabled
   toggleReason?: string
 }
@@ -73,16 +77,25 @@ export default async function AdminPage() {
   try {
     profiles = await query<ProfileRow>(
       `SELECT id, email, full_name, firm_name, role, onboarding_completed,
-              is_admin, created_at
+              is_admin, is_concierge, created_at
        FROM profiles
        ORDER BY created_at DESC`
     )
   } catch {
-    profiles = (await query<Omit<ProfileRow, 'is_admin'>>(
-      `SELECT id, email, full_name, firm_name, role, onboarding_completed, created_at
-       FROM profiles
-       ORDER BY created_at DESC`
-    )).map(p => ({ ...p, is_admin: null }))
+    try {
+      profiles = (await query<Omit<ProfileRow, 'is_concierge'>>(
+        `SELECT id, email, full_name, firm_name, role, onboarding_completed,
+                is_admin, created_at
+         FROM profiles
+         ORDER BY created_at DESC`
+      )).map(p => ({ ...p, is_concierge: null }))
+    } catch {
+      profiles = (await query<Omit<ProfileRow, 'is_admin' | 'is_concierge'>>(
+        `SELECT id, email, full_name, firm_name, role, onboarding_completed, created_at
+         FROM profiles
+         ORDER BY created_at DESC`
+      )).map(p => ({ ...p, is_admin: null, is_concierge: null }))
+    }
   }
 
   const cognitoUsers = await listCognitoUsers().catch(err => {
@@ -103,14 +116,15 @@ export default async function AdminPage() {
 
     const togglable = !!p && status !== 'Disabled'
     merged.push({
-      email:   u.email,
-      name:    p?.full_name ?? null,
-      firm:    p?.firm_name ?? null,
-      role:    p?.role ?? null,
+      email:        u.email,
+      name:         p?.full_name ?? null,
+      firm:         p?.firm_name ?? null,
+      role:         p?.role ?? null,
       status,
-      joined:  toIso(p?.created_at) || u.createdAt,
-      userId:  p?.id ?? null,
-      isAdmin: p?.is_admin ?? false,
+      joined:       toIso(p?.created_at) || u.createdAt,
+      userId:       p?.id ?? null,
+      isAdmin:      p?.is_admin ?? false,
+      isConcierge:  p?.is_concierge ?? false,
       togglable,
       toggleReason: !p ? 'Profile not created yet' : status === 'Disabled' ? 'User is disabled' : undefined,
     })
@@ -119,16 +133,17 @@ export default async function AdminPage() {
   for (const p of profiles) {
     if (!p.id.startsWith('demo_')) continue
     merged.push({
-      email:   p.email,
-      name:    p.full_name,
-      firm:    p.firm_name,
-      role:    p.role,
-      status:  'Demo',
-      joined:  toIso(p.created_at),
-      userId:  p.id,
-      isAdmin: p.is_admin ?? false,
-      togglable: false,
-      toggleReason: 'Demo accounts cannot be made admin',
+      email:        p.email,
+      name:         p.full_name,
+      firm:         p.firm_name,
+      role:         p.role,
+      status:       'Demo',
+      joined:       toIso(p.created_at),
+      userId:       p.id,
+      isAdmin:      p.is_admin ?? false,
+      isConcierge:  p.is_concierge ?? false,
+      togglable:    false,
+      toggleReason: 'Demo accounts cannot be made admin or concierge',
     })
   }
 
@@ -173,6 +188,7 @@ export default async function AdminPage() {
         <InitNotificationsButton />
         <InitEmailPrefButton />
         <InitIsAdminButton />
+        <InitConciergeButton />
         <InitAccessRequestsButton />
 
         <div className="glass-panel overflow-hidden">
@@ -193,6 +209,7 @@ export default async function AdminPage() {
                   <th className="text-left  px-6 py-3 font-normal">Role</th>
                   <th className="text-left  px-6 py-3 font-normal">Status</th>
                   <th className="text-left  px-6 py-3 font-normal">Admin</th>
+                  <th className="text-left  px-6 py-3 font-normal">Concierge</th>
                   <th className="text-right px-6 py-3 font-normal">Joined</th>
                 </tr>
               </thead>
@@ -215,6 +232,18 @@ export default async function AdminPage() {
                           userId={m.userId}
                           initial={m.isAdmin}
                           selfUserId={userId}
+                          disabled={!m.togglable}
+                          disabledReason={m.toggleReason}
+                        />
+                      ) : (
+                        <span className="text-xs text-ee-muted/50 italic" title="Profile not created yet">—</span>
+                      )}
+                    </td>
+                    <td className="px-6 py-3">
+                      {m.userId ? (
+                        <ConciergeToggle
+                          userId={m.userId}
+                          initial={m.isConcierge}
                           disabled={!m.togglable}
                           disabledReason={m.toggleReason}
                         />

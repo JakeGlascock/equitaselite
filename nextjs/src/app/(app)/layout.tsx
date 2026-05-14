@@ -8,6 +8,7 @@ interface ShellProfile {
   full_name: string
   role:      'angel' | 'family_office'
   onboarding_completed: boolean
+  is_concierge?: boolean
 }
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
@@ -16,17 +17,27 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const userEmail = h.get('x-user-email')
   if (!userId) redirect('/signin')
 
-  const profile = await queryOne<ShellProfile>(
-    'SELECT full_name, role, onboarding_completed FROM profiles WHERE id = $1',
-    [userId]
-  )
+  // is_concierge may not exist pre-init — try with, fall back without
+  let profile: ShellProfile | null = null
+  try {
+    profile = await queryOne<ShellProfile>(
+      'SELECT full_name, role, onboarding_completed, is_concierge FROM profiles WHERE id = $1',
+      [userId]
+    )
+  } catch {
+    profile = await queryOne<ShellProfile>(
+      'SELECT full_name, role, onboarding_completed FROM profiles WHERE id = $1',
+      [userId]
+    )
+  }
 
   if (!profile || !profile.onboarding_completed) redirect('/onboarding')
 
   const isAdmin = await isUserAdmin(userId, userEmail)
+  const isConcierge = !!profile.is_concierge
 
   return (
-    <AppShell user={{ fullName: profile.full_name, role: profile.role, isAdmin }}>
+    <AppShell user={{ fullName: profile.full_name, role: profile.role, isAdmin, isConcierge }}>
       {children}
     </AppShell>
   )
