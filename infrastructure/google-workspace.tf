@@ -37,4 +37,27 @@ resource "aws_route53_record" "google_workspace_mx" {
 # for traceability.
 locals {
   google_site_verification = "google-site-verification=F2wPgkIW531tJLtiQ5-oiCLo2amYi4x12KnrH_mrGAI"
+
+  # DKIM public key issued by Google Workspace for outbound Gmail signing.
+  # Generated via admin.google.com -> Apps -> Google Workspace -> Gmail ->
+  # Authenticate email -> Generate new record. If we ever rotate the key,
+  # paste the new value here and `terraform apply`.
+  google_dkim_value = "v=DKIM1;k=rsa;p=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAqoXNM2PqDBKgkLicZoUOzbpFSGJ2kcrMip6eO616x8LB3qPy8oZt+L1d95xFi4Vnd0lLt2H4x5ZMOARn3RW+Rtq/ObziVoYxGJjTe6YMuJX+M8/YGMd1Lu2gcGnls6xH15In6wmHkxXEmcRCIhHnKgsTQSKHPegnIqOLdTR/ejDxxfPylCkjo05D8kOZX2GbiJ/5z1SICIGs1QO8DQSQFLRx99x40/geBVv0FYvfr7LJhZZBfrftdxkbJYWPXdO+WFJCoGAW9i9MxISMa8cnZhe4CutN5odvwzox5OVL7rFSW6pedYwE7i83yle3hJgdav3SBbNueq6gXbwle+X84wIDAQAB"
+}
+
+# DKIM public key for outbound mail authentication. Route 53's per-string
+# limit on TXT records is 255 chars, but the DKIM value is ~430. Split it
+# into <=255-char chunks separated by "" — Route 53 stores them as a
+# multi-string TXT record that resolvers reassemble.
+resource "aws_route53_record" "google_dkim" {
+  zone_id = aws_route53_zone.main.zone_id
+  name    = "google._domainkey.${var.domain_name}"
+  type    = "TXT"
+  ttl     = 3600
+  records = [
+    join("\"\"", [
+      for i in range(0, length(local.google_dkim_value), 255) :
+        substr(local.google_dkim_value, i, 255)
+    ])
+  ]
 }
