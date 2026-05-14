@@ -22,6 +22,7 @@ interface DbProfile {
   timeline: string | null
   mandate_type: string | null
   concentration: string | null
+  email_notifications_enabled: boolean | null
   onboarding_completed: boolean
 }
 
@@ -67,6 +68,7 @@ export default async function ProfilePage() {
             timeline:        profile.timeline        ?? '',
             mandate_type:    profile.mandate_type    ?? '',
             concentration:   profile.concentration   ?? '',
+            email_notifications_enabled: profile.email_notifications_enabled ?? true,
           }}
         />
       </div>

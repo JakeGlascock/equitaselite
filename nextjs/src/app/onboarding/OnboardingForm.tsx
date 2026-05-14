@@ -31,6 +31,7 @@ interface FormData {
   timeline: string
   mandate_type: string
   concentration: string
+  email_notifications_enabled: boolean
 }
 
 function toggle(arr: string[], val: string): string[] {
@@ -114,6 +115,7 @@ export default function OnboardingForm({ email, mode = 'onboard', initialData }:
     timeline: '',
     mandate_type: '',
     concentration: '',
+    email_notifications_enabled: true,
     ...initialData,
   })
 
@@ -457,6 +459,25 @@ export default function OnboardingForm({ email, mode = 'onboard', initialData }:
                 </div>
               </>
             )}
+
+            {/* Notification preference (shared across roles) */}
+            <div className="pt-4 border-t border-ee-border/40">
+              <label className="flex items-start gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={data.email_notifications_enabled}
+                  onChange={e => set('email_notifications_enabled', e.target.checked)}
+                  className="mt-1 w-4 h-4 rounded border-ee-border bg-white/5 text-ee-gold focus:ring-ee-gold/40 cursor-pointer"
+                />
+                <div className="flex-1">
+                  <p className="text-sm text-ee-primary">Email notifications</p>
+                  <p className="text-xs text-ee-muted mt-0.5 leading-relaxed">
+                    Get an email when someone requests an introduction, accepts, or declines.
+                    You can change this anytime from your profile.
+                  </p>
+                </div>
+              </label>
+            </div>
           </>
         )}
 

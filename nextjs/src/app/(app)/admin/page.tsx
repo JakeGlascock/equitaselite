@@ -4,6 +4,7 @@ import { query } from '@/lib/db'
 import InviteForm from './InviteForm'
 import SeedDemoButton from './SeedDemoButton'
 import InitNotificationsButton from './InitNotificationsButton'
+import InitEmailPrefButton from './InitEmailPrefButton'
 
 interface MemberRow {
   id: string
@@ -61,6 +62,8 @@ export default async function AdminPage() {
         <SeedDemoButton />
 
         <InitNotificationsButton />
+
+        <InitEmailPrefButton />
 
         <div className="glass-panel overflow-hidden">
           <div className="px-6 py-4 border-b border-ee-border">

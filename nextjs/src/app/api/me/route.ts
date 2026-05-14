@@ -32,6 +32,7 @@ const UpdateSchema = z.object({
   timeline:        z.string().optional(),
   mandate_type:    z.string().optional(),
   concentration:   z.string().optional(),
+  email_notifications_enabled: z.boolean().optional(),
 })
 
 export async function PATCH(req: NextRequest) {
@@ -62,7 +63,8 @@ export async function PATCH(req: NextRequest) {
        expected_return = COALESCE($14, expected_return),
        timeline        = COALESCE($15, timeline),
        mandate_type    = COALESCE($16, mandate_type),
-       concentration   = COALESCE($17, concentration)
+       concentration   = COALESCE($17, concentration),
+       email_notifications_enabled = COALESCE($18, email_notifications_enabled)
      WHERE id = $1
      RETURNING *`,
     [
@@ -83,6 +85,7 @@ export async function PATCH(req: NextRequest) {
       d.timeline       ?? null,
       d.mandate_type   ?? null,
       d.concentration  ?? null,
+      d.email_notifications_enabled ?? null,
     ]
   )
 

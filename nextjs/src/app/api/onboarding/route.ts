@@ -20,6 +20,7 @@ const OnboardingSchema = z.object({
   timeline:         z.string().optional(),
   mandate_type:     z.string().optional(),
   concentration:    z.string().optional(),
+  email_notifications_enabled: z.boolean().optional(),
 })
 
 export async function POST(req: NextRequest) {
@@ -33,18 +34,21 @@ export async function POST(req: NextRequest) {
   }
 
   const d = parsed.data
+  const emailPref = d.email_notifications_enabled ?? true
   const profile = await queryOne(
     `INSERT INTO profiles (
        id, email, role, full_name, title, firm_name, location, aum,
        sectors, stages, geography,
        check_size_min, check_size_max, risk_tolerance,
        expected_return, timeline, mandate_type, concentration,
+       email_notifications_enabled,
        onboarding_completed
      ) VALUES (
        $1,$2,$3,$4,$5,$6,$7,$8,
        $9,$10,$11,
        $12,$13,$14,
        $15,$16,$17,$18,
+       $19,
        TRUE
      )
      ON CONFLICT (id) DO UPDATE SET
@@ -53,6 +57,7 @@ export async function POST(req: NextRequest) {
        sectors=$9, stages=$10, geography=$11,
        check_size_min=$12, check_size_max=$13, risk_tolerance=$14,
        expected_return=$15, timeline=$16, mandate_type=$17, concentration=$18,
+       email_notifications_enabled=$19,
        onboarding_completed=TRUE
      RETURNING *`,
     [
@@ -62,6 +67,7 @@ export async function POST(req: NextRequest) {
       d.check_size_min, d.check_size_max, d.risk_tolerance ?? null,
       d.expected_return ?? null, d.timeline ?? null,
       d.mandate_type ?? null, d.concentration ?? null,
+      emailPref,
     ]
   )
 

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { query, queryOne } from '@/lib/db'
+import { emailIntroAccepted, emailIntroDeclined } from '@/lib/email'
 
 const RespondSchema = z.object({
   status: z.enum(['accepted', 'declined']),
@@ -39,8 +40,8 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
 
   // Notify the requester that their intro got a response.
   try {
-    const me = await queryOne<{ full_name: string; firm_name: string }>(
-      'SELECT full_name, firm_name FROM profiles WHERE id = $1',
+    const me = await queryOne<{ full_name: string; firm_name: string; email: string }>(
+      'SELECT full_name, firm_name, email FROM profiles WHERE id = $1',
       [userId]
     )
     if (me) {
@@ -57,6 +58,15 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
           updated.id,
         ]
       )
+
+      // Email
+      try {
+        if (updated.status === 'accepted') {
+          await emailIntroAccepted(updated.requester_id, me.full_name, me.firm_name, me.email)
+        } else {
+          await emailIntroDeclined(updated.requester_id, me.full_name, me.firm_name)
+        }
+      } catch (err) { console.error('email send failed:', err) }
     }
   } catch { /* notifications table not yet initialized */ }
 

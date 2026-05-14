@@ -17,6 +17,8 @@ export default defineConfig({
         'src/lib/aws.ts',
         // pg Pool singleton — requires live DB; tested via integration tests
         'src/lib/db.ts',
+        // SES sender — requires live AWS credentials + verified domain identity
+        'src/lib/email.ts',
         // Thin Cognito proxy routes — call signIn/signOut/refreshTokens from lib/auth
         'src/app/api/auth/signin/**',
         'src/app/api/auth/signout/**',

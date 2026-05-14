@@ -339,3 +339,17 @@ resource "aws_iam_role_policy" "ecs_task_s3" {
     ]
   })
 }
+
+# Allow the app to send transactional email through the verified SES domain
+# identity. Scoped so we can only send "From: *@equitaselite.com".
+resource "aws_iam_role_policy" "ecs_task_ses" {
+  role = aws_iam_role.ecs_task.id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect   = "Allow"
+      Action   = ["ses:SendEmail", "ses:SendRawEmail"]
+      Resource = aws_ses_domain_identity.main.arn
+    }]
+  })
+}

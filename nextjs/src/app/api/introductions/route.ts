@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { query, queryOne } from '@/lib/db'
+import { emailIntroRequested } from '@/lib/email'
 
 const CreateSchema = z.object({
   recipient_id: z.string().min(1),
@@ -78,6 +79,10 @@ export async function POST(req: NextRequest) {
             intro?.id ?? null,
           ]
         )
+
+        // Email (gated on recipient's email_notifications_enabled inside the helper)
+        try { await emailIntroRequested(recipient_id, me.full_name, me.firm_name, trimmed || null) }
+        catch (err) { console.error('email send failed:', err) }
       }
     } catch { /* notifications table not yet initialized */ }
 
