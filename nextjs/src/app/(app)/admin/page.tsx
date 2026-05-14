@@ -5,12 +5,6 @@ import { listCognitoUsers } from '@/lib/auth'
 import { isUserAdmin } from '@/lib/admin'
 import InviteForm from './InviteForm'
 import SeedDemoButton from './SeedDemoButton'
-import InitNotificationsButton from './InitNotificationsButton'
-import InitEmailPrefButton from './InitEmailPrefButton'
-import InitIsAdminButton from './InitIsAdminButton'
-import InitConciergeButton from './InitConciergeButton'
-import InitAccessRequestsButton from './InitAccessRequestsButton'
-import InitMembershipButton from './InitMembershipButton'
 import ManagedAccountAssignment from './ManagedAccountAssignment'
 import MembersTable, { type MemberRow } from './MembersTable'
 
@@ -207,7 +201,7 @@ export default async function AdminPage() {
             <div>
               <h2 className="font-display text-base text-ee-primary">Setup &amp; maintenance</h2>
               <p className="text-xs text-ee-muted mt-0.5">
-                One-time schema migrations and demo data seeders.
+                Demo data seeders and one-off operational utilities.
               </p>
             </div>
             <span className="material-symbols-outlined text-ee-muted transition-transform group-open:rotate-180">
@@ -216,12 +210,6 @@ export default async function AdminPage() {
           </summary>
           <div className="px-6 pb-6 pt-2 space-y-3 border-t border-ee-border">
             <SeedDemoButton />
-            <InitNotificationsButton />
-            <InitEmailPrefButton />
-            <InitIsAdminButton />
-            <InitConciergeButton />
-            <InitAccessRequestsButton />
-            <InitMembershipButton />
           </div>
         </details>
 
