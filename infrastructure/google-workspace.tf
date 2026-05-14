@@ -20,3 +20,21 @@ resource "aws_route53_record" "google_workspace_mx" {
   ttl     = 3600
   records = ["1 SMTP.GOOGLE.COM."]
 }
+
+# Domain ownership verification for Google Workspace. Workspace's "Activate
+# Gmail" / "Verify domain" flow polls for this TXT at the apex.
+#
+# Note: the SPF record (ses.tf) is also a TXT at the apex. Route 53 stores
+# multiple TXT records on the same name as one record set with multiple
+# values — but we manage them through two different aws_route53_record
+# resources here, which is NOT allowed in Route 53. The workaround is to
+# put BOTH values in the single SPF resource, OR put the verification TXT
+# under a subdomain. Google accepts it at the apex only, so we merge it
+# into the SPF record by listing both values.
+#
+# The actual record set is defined alongside the SPF in ses.tf to keep
+# Route 53 happy. This file documents the source of the verification value
+# for traceability.
+locals {
+  google_site_verification = "google-site-verification=F2wPgkIW531tJLtiQ5-oiCLo2amYi4x12KnrH_mrGAI"
+}

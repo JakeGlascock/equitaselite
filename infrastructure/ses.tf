@@ -22,17 +22,25 @@ resource "aws_route53_record" "ses_dkim" {
   records = ["${aws_ses_domain_dkim.main.dkim_tokens[count.index]}.dkim.amazonses.com"]
 }
 
-# SPF — authorizes amazonses.com (transactional mail from the app) and
-# _spf.google.com (Google Workspace at access@equitaselite.com) to send
-# mail as @equitaselite.com. Published as TXT at the apex; ~all =
-# soft-fail unauthorized senders (start permissive, tighten to -all once
-# we're confident no other senders exist).
+# TXT records at the apex.
+#
+# Route 53 treats all TXT values for the same name as one record set, so
+# we keep both SPF and Google Workspace domain verification here:
+#   - SPF authorizes amazonses.com (transactional from-app mail) and
+#     _spf.google.com (Workspace) to send as @equitaselite.com. ~all =
+#     soft-fail unauthorized senders (tighten to -all once we're certain
+#     no other senders exist).
+#   - google-site-verification is checked by Google Workspace setup; see
+#     google-workspace.tf for the source of the value.
 resource "aws_route53_record" "ses_spf" {
   zone_id = aws_route53_zone.main.zone_id
   name    = var.domain_name
   type    = "TXT"
   ttl     = 600
-  records = ["v=spf1 include:amazonses.com include:_spf.google.com ~all"]
+  records = [
+    "v=spf1 include:amazonses.com include:_spf.google.com ~all",
+    local.google_site_verification,
+  ]
 }
 
 # DMARC — tells inbox providers what to do when SPF/DKIM fail.
