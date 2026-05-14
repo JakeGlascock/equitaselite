@@ -36,7 +36,10 @@ export async function POST(req: NextRequest) {
       [email, full_name, firm_name, role, notes ?? null]
     )
   } catch (err: unknown) {
-    // Most common cause: init-access-requests hasn't been run yet on this DB
+    // Most common cause: init-access-requests hasn't been run yet on this DB.
+    // Log the underlying error so future failures (constraint violations,
+    // connection issues) don't hide behind the generic user-facing message.
+    console.error('access-request DB insert failed:', err)
     return NextResponse.json(
       { error: 'We couldn\'t record your request. Email access@equitaselite.com directly.' },
       { status: 500 }
