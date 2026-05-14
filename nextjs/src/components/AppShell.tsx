@@ -17,6 +17,7 @@ interface NavItem {
   label: string
 }
 
+// Left sidebar — the user's workspace (their deals, their data)
 const NAV_ITEMS: NavItem[] = [
   { href: '/dashboard',   icon: 'dashboard',              label: 'Dashboard'  },
   { href: '/discovery',   icon: 'explore',                label: 'Discovery'  },
@@ -24,6 +25,14 @@ const NAV_ITEMS: NavItem[] = [
   { href: '/portfolio',   icon: 'account_balance_wallet', label: 'Portfolio'  },
   { href: '/network',     icon: 'group',                  label: 'Network'    },
   { href: '/reports',     icon: 'bar_chart',              label: 'Reports'    },
+]
+
+// Top bar — the broader platform (content + service)
+const TOP_NAV_ITEMS: NavItem[] = [
+  { href: '/insights',  icon: 'insights',       label: 'Insights'  },
+  { href: '/events',    icon: 'event',          label: 'Events'    },
+  { href: '/concierge', icon: 'support_agent',  label: 'Concierge' },
+  { href: '/help',      icon: 'help',           label: 'Help'      },
 ]
 
 function NavLink({ item, active }: { item: NavItem; active: boolean }) {
@@ -73,7 +82,7 @@ export default function AppShell({ user, children }: { user: ShellUser; children
             <img src="/logo.png" alt="Equitas Elite" className="h-9 w-auto rounded-md" />
           </Link>
           <nav className="hidden lg:flex items-center gap-1">
-            {NAV_ITEMS.slice(0, 5).map(item => {
+            {TOP_NAV_ITEMS.map(item => {
               const active = pathname === item.href
               return (
                 <Link
@@ -165,8 +174,16 @@ export default function AppShell({ user, children }: { user: ShellUser; children
               <p className="text-[13px] font-semibold text-ee-primary truncate">{user.fullName}</p>
               <p className="font-data text-[10px] tracking-wider text-ee-gold uppercase">{roleLabel}</p>
             </div>
-            <nav className="flex flex-col gap-0.5 p-3 flex-grow">
+            <nav className="flex flex-col gap-0.5 p-3 flex-grow overflow-y-auto">
               {NAV_ITEMS.map(item => (
+                <div key={item.href} onClick={() => setMobileOpen(false)}>
+                  <NavLink item={item} active={pathname === item.href} />
+                </div>
+              ))}
+              <p className="font-data text-[10px] uppercase tracking-widest text-ee-muted/60 px-3 pt-4 pb-1">
+                Platform
+              </p>
+              {TOP_NAV_ITEMS.map(item => (
                 <div key={item.href} onClick={() => setMobileOpen(false)}>
                   <NavLink item={item} active={pathname === item.href} />
                 </div>
