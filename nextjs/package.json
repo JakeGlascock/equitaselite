@@ -27,7 +27,7 @@
     "qrcode.react": "^4.1.0"
   },
   "devDependencies": {
-    "@types/node": "^22.0.0",
+    "@types/node": "^24.0.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@types/pg": "^8.11.0",

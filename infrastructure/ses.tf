@@ -44,14 +44,19 @@ resource "aws_route53_record" "ses_spf" {
 }
 
 # DMARC — tells inbox providers what to do when SPF/DKIM fail.
-# p=none = monitor only (we get aggregate reports but nothing is rejected).
-# Move to p=quarantine then p=reject after a few weeks of clean reports.
+# Ratchet path:
+#   p=none                                  → monitor only (started 2026-05-13)
+#   p=quarantine; pct=25  ← current         → 25% of failures land in spam
+#   p=quarantine; pct=100                   → full quarantine
+#   p=reject;     pct=25                    → partial reject
+#   p=reject;     pct=100                   → full reject
+# Aggregate reports go to dmarc-reports@; review them before each ratchet.
 resource "aws_route53_record" "ses_dmarc" {
   zone_id = aws_route53_zone.main.zone_id
   name    = "_dmarc.${var.domain_name}"
   type    = "TXT"
   ttl     = 600
-  records = ["v=DMARC1; p=none; rua=mailto:dmarc-reports@${var.domain_name}"]
+  records = ["v=DMARC1; p=quarantine; pct=25; rua=mailto:dmarc-reports@${var.domain_name}"]
 }
 
 # Block terraform apply until SES confirms the domain is verified.
