@@ -3,6 +3,16 @@ name: Deploy
 on:
   push:
     branches: [master]
+    paths:
+      # App code changes always need a redeploy
+      - 'nextjs/**'
+      # Task-definition changes (env vars, CPU/memory, etc.) need a deploy to
+      # carry the new revision into the service — Terraform registers the
+      # revision but the service stays pinned to the old one thanks to
+      # lifecycle.ignore_changes on task_definition.
+      - 'infrastructure/ecs.tf'
+      # Iterating on the workflow itself
+      - '.github/workflows/deploy.yml'
   workflow_dispatch: {}
 
 permissions:
