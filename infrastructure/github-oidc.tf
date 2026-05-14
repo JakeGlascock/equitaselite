@@ -65,6 +65,23 @@ resource "aws_iam_role_policy" "github_deploy_ecr" {
   })
 }
 
+# Lets the smoke-test workflow alert alert@equitaselite.com when a check
+# fails. Scoped to the verified domain identity — the runner can only send
+# from equitaselite.com, not impersonate other senders.
+resource "aws_iam_role_policy" "github_deploy_ses_alerts" {
+  name = "ses-send-alerts"
+  role = aws_iam_role.github_deploy.id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Sid      = "SendSmokeAlertsFromEquitaselite"
+      Effect   = "Allow"
+      Action   = "ses:SendEmail"
+      Resource = aws_ses_domain_identity.main.arn
+    }]
+  })
+}
+
 resource "aws_iam_role_policy" "github_deploy_ecs" {
   name = "ecs-deploy"
   role = aws_iam_role.github_deploy.id

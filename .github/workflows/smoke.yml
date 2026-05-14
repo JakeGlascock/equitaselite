@@ -17,7 +17,14 @@ on:
         required:    false
 
 permissions:
-  contents: read
+  contents:  read
+  id-token:  write   # required for OIDC role assumption (SES send on failure)
+
+env:
+  ALERT_TO:        alert@equitaselite.com
+  ALERT_FROM:      "Equitas Elite Alerts <noreply@equitaselite.com>"
+  AWS_REGION:      us-east-1
+  DEPLOY_ROLE_ARN: arn:aws:iam::625227331957:role/equitaselite-github-deploy-prod
 
 jobs:
   smoke:
@@ -34,6 +41,49 @@ jobs:
           node-version: '24'
 
       - name: Run smoke checks
+        id: smoke
         env:
           SMOKE_URL: ${{ github.event.inputs.url || 'https://equitaselite.com' }}
-        run: node nextjs/scripts/smoke.mjs
+        run: |
+          set -o pipefail
+          node nextjs/scripts/smoke.mjs 2>&1 | tee /tmp/smoke.log
+
+      # Everything below this point only runs on smoke failure.
+      - name: Configure AWS credentials (failure only)
+        if: failure()
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.DEPLOY_ROLE_ARN }}
+          aws-region:     ${{ env.AWS_REGION }}
+
+      - name: Email alert@equitaselite.com (failure only)
+        if: failure()
+        env:
+          RUN_URL:  https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          TRIGGER:  ${{ github.event_name }}
+          SMOKE_URL: ${{ github.event.inputs.url || 'https://equitaselite.com' }}
+        run: |
+          BODY="Smoke tests against $SMOKE_URL failed.
+
+          Workflow run: $RUN_URL
+          Trigger:      $TRIGGER
+          Time (UTC):   $(date -u +%FT%TZ)
+
+          --- Output (last 30 lines) ---
+          $(tail -n 30 /tmp/smoke.log 2>/dev/null || echo '(no log captured)')"
+
+          jq -n \
+            --arg from "$ALERT_FROM" \
+            --arg to   "$ALERT_TO" \
+            --arg subj "Smoke test failed: $SMOKE_URL" \
+            --arg body "$BODY" \
+            '{
+              FromEmailAddress: $from,
+              Destination:      { ToAddresses: [$to] },
+              Content: { Simple: {
+                Subject: { Data: $subj, Charset: "UTF-8" },
+                Body:    { Text: { Data: $body, Charset: "UTF-8" } }
+              }}
+            }' > /tmp/email.json
+
+          aws sesv2 send-email --cli-input-json file:///tmp/email.json
