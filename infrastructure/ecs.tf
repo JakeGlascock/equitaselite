@@ -66,14 +66,10 @@ resource "aws_ecs_task_definition" "app" {
       }
     }
 
-    healthCheck = {
-      command     = ["CMD-SHELL", "curl -f http://localhost:3000/api/health || exit 1"]
-      interval    = 30
-      timeout     = 5
-      retries     = 3
-      startPeriod = 60
-    }
-
+    # No container-level health check — the ALB health-checks /api/health over
+    # HTTP and that's the authoritative liveness signal. Container health checks
+    # need a binary that doesn't exist in node:22-slim (curl) or have to run as
+    # the non-root nextjs user against the loopback, both of which add fragility.
     readonlyRootFilesystem = true
     user                   = "1000:1000"
 
