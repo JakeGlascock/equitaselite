@@ -84,3 +84,9 @@ variable "admin_emails" {
   type        = string
   default     = ""
 }
+
+variable "github_repo" {
+  description = "GitHub repo in 'owner/name' format authorized to deploy via OIDC"
+  type        = string
+  default     = "JakeGlascock/equitaselite"
+}

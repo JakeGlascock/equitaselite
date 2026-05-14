@@ -79,6 +79,16 @@ resource "aws_ecs_task_definition" "app" {
       hardLimit = 65536
     }]
   }])
+
+  # CI deploys register new task-definition revisions with updated images.
+  # Without this, terraform apply would always plan a no-op revision swap
+  # because state would lag behind the CI-managed revision. Env-var or task
+  # config changes still apply: terraform apply creates a new revision; the
+  # next CI deploy picks it up automatically because the workflow reads the
+  # latest revision via describe-task-definition before swapping the image.
+  lifecycle {
+    ignore_changes = [container_definitions]
+  }
 }
 
 resource "aws_cloudwatch_log_group" "app" {
@@ -120,6 +130,11 @@ resource "aws_ecs_service" "app" {
   deployment_maximum_percent         = 200
 
   depends_on = [aws_lb_listener.https]
+
+  # CI updates the service's task_definition to point at each new revision.
+  lifecycle {
+    ignore_changes = [task_definition, desired_count]
+  }
 }
 
 # ALB

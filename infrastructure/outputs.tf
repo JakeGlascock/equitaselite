@@ -80,6 +80,11 @@ output "route53_nameservers" {
   value       = aws_route53_zone.main.name_servers
 }
 
+output "github_deploy_role_arn" {
+  description = "IAM role ARN GitHub Actions assumes via OIDC to deploy"
+  value       = aws_iam_role.github_deploy.arn
+}
+
 output "acm_validation_records" {
   description = "DNS CNAME records to add to GoDaddy to validate the ACM certificate"
   value = {
