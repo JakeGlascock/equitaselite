@@ -8,6 +8,28 @@ const STAGES     = ['Pre-Seed', 'Seed', 'Series A', 'Series B', 'Series B+', 'Gr
 const GEOGRAPHIES = ['North America', 'Europe', 'Asia-Pacific', 'Middle East', 'Latin America', 'Global']
 const AUM_OPTIONS = ['<$10M', '$10M–$50M', '$50M–$250M', '$250M–$1B', '>$1B']
 
+export interface ManagedAccountFormInitial {
+  role:           'angel' | 'family_office' | ''
+  email:          string
+  full_name:      string
+  title:          string
+  firm_name:      string
+  location:       string
+  aum:            string
+  sectors:        string[]
+  stages:         string[]
+  geography:      string[]
+  check_size_min: number
+  check_size_max: number
+  risk_tolerance: string
+}
+
+const EMPTY: ManagedAccountFormInitial = {
+  role: '', email: '', full_name: '', title: '', firm_name: '', location: '', aum: '',
+  sectors: [], stages: [], geography: [],
+  check_size_min: 1, check_size_max: 5, risk_tolerance: '',
+}
+
 function toggle(arr: string[], v: string): string[] {
   return arr.includes(v) ? arr.filter(x => x !== v) : [...arr, v]
 }
@@ -28,21 +50,29 @@ function Chip({ label, selected, onClick }: { label: string; selected: boolean; 
   )
 }
 
-export default function NewManagedForm() {
+interface Props {
+  mode:       'create' | 'edit'
+  accountId?: string
+  initial?:   ManagedAccountFormInitial
+}
+
+export default function ManagedAccountForm({ mode, accountId, initial }: Props) {
   const router = useRouter()
-  const [role,     setRole]    = useState<'angel' | 'family_office' | ''>('')
-  const [email,    setEmail]   = useState('')
-  const [fullName, setFullName] = useState('')
-  const [title,    setTitle]   = useState('')
-  const [firmName, setFirmName] = useState('')
-  const [location, setLocation] = useState('')
-  const [aum,      setAum]     = useState('')
-  const [sectors,  setSectors] = useState<string[]>([])
-  const [stages,   setStages]  = useState<string[]>([])
-  const [geos,     setGeos]    = useState<string[]>([])
-  const [checkMin, setCheckMin] = useState('1')
-  const [checkMax, setCheckMax] = useState('5')
-  const [risk,     setRisk]    = useState('')
+  const seed = initial ?? EMPTY
+
+  const [role,     setRole]    = useState<'angel' | 'family_office' | ''>(seed.role)
+  const [email,    setEmail]   = useState(seed.email)
+  const [fullName, setFullName] = useState(seed.full_name)
+  const [title,    setTitle]   = useState(seed.title)
+  const [firmName, setFirmName] = useState(seed.firm_name)
+  const [location, setLocation] = useState(seed.location)
+  const [aum,      setAum]     = useState(seed.aum)
+  const [sectors,  setSectors] = useState<string[]>(seed.sectors)
+  const [stages,   setStages]  = useState<string[]>(seed.stages)
+  const [geos,     setGeos]    = useState<string[]>(seed.geography)
+  const [checkMin, setCheckMin] = useState(String(seed.check_size_min))
+  const [checkMax, setCheckMax] = useState(String(seed.check_size_max))
+  const [risk,     setRisk]    = useState(seed.risk_tolerance)
   const [loading,  setLoading] = useState(false)
   const [error,    setError]   = useState('')
 
@@ -50,17 +80,23 @@ export default function NewManagedForm() {
     e.preventDefault()
     if (!role) { setError('Please pick a role.'); return }
     setLoading(true); setError('')
+
+    const payload = {
+      email, full_name: fullName, title, firm_name: firmName,
+      location, aum: aum || undefined, role,
+      sectors, stages, geography: geos,
+      check_size_min: Number(checkMin), check_size_max: Number(checkMax),
+      risk_tolerance: risk || undefined,
+    }
+
+    const url    = mode === 'edit' ? `/api/concierge/profiles/${accountId}` : '/api/concierge/profiles'
+    const method = mode === 'edit' ? 'PATCH' : 'POST'
+
     try {
-      const res = await fetch('/api/concierge/profiles', {
-        method:  'POST',
+      const res = await fetch(url, {
+        method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email, full_name: fullName, title, firm_name: firmName,
-          location, aum: aum || undefined, role,
-          sectors, stages, geography: geos,
-          check_size_min: Number(checkMin), check_size_max: Number(checkMax),
-          risk_tolerance: risk || undefined,
-        }),
+        body: JSON.stringify(payload),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? 'Failed')
@@ -73,9 +109,12 @@ export default function NewManagedForm() {
     }
   }
 
+  const submitLabel =
+    loading ? (mode === 'edit' ? 'Saving…' : 'Creating…')
+            : (mode === 'edit' ? 'Save changes' : 'Create managed account')
+
   return (
     <form onSubmit={submit} className="glass-panel p-6 md:p-8 space-y-6">
-      {/* Role */}
       <div>
         <p className="text-xs text-ee-muted font-data uppercase tracking-wider mb-2">Role</p>
         <div className="grid grid-cols-2 gap-3">
@@ -101,7 +140,6 @@ export default function NewManagedForm() {
         </div>
       </div>
 
-      {/* Identity */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label className="block text-xs text-ee-muted font-data uppercase tracking-wider mb-1.5">Full name</label>
@@ -136,7 +174,6 @@ export default function NewManagedForm() {
         )}
       </div>
 
-      {/* Sectors */}
       <div>
         <p className="text-xs text-ee-muted font-data uppercase tracking-wider mb-2">Sectors</p>
         <div className="flex flex-wrap gap-2">
@@ -144,7 +181,6 @@ export default function NewManagedForm() {
         </div>
       </div>
 
-      {/* Stages */}
       <div>
         <p className="text-xs text-ee-muted font-data uppercase tracking-wider mb-2">Stages</p>
         <div className="flex flex-wrap gap-2">
@@ -152,7 +188,6 @@ export default function NewManagedForm() {
         </div>
       </div>
 
-      {/* Geography */}
       <div>
         <p className="text-xs text-ee-muted font-data uppercase tracking-wider mb-2">Geography</p>
         <div className="flex flex-wrap gap-2">
@@ -160,7 +195,6 @@ export default function NewManagedForm() {
         </div>
       </div>
 
-      {/* Check size */}
       <div className="grid grid-cols-2 gap-4">
         <div>
           <label className="block text-xs text-ee-muted font-data uppercase tracking-wider mb-1.5">Min check ($M)</label>
@@ -172,7 +206,6 @@ export default function NewManagedForm() {
         </div>
       </div>
 
-      {/* Risk */}
       <div>
         <p className="text-xs text-ee-muted font-data uppercase tracking-wider mb-2">Risk tolerance</p>
         <div className="flex gap-3">
@@ -199,8 +232,12 @@ export default function NewManagedForm() {
         <button type="button" onClick={() => router.push('/concierge')} className="btn-ghost flex-1 justify-center">
           Cancel
         </button>
-        <button type="submit" disabled={loading || !role || !email || !fullName || !firmName} className="btn-gold flex-1 justify-center disabled:opacity-40">
-          {loading ? 'Creating…' : 'Create managed account'}
+        <button
+          type="submit"
+          disabled={loading || !role || !email || !fullName || !firmName}
+          className="btn-gold flex-1 justify-center disabled:opacity-40"
+        >
+          {submitLabel}
         </button>
       </div>
     </form>

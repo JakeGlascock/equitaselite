@@ -1,7 +1,7 @@
 import { headers } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { queryOne } from '@/lib/db'
-import NewManagedForm from './NewManagedForm'
+import ManagedAccountForm from '../ManagedAccountForm'
 
 export default async function NewManagedAccountPage() {
   const h = await headers()
@@ -31,7 +31,7 @@ export default async function NewManagedAccountPage() {
           </p>
         </div>
 
-        <NewManagedForm />
+        <ManagedAccountForm mode="create" />
       </div>
     </div>
   )

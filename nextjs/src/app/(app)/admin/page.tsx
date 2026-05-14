@@ -12,6 +12,7 @@ import InitConciergeButton from './InitConciergeButton'
 import InitAccessRequestsButton from './InitAccessRequestsButton'
 import AdminToggle from './AdminToggle'
 import ConciergeToggle from './ConciergeToggle'
+import ManagedAccountAssignment from './ManagedAccountAssignment'
 
 interface ProfileRow {
   id: string
@@ -97,6 +98,35 @@ export default async function AdminPage() {
       )).map(p => ({ ...p, is_admin: null, is_concierge: null }))
     }
   }
+
+  // Concierges (active platform staff who can manage profiles) and managed
+  // accounts (id LIKE 'managed_%', created by a concierge). Both queries
+  // depend on the concierge columns being initialized.
+  interface ConciergeOption { id: string; full_name: string; firm_name: string | null }
+  interface ManagedRow {
+    id: string
+    full_name: string
+    firm_name: string
+    role: 'angel' | 'family_office'
+    email: string
+    managed_by: string | null
+  }
+  let concierges: ConciergeOption[] = []
+  let managedAccounts: ManagedRow[]  = []
+  try {
+    concierges = await query<ConciergeOption>(
+      `SELECT id, full_name, firm_name
+       FROM profiles
+       WHERE is_concierge = TRUE
+       ORDER BY full_name`
+    )
+    managedAccounts = await query<ManagedRow>(
+      `SELECT id, full_name, firm_name, role, email, managed_by
+       FROM profiles
+       WHERE id LIKE 'managed_%'
+       ORDER BY created_at DESC`
+    )
+  } catch { /* concierge columns not yet initialized */ }
 
   const cognitoUsers = await listCognitoUsers().catch(err => {
     console.error('listCognitoUsers failed:', err)
@@ -258,6 +288,49 @@ export default async function AdminPage() {
             </table>
           )}
         </div>
+
+        {/* Managed accounts ─ reassignment */}
+        {managedAccounts.length > 0 && (
+          <div className="glass-panel overflow-hidden">
+            <div className="px-6 py-4 border-b border-ee-border">
+              <h2 className="font-display text-base text-ee-primary">Managed accounts</h2>
+              <p className="text-xs text-ee-muted mt-1">
+                Profiles created by concierges on behalf of clients. Change the assignment by picking a different concierge.
+              </p>
+            </div>
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-xs text-ee-muted uppercase tracking-wider font-data">
+                  <th className="text-left px-6 py-3 font-normal">Account</th>
+                  <th className="text-left px-6 py-3 font-normal">Role</th>
+                  <th className="text-left px-6 py-3 font-normal">Email</th>
+                  <th className="text-left px-6 py-3 font-normal">Assigned concierge</th>
+                </tr>
+              </thead>
+              <tbody>
+                {managedAccounts.map(m => (
+                  <tr key={m.id} className="border-t border-ee-border/60">
+                    <td className="px-6 py-3">
+                      <p className="text-ee-primary">{m.full_name}</p>
+                      <p className="text-xs text-ee-muted">{m.firm_name}</p>
+                    </td>
+                    <td className="px-6 py-3 text-ee-muted">
+                      {m.role === 'angel' ? 'Angel' : 'Family Office'}
+                    </td>
+                    <td className="px-6 py-3 text-ee-muted truncate max-w-[14rem]">{m.email}</td>
+                    <td className="px-6 py-3">
+                      <ManagedAccountAssignment
+                        accountId={m.id}
+                        currentId={m.managed_by}
+                        concierges={concierges}
+                      />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
 
         <p className="text-xs text-ee-muted text-center">
           Admin status is granted per-user. <code className="font-data">ADMIN_EMAILS</code> remains as a break-glass fallback so the initial admin can always sign in.

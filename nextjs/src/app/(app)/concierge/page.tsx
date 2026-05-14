@@ -155,7 +155,15 @@ export default async function ConciergePage() {
                         </div>
                       </td>
                       <td className="px-6 py-3 text-right">
-                        <OperateAsButton id={m.id} />
+                        <div className="flex flex-wrap items-center gap-2 justify-end">
+                          <Link
+                            href={`/concierge/edit/${m.id}`}
+                            className="text-xs px-3 py-1.5 rounded-full border border-ee-border text-ee-muted hover:text-ee-primary hover:border-white/20 font-data uppercase tracking-wider"
+                          >
+                            Edit
+                          </Link>
+                          <OperateAsButton id={m.id} />
+                        </div>
                       </td>
                     </tr>
                   ))}
