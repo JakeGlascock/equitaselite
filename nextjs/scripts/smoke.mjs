@@ -16,8 +16,13 @@ const CHECKS = [
   { name: 'signin',         path: '/signin',         status: 200, contains: 'Welcome back' },
   { name: 'pricing',        path: '/pricing',        status: 200, contains: 'Sovereign' },
   { name: 'request-access', path: '/request-access', status: 200, contains: 'Request access' },
-  // Auth gate: unauthenticated /dashboard must redirect (not 200, not 500).
-  { name: 'auth-gate',      path: '/dashboard',      status: [302, 307, 308], redirectContains: '/signin', followRedirect: false },
+  // Every authenticated surface must redirect to /signin for an unauthenticated
+  // request — if the middleware's auth gate ever breaks, *all* of these flip
+  // and the failure is obvious.
+  { name: 'gate-dashboard', path: '/dashboard',     status: [302, 307, 308], redirectContains: '/signin', followRedirect: false },
+  { name: 'gate-admin',     path: '/admin',         status: [302, 307, 308], redirectContains: '/signin', followRedirect: false },
+  { name: 'gate-match',     path: '/match/anything',status: [302, 307, 308], redirectContains: '/signin', followRedirect: false },
+  { name: 'gate-profile',   path: '/profile',       status: [302, 307, 308], redirectContains: '/signin', followRedirect: false },
 ]
 
 async function fetchWithTimeout(url, opts) {
