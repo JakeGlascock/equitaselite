@@ -1,5 +1,6 @@
 import { query, queryOne } from '@/lib/db'
 import { computeMatchScore } from '@/lib/scoring'
+import type { Tier } from '@/lib/membership'
 import type { IntroState } from '@/components/MatchCard'
 
 export interface DbProfile {
@@ -17,6 +18,9 @@ export interface DbProfile {
   check_size_min: number
   check_size_max: number
   onboarding_completed: boolean
+  // Optional — present iff the membership column has been initialized.
+  // Drives priority placement in match sort. Null/missing = lowest priority.
+  membership?: Tier | null
 }
 
 interface IntroRow {
@@ -78,27 +82,39 @@ export async function getMe(userId: string): Promise<DbProfile | null> {
 export async function getCandidates(me: DbProfile): Promise<DbProfile[]> {
   const oppositeRole = me.role === 'angel' ? 'family_office' : 'angel'
   // Concierges aren't investable counterparties — they're staff who manage
-  // other profiles. Pre-init the column may not exist, so fall back to the
-  // unfiltered query if the WHERE clause errors.
+  // other profiles. Pre-init the is_concierge / membership columns may not
+  // exist; fall back progressively.
   try {
     return await query<DbProfile>(
       `SELECT id, email, full_name, title, firm_name, location, aum, role,
               sectors, stages, geography, check_size_min, check_size_max,
-              onboarding_completed
+              onboarding_completed, membership
        FROM profiles
        WHERE role = $1 AND onboarding_completed = TRUE AND id != $2
          AND (is_concierge IS NULL OR is_concierge = FALSE)`,
       [oppositeRole, me.id]
     )
   } catch {
-    return query<DbProfile>(
-      `SELECT id, email, full_name, title, firm_name, location, aum, role,
-              sectors, stages, geography, check_size_min, check_size_max,
-              onboarding_completed
-       FROM profiles
-       WHERE role = $1 AND onboarding_completed = TRUE AND id != $2`,
-      [oppositeRole, me.id]
-    )
+    try {
+      return await query<DbProfile>(
+        `SELECT id, email, full_name, title, firm_name, location, aum, role,
+                sectors, stages, geography, check_size_min, check_size_max,
+                onboarding_completed
+         FROM profiles
+         WHERE role = $1 AND onboarding_completed = TRUE AND id != $2
+           AND (is_concierge IS NULL OR is_concierge = FALSE)`,
+        [oppositeRole, me.id]
+      )
+    } catch {
+      return query<DbProfile>(
+        `SELECT id, email, full_name, title, firm_name, location, aum, role,
+                sectors, stages, geography, check_size_min, check_size_max,
+                onboarding_completed
+         FROM profiles
+         WHERE role = $1 AND onboarding_completed = TRUE AND id != $2`,
+        [oppositeRole, me.id]
+      )
+    }
   }
 }
 

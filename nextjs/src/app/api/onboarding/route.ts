@@ -67,41 +67,82 @@ export async function POST(req: NextRequest) {
 
   const d = parsed.data
   const emailPref = d.email_notifications_enabled ?? true
-  const profile = await queryOne(
-    `INSERT INTO profiles (
-       id, email, role, full_name, title, firm_name, location, aum,
-       sectors, stages, geography,
-       check_size_min, check_size_max, risk_tolerance,
-       expected_return, timeline, mandate_type, concentration,
-       email_notifications_enabled,
-       onboarding_completed
-     ) VALUES (
-       $1,$2,$3,$4,$5,$6,$7,$8,
-       $9,$10,$11,
-       $12,$13,$14,
-       $15,$16,$17,$18,
-       $19,
-       TRUE
-     )
-     ON CONFLICT (id) DO UPDATE SET
-       email=$2, role=$3, full_name=$4, title=$5, firm_name=$6,
-       location=$7, aum=$8,
-       sectors=$9, stages=$10, geography=$11,
-       check_size_min=$12, check_size_max=$13, risk_tolerance=$14,
-       expected_return=$15, timeline=$16, mandate_type=$17, concentration=$18,
-       email_notifications_enabled=$19,
-       onboarding_completed=TRUE
-     RETURNING *`,
-    [
-      userId, d.email, d.role, d.full_name, d.title ?? null,
-      d.firm_name, d.location ?? null, d.aum ?? null,
-      d.sectors, d.stages, d.geography,
-      d.check_size_min, d.check_size_max, d.risk_tolerance ?? null,
-      d.expected_return ?? null, d.timeline ?? null,
-      d.mandate_type ?? null, d.concentration ?? null,
-      emailPref,
-    ]
-  )
+  // membership is set to 'access' on first insert and intentionally NOT
+  // included in DO UPDATE — re-saving the profile must not clobber an
+  // admin-granted upgrade. If the column hasn't been initialized yet
+  // (pre-Phase-0 environment) we fall back to the legacy insert.
+  let profile
+  try {
+    profile = await queryOne(
+      `INSERT INTO profiles (
+         id, email, role, full_name, title, firm_name, location, aum,
+         sectors, stages, geography,
+         check_size_min, check_size_max, risk_tolerance,
+         expected_return, timeline, mandate_type, concentration,
+         email_notifications_enabled,
+         membership,
+         onboarding_completed
+       ) VALUES (
+         $1,$2,$3,$4,$5,$6,$7,$8,
+         $9,$10,$11,
+         $12,$13,$14,
+         $15,$16,$17,$18,
+         $19,
+         'access',
+         TRUE
+       )
+       ON CONFLICT (id) DO UPDATE SET
+         email=$2, role=$3, full_name=$4, title=$5, firm_name=$6,
+         location=$7, aum=$8,
+         sectors=$9, stages=$10, geography=$11,
+         check_size_min=$12, check_size_max=$13, risk_tolerance=$14,
+         expected_return=$15, timeline=$16, mandate_type=$17, concentration=$18,
+         email_notifications_enabled=$19,
+         onboarding_completed=TRUE
+       RETURNING *`,
+      [
+        userId, d.email, d.role, d.full_name, d.title ?? null,
+        d.firm_name, d.location ?? null, d.aum ?? null,
+        d.sectors, d.stages, d.geography,
+        d.check_size_min, d.check_size_max, d.risk_tolerance ?? null,
+        d.expected_return ?? null, d.timeline ?? null,
+        d.mandate_type ?? null, d.concentration ?? null,
+        emailPref,
+      ]
+    )
+  } catch (err: unknown) {
+    if (!(err instanceof Error) || !err.message.includes('membership')) throw err
+    profile = await queryOne(
+      `INSERT INTO profiles (
+         id, email, role, full_name, title, firm_name, location, aum,
+         sectors, stages, geography,
+         check_size_min, check_size_max, risk_tolerance,
+         expected_return, timeline, mandate_type, concentration,
+         email_notifications_enabled,
+         onboarding_completed
+       ) VALUES (
+         $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,TRUE
+       )
+       ON CONFLICT (id) DO UPDATE SET
+         email=$2, role=$3, full_name=$4, title=$5, firm_name=$6,
+         location=$7, aum=$8,
+         sectors=$9, stages=$10, geography=$11,
+         check_size_min=$12, check_size_max=$13, risk_tolerance=$14,
+         expected_return=$15, timeline=$16, mandate_type=$17, concentration=$18,
+         email_notifications_enabled=$19,
+         onboarding_completed=TRUE
+       RETURNING *`,
+      [
+        userId, d.email, d.role, d.full_name, d.title ?? null,
+        d.firm_name, d.location ?? null, d.aum ?? null,
+        d.sectors, d.stages, d.geography,
+        d.check_size_min, d.check_size_max, d.risk_tolerance ?? null,
+        d.expected_return ?? null, d.timeline ?? null,
+        d.mandate_type ?? null, d.concentration ?? null,
+        emailPref,
+      ]
+    )
+  }
 
   return NextResponse.json(profile, { status: 201 })
 }

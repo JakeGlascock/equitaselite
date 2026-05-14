@@ -162,7 +162,7 @@ describe('getMe', () => {
 })
 
 describe('getCandidates', () => {
-  it('queries the opposite role with the is_concierge filter when the column exists', async () => {
+  it('queries the opposite role with membership + is_concierge filter when both columns exist', async () => {
     mockQuery.mockResolvedValueOnce([makeProfile({ id: 'c1', role: 'angel' })])
     const me = makeProfile({ id: 'me-1', role: 'family_office' })
 
@@ -171,6 +171,7 @@ describe('getCandidates', () => {
     expect(mockQuery).toHaveBeenCalledTimes(1)
     const [sql, params] = mockQuery.mock.calls[0]
     expect(sql).toContain('is_concierge')
+    expect(sql).toContain('membership')
     expect(params).toEqual(['angel', 'me-1'])
   })
 
@@ -183,9 +184,9 @@ describe('getCandidates', () => {
     expect(params).toEqual(['family_office', 'me-1'])
   })
 
-  it('falls back to the unfiltered query when the is_concierge column is missing', async () => {
+  it('falls back to is_concierge-only when membership column is missing', async () => {
     mockQuery
-      .mockRejectedValueOnce(new Error('column "is_concierge" does not exist'))
+      .mockRejectedValueOnce(new Error('column "membership" does not exist'))
       .mockResolvedValueOnce([makeProfile({ id: 'c1', role: 'angel' })])
     const me = makeProfile({ id: 'me-1', role: 'family_office' })
 
@@ -193,6 +194,22 @@ describe('getCandidates', () => {
     expect(out).toHaveLength(1)
     expect(mockQuery).toHaveBeenCalledTimes(2)
     const [fallbackSql] = mockQuery.mock.calls[1]
+    expect(fallbackSql).not.toContain('membership')
+    expect(fallbackSql).toContain('is_concierge')
+  })
+
+  it('falls back to the unfiltered query when both membership AND is_concierge are missing', async () => {
+    mockQuery
+      .mockRejectedValueOnce(new Error('column "membership" does not exist'))
+      .mockRejectedValueOnce(new Error('column "is_concierge" does not exist'))
+      .mockResolvedValueOnce([makeProfile({ id: 'c1', role: 'angel' })])
+    const me = makeProfile({ id: 'me-1', role: 'family_office' })
+
+    const out = await getCandidates(me)
+    expect(out).toHaveLength(1)
+    expect(mockQuery).toHaveBeenCalledTimes(3)
+    const [fallbackSql] = mockQuery.mock.calls[2]
+    expect(fallbackSql).not.toContain('membership')
     expect(fallbackSql).not.toContain('is_concierge')
   })
 })

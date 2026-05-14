@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react'
 import AdminToggle from './AdminToggle'
 import ConciergeToggle from './ConciergeToggle'
 import ManagedAccountAssignment from './ManagedAccountAssignment'
+import TierAssignment from './TierAssignment'
 
 export type MemberStatus = 'Invited' | 'Onboarding' | 'Active' | 'Disabled' | 'Demo'
 export type Membership   = 'access' | 'select' | 'sovereign'
@@ -22,18 +23,6 @@ export interface MemberRow {
   membership:  Membership | null
   togglable:   boolean
   toggleReason?: string
-}
-
-const MEMBERSHIP_LABEL: Record<Membership, string> = {
-  access:    'Access',
-  select:    'Select',
-  sovereign: 'Sovereign',
-}
-
-const MEMBERSHIP_STYLES: Record<Membership, string> = {
-  access:    'border-ee-primary/30 bg-ee-primary/5  text-ee-primary',
-  select:    'border-ee-gold/40    bg-ee-gold/10    text-ee-gold',
-  sovereign: 'border-ee-emerald/40 bg-ee-emerald/10 text-ee-emerald',
 }
 
 export interface ConciergeOption {
@@ -197,12 +186,15 @@ export default function MembersTable({
                   {m.role === 'angel' ? 'Angel' : m.role === 'family_office' ? 'FO' : '—'}
                 </td>
                 <td className="px-3 py-2.5">
-                  {m.membership ? (
-                    <span className={`text-[11px] px-2 py-0.5 rounded-full border whitespace-nowrap ${MEMBERSHIP_STYLES[m.membership]}`}>
-                      {MEMBERSHIP_LABEL[m.membership]}
-                    </span>
+                  {m.userId ? (
+                    <TierAssignment
+                      userId={m.userId}
+                      current={m.membership}
+                      disabled={!m.togglable}
+                      disabledReason={m.toggleReason}
+                    />
                   ) : (
-                    <span className="text-xs text-ee-muted/50 italic">—</span>
+                    <span className="text-xs text-ee-muted/50 italic" title="Profile not created yet">—</span>
                   )}
                 </td>
                 <td className="px-3 py-2.5">

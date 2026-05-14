@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { useState } from 'react'
 import type { MatchScore } from '@/types'
 
@@ -87,10 +88,11 @@ function checkDisplay(min: number, max: number): string {
   return `${fmt(min)}–${fmt(max)}`
 }
 
-function IntroAction({ recipientId, recipientFirstName, initial }: {
+function IntroAction({ recipientId, recipientFirstName, initial, canSendIntros = true }: {
   recipientId: string
   recipientFirstName: string
   initial: IntroState
+  canSendIntros?: boolean
 }) {
   const [intro, setIntro]         = useState<IntroState>(initial)
   const [composing, setComposing] = useState(false)
@@ -189,6 +191,19 @@ function IntroAction({ recipientId, recipientFirstName, initial }: {
     )
   }
 
+  // No existing intro AND the user's tier blocks new ones → upgrade CTA
+  if (!canSendIntros) {
+    return (
+      <Link
+        href="/pricing"
+        className="text-xs px-3 py-1.5 rounded-full border border-ee-gold/40 bg-ee-gold/10 text-ee-gold hover:brightness-110 whitespace-nowrap"
+        title="Introductions require Select or Sovereign membership"
+      >
+        Upgrade to introduce
+      </Link>
+    )
+  }
+
   return (
     <button
       type="button"
@@ -200,7 +215,7 @@ function IntroAction({ recipientId, recipientFirstName, initial }: {
   )
 }
 
-export default function MatchCard({ match }: { match: Match }) {
+export default function MatchCard({ match, canSendIntros = true }: { match: Match; canSendIntros?: boolean }) {
   const { score } = match
   const color = LABEL_COLOR[score.label]
 
@@ -265,6 +280,7 @@ export default function MatchCard({ match }: { match: Match }) {
             recipientId={match.id}
             recipientFirstName={match.fullName.split(' ')[0]}
             initial={match.intro}
+            canSendIntros={canSendIntros}
           />
         </div>
       </div>

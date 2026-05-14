@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { query, queryOne } from '@/lib/db'
 import { emailIntroRequested } from '@/lib/email'
 import { getEffectiveUserId } from '@/lib/acting-as'
+import { checkIntroQuota } from '@/lib/membership'
 
 const CreateSchema = z.object({
   recipient_id: z.string().min(1),
@@ -41,6 +42,20 @@ export async function POST(req: NextRequest) {
   const { recipient_id, message } = parsed.data
   if (recipient_id === userId) {
     return NextResponse.json({ error: 'Cannot introduce to yourself' }, { status: 400 })
+  }
+
+  // Tier enforcement — Access can't introduce at all, Select capped at 5/30d.
+  // 402 Payment Required is the correct semantic for "your plan blocks this".
+  const quota = await checkIntroQuota(userId)
+  if (!quota.ok) {
+    const upgradeTo = quota.tier === 'access' ? 'select' : 'sovereign'
+    const msg = quota.limit === 0
+      ? 'Introductions are not included on the Access plan.'
+      : `You've used all ${quota.limit} of your monthly introductions.`
+    return NextResponse.json(
+      { error: msg, upgradeRequired: upgradeTo, tier: quota.tier, used: quota.used, limit: quota.limit },
+      { status: 402 }
+    )
   }
 
   const recipient = await queryOne<{ id: string }>(
