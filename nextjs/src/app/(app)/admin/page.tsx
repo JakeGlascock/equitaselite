@@ -43,20 +43,16 @@ export default async function AdminPage() {
   const onboarded = members.filter(m => m.onboarding_completed).length
 
   return (
-    <main className="min-h-screen px-4 py-10">
-      <div className="max-w-3xl mx-auto space-y-6">
+    <div className="px-5 md:px-8 py-8">
+      <div className="max-w-4xl mx-auto space-y-6">
 
-        <div className="flex items-end justify-between">
-          <div>
-            <h1 className="font-display text-2xl text-ee-gold">Admin</h1>
-            <p className="text-ee-muted text-sm mt-0.5">
-              {members.length} {members.length === 1 ? 'member' : 'members'} ·{' '}
-              {onboarded} onboarded
-            </p>
-          </div>
-          <a href="/dashboard" className="text-xs text-ee-muted hover:text-ee-primary transition-colors">
-            ← Back to dashboard
-          </a>
+        <div>
+          <p className="font-data text-[10px] tracking-[0.12em] text-ee-muted uppercase">Operations</p>
+          <h1 className="font-display text-3xl text-ee-gold mt-1">Admin</h1>
+          <p className="text-ee-muted text-sm mt-1">
+            {members.length} {members.length === 1 ? 'member' : 'members'} ·{' '}
+            {onboarded} onboarded
+          </p>
         </div>
 
         <InviteForm />
@@ -112,6 +108,6 @@ export default async function AdminPage() {
           Invited users who haven&apos;t signed in yet won&apos;t appear here until they complete onboarding.
         </p>
       </div>
-    </main>
+    </div>
   )
 }

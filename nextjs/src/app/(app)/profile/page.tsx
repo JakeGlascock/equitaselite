@@ -38,18 +38,14 @@ export default async function ProfilePage() {
   if (!profile || !profile.onboarding_completed) redirect('/onboarding')
 
   return (
-    <main className="min-h-screen flex items-center justify-center px-4 py-12">
-      <div className="w-full max-w-xl">
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="font-display text-3xl text-ee-gold">Edit profile</h1>
-            <p className="text-ee-muted text-sm mt-1">
-              Changes update your match scores immediately.
-            </p>
-          </div>
-          <a href="/dashboard" className="text-xs text-ee-muted hover:text-ee-primary transition-colors">
-            ← Back
-          </a>
+    <div className="px-5 md:px-8 py-8">
+      <div className="max-w-xl mx-auto">
+        <div className="mb-8">
+          <p className="font-data text-[10px] tracking-[0.12em] text-ee-muted uppercase">Settings</p>
+          <h1 className="font-display text-3xl text-ee-gold mt-1">Edit profile</h1>
+          <p className="text-ee-muted text-sm mt-1">
+            Changes update your match scores immediately.
+          </p>
         </div>
         <OnboardingForm
           email={profile.email}
@@ -74,6 +70,6 @@ export default async function ProfilePage() {
           }}
         />
       </div>
-    </main>
+    </div>
   )
 }

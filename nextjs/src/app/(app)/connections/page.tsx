@@ -113,16 +113,12 @@ export default async function ConnectionsPage() {
   }
 
   return (
-    <main className="min-h-screen px-4 py-10">
-      <div className="max-w-2xl mx-auto space-y-6">
-        <div className="flex items-end justify-between">
-          <div>
-            <h1 className="font-display text-2xl text-ee-gold">Connections</h1>
-            <p className="text-ee-muted text-sm mt-0.5">Introduction requests and active conversations.</p>
-          </div>
-          <a href="/dashboard" className="text-xs text-ee-muted hover:text-ee-primary transition-colors">
-            ← Back to dashboard
-          </a>
+    <div className="px-5 md:px-8 py-8">
+      <div className="max-w-5xl mx-auto space-y-6">
+        <div>
+          <p className="font-data text-[10px] tracking-[0.12em] text-ee-muted uppercase">Deal Room</p>
+          <h1 className="font-display text-3xl text-ee-gold mt-1">Connections</h1>
+          <p className="text-ee-muted text-sm mt-1">Introduction requests and active conversations.</p>
         </div>
 
         {intros.length === 0 && (
@@ -138,6 +134,6 @@ export default async function ConnectionsPage() {
         <Section title="Active connections" items={active} />
         <Section title="Declined" items={declined} />
       </div>
-    </main>
+    </div>
   )
 }

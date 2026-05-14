@@ -121,46 +121,19 @@ export default async function DashboardPage() {
   const firstName = me.full_name.split(' ')[0]
   const roleLabel = me.role === 'angel' ? 'Family Offices' : 'Angel Investors'
 
-  const userEmail = headersList.get('x-user-email')?.toLowerCase()
-  const isAdmin = (process.env.ADMIN_EMAILS ?? '')
-    .split(',').map(e => e.trim().toLowerCase()).filter(Boolean)
-    .includes(userEmail ?? '')
-
   return (
-    <main className="min-h-screen px-4 py-10">
-      <div className="max-w-2xl mx-auto space-y-6">
+    <div className="px-5 md:px-8 py-8">
+      <div className="max-w-5xl mx-auto space-y-6">
 
-        {/* Header */}
-        <div className="flex items-end justify-between">
-          <div>
-            <h1 className="font-display text-2xl text-ee-gold">Welcome back, {firstName}</h1>
-            <p className="text-ee-muted text-sm mt-0.5">
-              {matches.length > 0
-                ? `${matches.length} ${roleLabel} matched to your mandate`
-                : `No ${roleLabel} have completed their profiles yet`}
-            </p>
-          </div>
-          <div className="flex items-center gap-4">
-            <a href="/connections" className="text-xs text-ee-muted hover:text-ee-primary transition-colors flex items-center gap-1.5">
-              Connections
-              {pendingIncoming > 0 && (
-                <span className="bg-ee-gold text-ee-bg text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none">
-                  {pendingIncoming}
-                </span>
-              )}
-            </a>
-            {isAdmin && (
-              <a href="/admin" className="text-xs text-ee-gold hover:brightness-110 transition-all">
-                Admin
-              </a>
-            )}
-            <a href="/profile" className="text-xs text-ee-muted hover:text-ee-primary transition-colors">
-              Edit profile
-            </a>
-            <a href="/api/auth/signout" className="text-xs text-ee-muted hover:text-ee-primary transition-colors">
-              Sign out
-            </a>
-          </div>
+        {/* Page header */}
+        <div>
+          <p className="font-data text-[10px] tracking-[0.12em] text-ee-muted uppercase">Executive Overview</p>
+          <h1 className="font-display text-3xl text-ee-gold mt-1">Welcome back, {firstName}</h1>
+          <p className="text-ee-muted text-sm mt-1">
+            {matches.length > 0
+              ? `${matches.length} ${roleLabel} matched to your mandate · ${pendingIncoming} pending request${pendingIncoming === 1 ? '' : 's'}`
+              : `No ${roleLabel} have completed their profiles yet`}
+          </p>
         </div>
 
         {/* Match list */}
@@ -178,6 +151,6 @@ export default async function DashboardPage() {
           </div>
         )}
       </div>
-    </main>
+    </div>
   )
 }
