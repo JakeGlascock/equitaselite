@@ -44,7 +44,6 @@ resource "aws_ecs_task_definition" "app" {
       { name = "DB_NAME",              value = var.db_name },
       { name = "DB_USER",              value = var.db_username },
       { name = "ADMIN_EMAILS",         value = var.admin_emails },
-      { name = "NODE_OPTIONS",         value = "--openssl-fips" },
     ]
 
     secrets = [

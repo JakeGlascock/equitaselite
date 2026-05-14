@@ -23,11 +23,6 @@ ENV NODE_ENV=production
 # Apply latest OS security patches (addresses OS-level CVEs in zlib, ncurses, etc.)
 RUN apt-get update && apt-get upgrade -y && rm -rf /var/lib/apt/lists/*
 
-# Enable Node.js FIPS mode at runtime only — npm install during build does not
-# need FIPS and CI runners may not have the FIPS provider configured.
-# FIPS 140-2/3: delegates all crypto to OpenSSL's FIPS provider (OpenSSL 3, node:22-slim).
-ENV NODE_OPTIONS="--openssl-fips"
-
 # Non-root user for defense-in-depth
 RUN addgroup --system --gid 1001 nodejs && \
     adduser  --system --uid 1001 nextjs
