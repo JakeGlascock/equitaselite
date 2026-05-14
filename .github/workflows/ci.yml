@@ -130,12 +130,22 @@ jobs:
           # CKV_AWS_144  — S3 cross-region replication deferred; single-region MVP, will add for multi-region HA
           # CKV2_AWS_57  — Secrets Manager auto-rotation requires rotation Lambda; deferred until app Lambda layer is built
           # CKV2_AWS_71  — Wildcard ACM cert (*.equitaselite.com) is intentional to cover staging + future subdomains
-          # CKV2_AWS_28 — WAF IS attached via aws_wafv2_web_acl_association in waf.tf;
-          #               Checkov only inspects the aws_lb resource itself and misses the association
-          # CKV_AWS_26  — SNS topic intentionally unencrypted: it's only for CloudTrail/CloudWatch
-          #               alarm notifications (alert metadata, not secrets), and KMS-encrypted SNS
-          #               requires CloudTrail in the key policy which couples unrelated services
-          skip_check: CKV2_AWS_62,CKV_AWS_144,CKV2_AWS_57,CKV2_AWS_71,CKV2_AWS_28,CKV_AWS_26
+          # CKV2_AWS_28  — WAF IS attached via aws_wafv2_web_acl_association in waf.tf;
+          #                Checkov only inspects the aws_lb resource itself and misses the association
+          # CKV_AWS_26   — SNS topic intentionally unencrypted: it's only for CloudTrail/CloudWatch
+          #                alarm notifications (alert metadata, not secrets), and KMS-encrypted SNS
+          #                requires CloudTrail in the key policy which couples unrelated services
+          # CKV_AWS_290  — github_deploy_ecs policy needs ecs:RegisterTaskDefinition / DescribeServices /
+          # CKV_AWS_355    DescribeTaskDefinition on Resource="*" because those actions do not support
+          #                resource-level permissions per AWS IAM. iam:PassRole is scoped to the two
+          #                task roles with iam:PassedToService=ecs-tasks.amazonaws.com.
+          # CKV2_AWS_38  — Route 53 DNSSEC requires a separate KSK in us-east-1 KMS + registrar support
+          # CKV2_AWS_39    + delegation set updates at GoDaddy. Deferred until production hardening pass.
+          #                Query logging also deferred (cost + low signal at this scale).
+          # CKV2_AWS_76  — WAF Log4j coverage is provided by AWSManagedRulesKnownBadInputsRuleSet
+          #                (waf.tf rule "AWSManagedRulesKBI"). Checkov looks at the local rule
+          #                name attribute and doesn't match our display name "AWSManagedRulesKBI".
+          skip_check: CKV2_AWS_62,CKV_AWS_144,CKV2_AWS_57,CKV2_AWS_71,CKV2_AWS_28,CKV_AWS_26,CKV_AWS_290,CKV_AWS_355,CKV2_AWS_38,CKV2_AWS_39,CKV2_AWS_76
 
       - name: Upload Checkov SARIF to GitHub Security tab
         uses: github/codeql-action/upload-sarif@v3
