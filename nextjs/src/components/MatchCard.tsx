@@ -227,7 +227,13 @@ export default function MatchCard({ match, canSendIntros = true }: { match: Matc
         {/* Header */}
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
-            <p className="font-semibold text-ee-primary truncate">{match.fullName}</p>
+            <Link
+              href={`/match/${match.id}`}
+              className="font-semibold text-ee-primary hover:text-ee-gold truncate inline-block max-w-full transition-colors"
+              title="View full profile"
+            >
+              {match.fullName}
+            </Link>
             <p className="text-xs text-ee-muted truncate">
               {match.title ? `${match.title} · ` : ''}{match.firmName}
               {match.location ? ` · ${match.location}` : ''}
