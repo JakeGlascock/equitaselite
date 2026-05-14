@@ -46,7 +46,7 @@ function Hero() {
         </h1>
         <p className="mt-6 text-ee-muted text-base sm:text-lg max-w-2xl mx-auto leading-relaxed">
           A private platform connecting angel investors and family offices through mandate-matched
-          introductions. No middlemen, no noise — just aligned counterparties.
+          introductions to aligned counterparties.
         </p>
         <div className="mt-10 flex flex-col sm:flex-row gap-3 justify-center">
           <Link
