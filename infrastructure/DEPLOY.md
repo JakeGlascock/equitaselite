@@ -1,10 +1,12 @@
 # Deployment Runbook — Equitas Elite
 
-End-to-end manual deployment from a clean AWS account to a live HTTPS site.
-Execute in order. Allow ~2 hours for the first run (RDS multi-AZ takes ~20 min on its own).
+End-to-end deployment from a clean AWS account to a live HTTPS site at
+`https://equitaselite.com`. Execute in order. Allow ~2 hours for the first run
+(RDS multi-AZ provisioning takes ~20 min on its own).
 
-When you're done, the app is live at `https://equitaselite.com`.
-We'll automate this with GitHub Actions after the first manual deploy succeeds.
+> **TL;DR for everyday use:** §1–§9 are first-time bootstrap. After that, every
+> code change deploys via `git push origin master` — the `Deploy` GitHub Actions
+> workflow takes over. See §6.
 
 ---
 
@@ -155,52 +157,87 @@ terraform output alb_dns_name
 
 ---
 
-## 5. Build & push the Docker image
+## 5. First deploy (bootstrap only)
+
+Terraform created the ECR repo and ECS service but the service can't pull
+`:latest` because no image exists there yet. **This is the only deploy you'll
+ever do by hand** — everything after this happens via GitHub Actions on push.
 
 ```sh
-cd ../nextjs/   # repo root /nextjs
+cd ../nextjs/
 
 ECR_URL=$(cd ../infrastructure && terraform output -raw ecr_repository_url)
+
 aws ecr get-login-password --region us-east-1 \
   | docker login --username AWS --password-stdin "$ECR_URL"
 
-docker build -t equitaselite:latest .
-docker tag  equitaselite:latest "$ECR_URL:latest"
-docker push "$ECR_URL:latest"
+docker build --platform linux/amd64 -t equitaselite:bootstrap .
+docker tag  equitaselite:bootstrap "$ECR_URL:bootstrap"
+docker push "$ECR_URL:bootstrap"
+
+# Point the existing task definition at this image and roll the service
+aws ecs describe-task-definition --task-definition equitaselite-prod \
+  --query 'taskDefinition' \
+| jq --arg img "$ECR_URL:bootstrap" '
+    del(.taskDefinitionArn, .revision, .status, .requiresAttributes,
+        .compatibilities, .registeredAt, .registeredBy)
+    | .containerDefinitions[0].image = $img
+  ' \
+| aws ecs register-task-definition --cli-input-json file:///dev/stdin --query 'taskDefinition.taskDefinitionArn' --output text \
+| xargs -I {} aws ecs update-service \
+    --cluster equitaselite-prod --service equitaselite-prod \
+    --task-definition {}
+
+aws ecs wait services-stable --cluster equitaselite-prod --services equitaselite-prod
 ```
 
-> ⚠️ ECR has `image_tag_mutability = "IMMUTABLE"`. The first `:latest` push works.
-> Subsequent pushes to `:latest` will fail. When we automate, we'll switch to
-> git-SHA tags and update the task definition each deploy. For this first manual
-> deploy, `:latest` is fine.
+If a task fails to start, tail CloudWatch:
+```sh
+aws logs tail /ecs/equitaselite-prod --follow --since 5m
+```
+
+Common first-deploy failures: image pull denied (ECR auth expired), missing
+env var (check `aws_ecs_task_definition.app` environment list in `ecs.tf`),
+DB connection timeout (security group rules).
 
 ---
 
-## 6. Roll the ECS service
+## 6. Subsequent deploys — automatic
 
-Terraform created the service but it tried to pull `:latest` before any image
-existed. Force a new deployment now that the image is in ECR:
+**`git push origin master` is the deploy.** The `Deploy` GitHub Actions
+workflow (`.github/workflows/deploy.yml`) does the rest:
+
+1. Assumes the `equitaselite-github-deploy-prod` IAM role via OIDC (no
+   long-lived keys anywhere)
+2. Builds the Docker image on a native amd64 runner, tagged `${git-sha}`
+3. Pushes to ECR
+4. Reads the current task definition, swaps the image, registers a new
+   revision (env vars and other config flow through from whatever Terraform
+   has registered)
+5. Updates the ECS service to point at the new revision
+6. Waits for `services-stable`
+7. Curls `/api/health` to verify
+
+Watch a deploy with `gh run watch` or in the **Actions** tab on GitHub. A
+typical green deploy is ~4–5 minutes end-to-end.
+
+### When you need to change task-definition config (env vars, CPU, memory)
+
+The lifecycle rule on `aws_ecs_task_definition.app` ignores
+`container_definitions` so the CI-managed image doesn't fight you. Flow:
+
+1. Edit `ecs.tf` (or `prod.tfvars`)
+2. `terraform apply -var-file=prod.tfvars` — registers a *new* task-def
+   revision with your config change, but doesn't roll the service yet
+3. Push any code change (or `gh workflow run deploy.yml`) — the deploy reads
+   the latest revision (your new config) before swapping in the new image, so
+   both land together
+
+### Force a deploy without a code change
 
 ```sh
-CLUSTER=$(cd ../infrastructure && terraform output -raw ecs_cluster_name)
-SERVICE=$(cd ../infrastructure && terraform output -raw ecs_service_name)
-
-aws ecs update-service \
-  --cluster "$CLUSTER" \
-  --service "$SERVICE" \
-  --force-new-deployment
-
-# Watch it stabilize (~3-5 min)
-aws ecs wait services-stable --cluster "$CLUSTER" --services "$SERVICE"
+gh workflow run deploy.yml
 ```
-
-If a task fails to start, check CloudWatch logs:
-```sh
-aws logs tail /ecs/equitaselite-prod --follow
-```
-
-Common causes: image pull denied (ECR auth), task can't reach Secrets Manager
-(check VPC endpoints), health check failing (`/api/health` should 200).
 
 ---
 
@@ -315,27 +352,44 @@ aws logs tail /ecs/equitaselite-prod --follow --since 5m
 
 ---
 
-## 10. Known gaps to address when automating
+## 10. What's done and what's still open
 
-These don't block the first manual deploy but need fixing before CI/CD:
+### Done
+- ✅ **GitHub OIDC + deploy role** — `github-oidc.tf`. Scoped to this repo;
+  permissions are minimum-viable (ECR push, ECS describe/register/update,
+  IAM PassRole on the two task roles with `iam:PassedToService` condition).
+- ✅ **ECR git-SHA tags** — workflow pushes `:${github.sha}` only. ECR stays
+  `IMMUTABLE`; no tag collisions because every commit is unique.
+- ✅ **Route 53 hosted zone** — `route53.tf`. ALIAS A records for apex and
+  `www`. ACM validation CNAME is mirrored into the zone so the cert auto-renews
+  even after nameservers move off GoDaddy.
 
-1. **ECR tag mutability.** `image_tag_mutability = "IMMUTABLE"` blocks reusing
-   `:latest`. Switch the deploy workflow to push `:${git-sha}` and update the
-   task definition image each time.
+### Still open
 
-2. **Migration runner.** Replace the bastion approach with a one-off ECS task:
-   add a `migrate` task definition that runs `node scripts/migrate.js` (script
-   to be written), call `aws ecs run-task` from the deploy workflow before
-   updating the app service.
+1. **Migration runner.** Schema migrations still go through one of:
+   - The bastion + SSM port-forward dance documented in §7 (for the initial
+     `001_create_profiles.sql` and `002_create_introductions.sql`)
+   - Admin endpoints like `POST /api/admin/init-notifications` (which embed
+     the migration SQL and run it with admin auth)
 
-3. **GitHub OIDC.** Add `aws_iam_openid_connect_provider` + a deploy IAM role
-   in Terraform so GitHub Actions can assume it without long-lived keys.
-   Required permissions: ECR push, ECS update, IAM PassRole, ECS run-task.
+   The proper fix is a `migrate` ECS task definition + a workflow step that
+   `aws ecs run-task`'s it before updating the app service. Not yet built.
 
-4. **Route 53 hosted zone.** If you went with the GoDaddy forwarding workaround
-   in §4, swap to Route 53 properly. Add `aws_route53_zone` + ALIAS A record to
-   Terraform.
+2. **Custom Cognito invitation email.** Cognito currently sends invites from
+   `no-reply@verificationemail.com` because the SES domain identity for
+   `equitaselite.com` was never verified (and the `noreply@` mailbox doesn't
+   exist to receive the verification link). To switch back to branded sending:
+   add an `aws_ses_domain_identity` + DKIM CNAME records in Route 53 (now that
+   we control DNS via Route 53), wait for `VerificationStatus = Success`, then
+   change `cognito.tf`'s `email_configuration` back to `DEVELOPER` mode with
+   `source_arn` pointing at the domain identity.
 
-5. **Custom Cognito invitation email.** The default Cognito email is generic.
-   Set `email_message` and `email_subject` on `aws_cognito_user_pool.admin_create_user_config`
-   to match the brand.
+3. **`tfplan` artifact / `prod.tfvars`.** Both stay local — they hold real
+   account-specific config and should never be committed. Confirm they're in
+   `infrastructure/.gitignore` or repo-root `.gitignore` before contributors
+   are added.
+
+4. **Bump GitHub Actions to Node 24.** Both `ci.yml` and `deploy.yml` use
+   `actions/checkout@v4` and friends, which run on Node 20. Deprecation
+   deadline is 2026-09-16; bump to v5 (or set
+   `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24=true`) before then.
