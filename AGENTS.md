@@ -1,184 +1,214 @@
 # AGENTS.md — Equitas Elite
 
-Instructions for AI agents working on this codebase.
+Instructions for AI agents (Claude Code, Cursor, etc.) working on this
+codebase.
 
 ---
 
-## What This Is
+## What this is
 
-Equitas Elite is a **pure static HTML application** — no framework, no bundler, no backend. Every page is a self-contained `.html` file. All shared logic lives in `shared.js`. Data persists in `localStorage`. There is no build step; files are served directly to the browser.
+Equitas Elite is a Next.js 15 application running on AWS in production at
+[equitaselite.com](https://equitaselite.com). The app lives in `nextjs/`,
+infrastructure-as-code in `infrastructure/` (Terraform). Top-level
+`*.html` files are historical prototype artifacts — not served in
+production, not worth touching.
+
+Before doing meaningful work, read:
+- [`ARCHITECTURE.md`](ARCHITECTURE.md) — system design + module structure
+- [`PROTOCOL.md`](PROTOCOL.md) — day-to-day procedures + don'ts
+- [`PLANNING.md`](PLANNING.md) — what's built, what's planned
+- [`SKILL.md`](SKILL.md) — copy-paste recipes for common changes
 
 ---
 
-## Architecture Rules
+## Architecture rules
 
-### One shared file, many pages
-`shared.js` is the single source of truth for:
-- Mock data (`MOCK_FAMILY_OFFICES`, `MOCK_ANGELS`, `MOCK_DEALS`, `MOCK_NOTIFICATIONS`)
-- Auth (`eeGetUser`, `eeCheckAuth`, `eeLogout`)
-- Match scoring (`eeMatchScore`, `eeScoreLabel`, `eeScoreColors`)
-- Nav HTML generation (`eeSidebarHTML`, `eeTopbarHTML`, `eeMobileNavHTML`)
-- All modal inject/open functions
-- Toast notifications (`eeShowToast`)
-- Bootstrap (`eeBootstrap`)
+### The shared library is the source of truth
 
-**Never duplicate any of these in a page file.** If a page needs mock data or scoring, import it from `shared.js`.
+`nextjs/src/lib/` holds every cross-cutting helper. Don't duplicate
+behaviour into a route or component — extend the lib.
 
-### Tailwind config must be inline per page
-Tailwind CDN requires the config object to exist in a `<script>` block **before** the CDN `<script>` tag loads. The config cannot be shared via `shared.js`. Every page must include the full `tailwind.config = { ... }` block. Copy it exactly from an existing page — do not modify the token values.
+| Module | Purpose |
+|---|---|
+| `db.ts` | pg Pool singleton, `query<T>()` / `queryOne<T>()` helpers |
+| `auth.ts` | Cognito SDK wrappers (sign-in, MFA, list/create users) |
+| `admin.ts` | `isUserAdmin(userId, userEmail)` (DB-backed + env break-glass) |
+| `membership.ts` | `Tier`, `TIER_LIMITS`, `getTier()`, `checkIntroQuota()` |
+| `matches.ts` | `getCandidates`, `buildIntroMap`, `toMatchView` |
+| `scoring.ts` | `computeMatchScore` — pure, well-tested |
+| `acting-as.ts` | Concierge "Operate as" cookie + `getEffectiveUserId(req)` |
+| `email.ts` | SES wrappers for intro notifications |
 
-### The bootstrap pattern
-Every authenticated page must follow this exact structure:
+If a route needs to know the caller's id, get it from
+`getEffectiveUserId(req)` or `await headers().then(h => h.get('x-user-id'))`
+— **never trust a client-sent identifier**.
 
-```html
-<div id="ee-topbar"></div>
-<div class="flex pt-14 min-h-screen">
-  <div id="ee-sidebar"></div>
-  <main class="flex-1 lg:ml-60 px-5 md:px-8 py-8 pb-24 lg:pb-8">
-    <!-- page content -->
-  </main>
-</div>
-<div id="ee-mobile-nav"></div>
+### Migrations are append-only
 
-<script src="shared.js"></script>
-<script>
-function init() {
-  const user = eeBootstrap('this-page.html');
-  if (!user) return;
-  // page-specific logic
-}
-init();
-</script>
+Schema changes go in `nextjs/db/migrations/0NN_short_name.sql`. The
+automated migration runner applies them on every deploy. Hard rules:
+
+- **Always idempotent.** `CREATE TABLE IF NOT EXISTS`, `ADD COLUMN IF NOT
+  EXISTS`, `CREATE INDEX IF NOT EXISTS`. For triggers without IF NOT
+  EXISTS, drop-then-create.
+- **Never edit an applied migration.** The runner records each file's
+  SHA-256 and aborts deploys on mismatch. To fix a previous migration,
+  write a new one that corrects forward.
+- **Lexical order matters.** Use zero-padded prefixes (008, not 8).
+
+### Parameterized SQL only
+
+```ts
+// Good
+await query<Profile>('SELECT * FROM profiles WHERE id = $1', [userId])
+
+// Never
+await query<Profile>(`SELECT * FROM profiles WHERE id = '${userId}'`)
 ```
 
-`eeBootstrap(activePage)` replaces the three placeholder divs with the shared topbar, sidebar, and mobile nav, then injects all modals. The `activePage` string must exactly match one of the nav href values (`dashboard.html`, `discovery.html`, `deal-room.html`, `portfolio.html`, `network.html`, `reports.html`) so the correct nav item is highlighted.
+The `pg` library handles parameterization safely; raw interpolation is
+SQL injection waiting to happen.
 
-### Login and onboarding are exempt
-`index.html` and `onboarding.html` do not use `eeBootstrap` — they are pre-auth pages with their own standalone layouts.
+### Server components by default
 
----
+`nextjs/src/app/(app)/*/page.tsx` are server components. They query the
+DB directly (via `lib/`) and pass typed props to client components for
+interactivity. Don't reach for `'use client'` unless you actually need
+state, effects, or browser-only APIs.
 
-## Design System
+### Auth happens once, in middleware
 
-All visual decisions must follow `DESIGN.md`. Key constraints:
+`nextjs/src/middleware.ts` verifies the Cognito JWT and injects
+`x-user-id` and `x-user-email` headers. Server components and route
+handlers just read those headers. There's no per-page auth check.
 
-| Token | Value | Use |
-|-------|-------|-----|
-| Background | `#031427` | Page canvas only |
-| Gold (`secondary`) | `#e9c176` | Primary CTAs, active nav, prestige accents |
-| Emerald (`tertiary`) | `#4edea3` | Success states, 85%+ scores, verified badges |
-| Primary text | `#d3e4fe` | Body text on dark backgrounds |
-| Glass panel | `rgba(16,32,52,0.6)` + `backdrop-filter:blur(12px)` + `1px solid rgba(69,70,77,0.5)` | All content cards |
+### Tier checks go through `lib/membership.ts`
 
-**Score badge colors** must always use `eeScoreColors(score)` from `shared.js` — never hardcode them.
-
-**Fonts:** Playfair Display for headings, Inter for body, IBM Plex Sans for labels/data. All three are loaded via Google Fonts on every page.
-
-**Border radii:** Cards `rounded-xl` (1rem), buttons `rounded-lg` (0.5rem), chips `rounded-full`. Never use pill-shaped buttons.
-
-**Label caps pattern:** Section headers use `font-label text-[10px] tracking-widest uppercase text-on-surface-variant`. This is the primary hierarchy device — do not increase font size instead.
+Don't hardcode `if (tier === 'sovereign')` in random places. Use
+`getLimits(tier)`, `checkIntroQuota(userId)`, `priorityRank(tier)`. If
+a new dimension is needed, add it to `TIER_LIMITS`.
 
 ---
 
-## localStorage Keys
+## Design rules
 
-| Key | Type | Description |
-|-----|------|-------------|
-| `ee_current_user` | JSON object | The logged-in user's full profile |
-| `ee_users` | JSON array | All registered users |
-| `ee_selected_candidate` | JSON object | The match profile passed to `alignment.html` |
+The design system is in [`DESIGN.md`](DESIGN.md). The Next.js app
+implements it via Tailwind tokens.
 
-`eeGetUser()` reads `ee_current_user`. `eeCheckAuth()` redirects to `index.html` if null.
+### Colors
 
----
+Never introduce a new hex value. Use the `ee-*` token classes:
 
-## Modals
+| Intent | Class |
+|---|---|
+| Page background | `bg-ee-bg` |
+| Content card | `glass-panel` (preset utility) |
+| Gold accent (CTAs, current-plan, Select tier) | `text-ee-gold` / `bg-ee-gold` |
+| Emerald accent (success, top-score, Sovereign tier) | `text-ee-emerald` |
+| Primary text | `text-ee-primary` |
+| Muted text | `text-ee-muted` |
+| Border | `border-ee-border` |
 
-All modals are injected by `eeBootstrap` via `shared.js`. To open them from any page:
+### Typography
 
-| Modal | Open function |
-|-------|--------------|
-| New Deal | `eeOpenNewDeal()` |
-| Notifications drawer | `eeOpenNotifications()` |
-| Send Message | `eeOpenMessage(recipientName)` |
-| Invite Member | `eeOpenModal('invite-modal')` |
-| Upload Document | `eeOpenModal('upload-modal')` |
-| Join Syndicate | `eeOpenModal('syndicate-modal')` |
+| Use | Class |
+|---|---|
+| Page / section titles | `font-display` |
+| Body | default |
+| Numbers, monospace chips, labels | `font-data` |
 
-Never inject modals manually in page files — they are always provided by `eeBootstrap`.
+### Icons
 
----
-
-## Adding a New Page
-
-1. Copy the structure of an existing page (e.g. `portfolio.html`)
-2. Keep the full Tailwind config block unchanged
-3. Use the bootstrap pattern — three placeholder divs + `eeBootstrap('new-page.html')`
-4. Add the page to the nav in `shared.js`:
-   - `eeSidebarHTML`: add to the `pages` array
-   - `eeTopbarHTML`: add to `navLinks` if it belongs in the top nav
-   - `eeMobileNavHTML`: add to `items` if it belongs in the mobile bar
-5. Do not add mock data or scoring functions to the page — use what `shared.js` exports
-
----
-
-## Adding a New Modal
-
-1. Write `eeInjectXxxModal()` in `shared.js` — appends HTML to `document.body`
-2. Write `eeOpenXxx()` calling `eeOpenModal('xxx-modal')`
-3. Call `eeInjectXxxModal()` inside `eeBootstrap()` so it's available on every page
-4. Use `eeCloseModal('xxx-modal')` for the close/cancel buttons
-5. Call `eeShowToast(msg)` on success
-
----
-
-## Modifying Shared Mock Data
-
-`MOCK_FAMILY_OFFICES` and `MOCK_ANGELS` in `shared.js` are the canonical counterpart profiles used across Dashboard, Discovery, Matches, and Alignment pages. Any change to these arrays affects all pages simultaneously. Profile objects must include:
-
-```js
-{
-  type: 'family_office' | 'angel',
-  name, firm, title, location, aum,
-  minCheck, maxCheck,       // numbers in $M
-  stages: [],               // 'Pre-Seed'|'Seed'|'Series A'|'Series B'|'Series B+'|'Growth'
-  sectors: [],              // see sector list below
-  geography,                // 'North America'|'Europe'|'Asia-Pacific'|'Middle East'|'Global'
-  riskTolerance,            // 'Conservative'|'Moderate'|'Aggressive'
-  // family_office only:
-  mandate, concentration,
-  // angel only:
-  expectedReturn, timeline
-}
+Material Symbols Outlined:
+```tsx
+<span className="material-symbols-outlined text-lg">handshake</span>
 ```
 
-Valid sectors: `FinTech`, `Deep Tech`, `Life Sciences`, `Clean Energy`, `SaaS`, `AI / ML`, `Healthcare`, `Defense Tech`, `Consumer`, `Real Estate`
+Never inline raw SVG path data for icons that exist in Material Symbols.
+
+### Patterns
+
+- Every content card is a `glass-panel`.
+- Interactive elements need a 44px touch target (use the `btn-*` utility
+  set or matching padding).
+- Never use `alert()`. Use the notifications + inline error patterns.
 
 ---
 
-## What Not To Do
+## Workflow
 
-- **Do not** add a backend, database, or server-side logic — the app is intentionally client-only
-- **Do not** install npm packages or introduce a build step
-- **Do not** use `alert()` or `confirm()` — use `eeShowToast()` or a modal instead
-- **Do not** duplicate `MOCK_FAMILY_OFFICES`, `MOCK_ANGELS`, or scoring functions in page files
-- **Do not** hardcode nav HTML in page files — it must come from `shared.js`
-- **Do not** use pill-shaped buttons (`rounded-full` on buttons is reserved for chips only)
-- **Do not** use colors outside the design token set — no arbitrary hex values in HTML
-- **Do not** add comments explaining what the code does — only add comments for non-obvious constraints or workarounds
+### Don'ts
+
+- ❌ Don't commit `.env*`, `prod.tfvars`, `tfplan`, or anything with real
+  AWS account IDs (except in `.github/workflows/*` where it's intentional).
+- ❌ Don't `terraform apply` without first running `terraform plan` and
+  reviewing the diff. Use `-target=<resource>` when there's unrelated
+  drift.
+- ❌ Don't disable RDS deletion protection.
+- ❌ Don't push commits whose subject is "WIP" or "Update README". Be
+  specific about what changed and why.
+- ❌ Don't bypass CI gates with `--no-verify`.
+- ❌ Don't string-interpolate user input into SQL.
+- ❌ Don't add a `console.log` to production code paths.
+
+### Do
+
+- ✅ Use the migration runner for schema changes. No more `/admin` init
+  buttons.
+- ✅ Write a vitest unit test for any new pure function in `lib/`.
+- ✅ Watch a deploy after pushing (`gh run watch`). If smoke fails after
+  deploy, fix forward immediately — `alert@equitaselite.com` gets an
+  email otherwise.
+- ✅ Read PROTOCOL.md before changes to deploy / migrations / auth.
+- ✅ Update PLANNING.md when you ship something it claimed was pending.
+
+### Deploys
+
+Push to `master` ships to production. The Deploy workflow:
+1. Builds + pushes the image (ECR SHA tag, immutable, idempotent on retry).
+2. Registers a new task-def revision.
+3. Runs DB migrations as an ECS one-off Fargate task.
+4. Rolls the service, waits for stable, hits `/api/health`.
+
+A typical deploy is ~4–5 minutes. Smoke tests fire automatically after
+every successful deploy (and hourly via cron). Failures email
+`alert@equitaselite.com`.
 
 ---
 
-## Verification Checklist
+## Things AI agents specifically get wrong
 
-Before considering a change complete:
+- **Hardcoding tier names.** Always import from `lib/membership.ts`.
+- **Adding a new migration that drops or alters an existing one.** If
+  you need to change a previous migration's intent, write a new file
+  that does the corrective work — never edit history.
+- **Calling lib/db.ts from a client component.** `pg` doesn't work in
+  the browser; the build will fail. Keep DB queries in server components
+  or route handlers.
+- **Forgetting the `acting-as` cookie.** Code that uses
+  `headers().get('x-user-id')` directly bypasses the concierge
+  "Operate as" flow. Use `getEffectiveUserId(req)` /
+  `getActingAsState()` for any user-data fetch.
+- **Adding a new top-level `*.html` file.** Those are historical
+  artifacts. New pages go in `nextjs/src/app/`.
+- **Using `mockRejectedValue` (persistent) in vitest tests.** Use
+  `mockRejectedValueOnce` — the persistent variant leaks unhandled
+  rejections into vitest's tracker even when the production code
+  catches them.
 
-- [ ] Page uses `eeBootstrap('page.html')` with the correct active page string
-- [ ] No mock data or scoring functions duplicated from `shared.js`
-- [ ] Tailwind config block is present and unchanged
-- [ ] All three fonts are loaded in `<head>`
-- [ ] New modals are registered in `eeBootstrap()` in `shared.js`
-- [ ] Score colors use `eeScoreColors()`, not hardcoded values
-- [ ] No `alert()` calls — use `eeShowToast()` or modals
-- [ ] Glass panel class applied to all content cards
-- [ ] `label-caps` pattern used for section headers
+---
+
+## Quick reference
+
+- App: `nextjs/src/app/`
+- Components: `nextjs/src/components/`
+- Shared library: `nextjs/src/lib/`
+- Migrations: `nextjs/db/migrations/`
+- Scripts (migrate, smoke): `nextjs/scripts/`
+- Tests: `nextjs/src/**/__tests__/`
+- Infra: `infrastructure/*.tf`
+- Workflows: `.github/workflows/`
+
+For first-time deploy: [`infrastructure/DEPLOY.md`](infrastructure/DEPLOY.md)
+For DB recovery: [`nextjs/db/RESTORE.md`](nextjs/db/RESTORE.md)
+For repeat recipes: [`SKILL.md`](SKILL.md)

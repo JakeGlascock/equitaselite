@@ -1,239 +1,280 @@
 # PROTOCOL.md — Equitas Elite
 
-Operational protocols for development, deployment, design, and security.
+Day-to-day operational protocols. For first-time deploy, see
+[`infrastructure/DEPLOY.md`](infrastructure/DEPLOY.md). For DB recovery,
+see [`nextjs/db/RESTORE.md`](nextjs/db/RESTORE.md).
 
 ---
 
-## Development Protocol
+## Development
 
-### Local Setup
+### Local setup
 
-No install required. Open any page directly in a browser:
-
-```bash
-open index.html
+```sh
+cd nextjs/
+npm install
+npm run dev          # → http://localhost:3000
 ```
 
-Or serve locally to avoid file:// path issues with relative imports:
+You'll need a Postgres instance reachable from your machine — prod RDS is
+private-subnet only, so local dev means a local Postgres with the
+migrations applied:
 
-```bash
-npx serve .
-# → http://localhost:3000
+```sh
+createdb equitaselite_dev
+for f in db/migrations/*.sql; do psql equitaselite_dev -f "$f"; done
+
+cat > .env.local <<EOF
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=equitaselite_dev
+DB_USER=$(whoami)
+DB_PASSWORD=
+COGNITO_USER_POOL_ID=us-east-1_xxxxxxxxx
+COGNITO_CLIENT_ID=xxxxxxxxxxxxxxxxxxxxxxxxxx
+NEXT_PUBLIC_COGNITO_CLIENT_ID=xxxxxxxxxxxxxxxxxxxxxxxxxx
+AWS_REGION=us-east-1
+ADMIN_EMAILS=you@example.com
+EOF
 ```
+
+`DB_HOST` not ending in `.amazonaws.com` skips TLS in `lib/db.ts`.
+Cognito IDs come from `terraform output`.
 
 ### Workflow
 
-1. Make changes to the relevant file(s)
-2. Open `index.html` in the browser and test the full user flow (login → onboarding → affected page)
-3. Check mobile layout by resizing the browser to < 768px
-4. Commit and push — GitHub Pages auto-deploys within ~60 seconds
+1. Make changes.
+2. Run `npm run type-check && npm run lint && npm test` locally.
+3. Commit on `master` (no PR-required protection right now — single-author
+   project; introduce branch protection when the team grows).
+4. `git push origin master` — Deploy + smoke run automatically.
 
-### Test Accounts
+### Tests
 
-| Role | Email | Password |
-|------|-------|----------|
-| Angel Investor | `demo@angelinvestor.com` | `demo123` |
-| Family Office | `demo@familyoffice.com` | `demo123` |
+- `npm test` — vitest unit suite (scoring, matching, membership,
+  acting-as, auth-session route)
+- `npm run test:coverage` — fails CI below the thresholds in
+  `vitest.config.ts` (80% line/statement/function, 75% branch)
+- DB-backed code (`lib/db.ts`, `lib/email.ts`, `lib/admin.ts`,
+  `lib/auth.ts`, all DB-backed routes) is excluded from coverage — tested
+  only via integration paths (smoke job + the migration runner on each
+  deploy).
 
-Always test both roles when changing anything in `shared.js`, `dashboard.html`, `discovery.html`, or `alignment.html` — several views are role-dependent.
+### Before every commit
 
-### Before Every Commit
-
-- [ ] Tested in Chrome (primary) and Safari
-- [ ] Tested at mobile width (375px)
-- [ ] No `alert()` or `console.log()` left in code
-- [ ] No hardcoded hex values outside the design token set
-- [ ] `shared.js` functions not duplicated in page files
-- [ ] Logo and nav render correctly on at least one authenticated page
-
----
-
-## Git Protocol
-
-### Branch Strategy
-
-`master` is the production branch — it deploys directly to equitaselite.com via GitHub Pages. All commits go to `master` for now. When the team grows, introduce a `dev` branch and use PRs.
-
-### Commit Messages
-
-Use the imperative mood, present tense. Lead with the scope:
-
-```
-Add [feature]
-Fix [bug]
-Update [component/page]
-Remove [thing]
-Refactor [area]
-```
-
-Examples:
-```
-Add deal room document upload flow
-Fix alignment score bar animation on Safari
-Update sidebar to include Reports link
-Remove duplicate matchScore function from dashboard
-```
-
-### Pushing to Production
-
-```bash
-git add <files>
-git commit -m "Your message"
-git push
-```
-
-GitHub Pages deploys automatically. Allow ~60 seconds, then hard-refresh equitaselite.com (`Cmd+Shift+R`).
+- [ ] `npm run type-check` clean
+- [ ] `npm run lint` clean
+- [ ] `npm test` green
+- [ ] No `console.log` left in production code paths (test files are fine)
+- [ ] No hardcoded credentials, no `.env*` staged
+- [ ] If you touched a schema: dropped a `db/migrations/00N_xxx.sql` file
+- [ ] If you touched `infrastructure/`: ran `terraform plan` and reviewed
 
 ---
 
-## Deployment Protocol
+## Git
 
-### Stack
+### Branch model
 
-| Layer | Service |
-|-------|---------|
-| Hosting | GitHub Pages |
-| Domain | GoDaddy → equitaselite.com |
-| CDN / HTTPS | GitHub Pages (Let's Encrypt auto-renewal) |
-| Repository | github.com/JakeGlascock/equitaselite |
+`master` is production. Every push to it triggers a Deploy.
 
-### DNS Records (GoDaddy)
+When a second contributor joins:
+1. Turn on branch protection on `master`
+2. Require PR approval + a passing CI run
+3. Use squash-merge so each merge is one commit on `master`
 
-| Type | Name | Value |
-|------|------|-------|
-| A | @ | `185.199.108.153` |
-| A | @ | `185.199.109.153` |
-| A | @ | `185.199.110.153` |
-| A | @ | `185.199.111.153` |
-| CNAME | www | `jakeglascock.github.io` |
+### Commit messages
 
-Do not modify these records without understanding the impact — removing the A records will take the site offline.
+Imperative mood, short subject (≤ 70 chars), one blank line, then a body
+that explains *why* (not what — the diff shows what). Co-author tags are
+appended automatically by the build agent / Claude Code.
 
-### HTTPS Troubleshooting
+Examples that pass review:
 
-If HTTPS breaks:
-1. Check GitHub Pages settings — custom domain should show `equitaselite.com` with a green checkmark
-2. Run `dig equitaselite.com +short` — must return all four GitHub IPs above
-3. If DNS check is in progress, wait 30 minutes before taking further action
-4. If cert fails, remove and re-add the custom domain in GitHub Pages settings to trigger re-provisioning
+```
+Migration runner: enable SSL + fix log-stream prefix
+
+Two bugs found running the first migration task in prod:
+1. RDS rejected the connection with "no pg_hba.conf entry … no encryption".
+2. deploy.yml constructed the wrong CloudWatch log stream name.
+```
+
+Don't ship commits whose message is just `Update README` — say *what*
+changed and *why*.
 
 ---
 
-## Design Protocol
+## Deploy
 
-The design system is documented in `DESIGN.md`. All UI work must follow it. The key rules:
+`git push origin master` *is* the deploy. Watch with:
 
-### Color
+```sh
+gh run watch                       # latest run, all workflows
+gh run list --workflow=deploy.yml  # just deploys
+```
 
-Never introduce a new hex value. Every color must map to a design token:
+A green deploy is ~4–5 minutes:
+1. Build + push image (ECR, SHA tag, immutable, idempotent on retry).
+2. Register a new task-def revision pointing at the new image.
+3. Run DB migrations as a one-off Fargate task (`scripts/migrate.mjs`),
+   abort the deploy on non-zero exit.
+4. Update the ECS service, wait for stable, hit `/api/health`.
 
-| Intent | Token | Value |
-|--------|-------|-------|
-| Page background | `bg-background` | `#031427` |
-| Primary CTA | `bg-secondary` | `#e9c176` |
-| Success / top score | `text-tertiary` | `#4edea3` |
-| Body text | `text-on-surface` | `#d3e4fe` |
-| Muted text | `text-on-surface-variant` | `#c6c6cd` |
-| Card border | `border-outline-variant` | `#45464d` |
+### Schema changes
+
+Drop a file in `nextjs/db/migrations/`. Numbering is `0NN_short_name.sql`.
+Always use idempotent DDL — `CREATE TABLE IF NOT EXISTS`, `ADD COLUMN IF
+NOT EXISTS`, `CREATE INDEX IF NOT EXISTS`. For triggers (no `IF NOT
+EXISTS` until PG 17.5), prefer `DROP TRIGGER IF EXISTS` followed by
+`CREATE TRIGGER`.
+
+Once a migration has been applied, **don't edit it**. The runner records
+each file's SHA-256 in `schema_migrations.checksum` and the next deploy
+aborts on mismatch. To fix forward, write a new migration.
+
+### Terraform changes
+
+`terraform plan -var-file=prod.tfvars` first. If the plan shows
+unexpected drift (resources changing that you didn't touch), use
+`terraform apply -target=<resource>` to apply only the resources you
+intended. Don't blanket-apply unless the plan is clean.
+
+After `terraform apply`, push a code change (or
+`gh workflow run deploy.yml`) so the new task-def revision rolls out.
+
+### Force a deploy
+
+```sh
+gh workflow run deploy.yml         # no code change
+git commit --allow-empty -m "Re-trigger deploy" && git push   # the chunky way
+```
+
+---
+
+## Operations
+
+### Smoke tests
+
+`.github/workflows/smoke.yml`:
+- runs after every successful Deploy (`workflow_run`)
+- runs hourly on cron
+- can be manually dispatched with a custom `url` input
+
+Failures email `alert@equitaselite.com` via SES. Successful runs are
+silent — green status in the Actions tab is the only signal.
+
+### Incident: site is down
+
+1. Check the Actions tab for a failed Deploy or Smoke run.
+2. Run smoke from your laptop: `node nextjs/scripts/smoke.mjs https://equitaselite.com`
+3. ECS service health: `aws ecs describe-services --cluster equitaselite-prod --services equitaselite-prod --query 'services[0].{Running:runningCount,Pending:pendingCount,Desired:desiredCount,Events:events[0:3]}'`
+4. Recent container logs: `aws logs tail /ecs/equitaselite-prod --since 15m`
+5. RDS state: `aws rds describe-db-instances --db-instance-identifier equitaselite-prod --query 'DBInstances[0].DBInstanceStatus'` (should be `available`)
+6. Rollback option: see [`nextjs/db/RESTORE.md`](nextjs/db/RESTORE.md)
+   §2 ("App is broken but the data is fine") for the ECS task-definition
+   rollback procedure.
+
+### Incident: migration broke the schema
+
+Stop. Don't push another fix-forward migration until you've decided
+between (a) rolling forward with a corrective migration or (b) restoring
+to a point in time before the bad migration ran. See
+[`nextjs/db/RESTORE.md`](nextjs/db/RESTORE.md) §1.
+
+### Admin operations (from `/admin`)
+
+- Invite a user → emails a temp password from Cognito + SES.
+- Toggle a user's Admin, Concierge, or Tier from MembersTable.
+- Assign a user to a concierge from the "Managed by" dropdown.
+- Triage `/admin/access-requests` (status: new → contacted → onboarded /
+  declined).
+- `Seed demo data` (in the Setup & maintenance details panel) inserts
+  17 demo profiles with deterministic random tiers — safe to re-run.
+
+---
+
+## Design
+
+The design system lives in [`DESIGN.md`](DESIGN.md). The Next.js app
+uses Tailwind classes that map to the same design tokens; see
+`nextjs/tailwind.config.js`.
+
+### Color rules
+
+Never introduce a new hex value. Everything comes from the token set:
+
+| Intent | Class |
+|---|---|
+| Page background | `bg-ee-bg` |
+| Card / surface | `glass-panel` (preset utility) |
+| Gold accent (CTAs, current-plan, gold tier) | `text-ee-gold` / `bg-ee-gold` |
+| Emerald accent (success, top-score, Sovereign tier) | `text-ee-emerald` |
+| Primary text | `text-ee-primary` |
+| Muted text | `text-ee-muted` |
+| Border | `border-ee-border` |
 
 ### Typography
 
 | Use | Class |
-|-----|-------|
-| Page / section titles | `font-display` (Playfair Display) |
-| Body copy, metrics | `font-body` (Inter) |
-| Labels, chips, table headers | `font-label` (IBM Plex Sans) |
-| Section headers | `font-label text-[10px] tracking-widest uppercase text-on-surface-variant` |
+|---|---|
+| Page / section titles | `font-display` |
+| Body | (default) |
+| Numbers / monospace / chips | `font-data` |
 
-### Adding a New Component
+### Components
 
-1. Check `DESIGN.md` — the component may already be specified
-2. Match the visual language of the nearest existing component
-3. Use `glass-panel` for all content cards
-4. Use `eeShowToast()` for feedback — never `alert()`
-5. Ensure 44px minimum touch target on all interactive elements
-
----
-
-## Data Protocol
-
-### localStorage Schema
-
-| Key | Shape | Owner |
-|-----|-------|-------|
-| `ee_current_user` | `UserProfile` object | Set on login/onboarding, read by all pages |
-| `ee_users` | `UserProfile[]` | Written by onboarding, read by login |
-| `ee_selected_candidate` | `UserProfile` object | Written by dashboard/discovery, read by alignment.html |
-
-### UserProfile Shape
-
-```js
-{
-  type: 'angel' | 'family_office',
-  name: string,
-  firm: string,
-  title: string,
-  location: string,
-  aum: string,           // e.g. "$450M"
-  minCheck: number,      // in $M
-  maxCheck: number,      // in $M
-  stages: string[],
-  sectors: string[],
-  geography: string,
-  riskTolerance: string,
-  // Angel only:
-  expectedReturn: string,
-  timeline: string,
-  // Family Office only:
-  mandate: string,
-  concentration: string,
-}
-```
-
-### Clearing State
-
-To reset all app data (simulate a fresh user):
-```js
-localStorage.clear()
-```
-
-Or in the browser console. The login page also provides a "Sign Out" flow that clears `ee_current_user`.
+- All content cards use `glass-panel`.
+- All interactive elements need a 44px touch target (use the `btn-*`
+  utilities or matching padding).
+- Material Symbols icons via `<span className="material-symbols-outlined">`.
+- Never use `alert()`.
 
 ---
 
-## Security Protocol
+## Security
 
-### Current State (Prototype)
+### Posture
 
-The current application is a **client-side prototype**. All data lives in `localStorage` — there is no server, no real authentication, and no encrypted storage. It is suitable for demonstration purposes only.
+- TLS everywhere: ACM cert on the ALB (TLS 1.3 minimum), `rds.force_ssl=1`
+  on RDS, `lib/db.ts` connects over TLS to any `*.amazonaws.com` host.
+- KMS encryption at rest: customer-managed keys for RDS, S3, Secrets
+  Manager, CloudWatch.
+- Secrets in Secrets Manager (KMS-encrypted) — DB password, JWT cookie
+  secret. Never commit `.env*` files.
+- AWS WAF on the ALB: managed CRS + SQLi + IP reputation rule groups;
+  1000 req / 5 min rate limit per IP; tighter 50 req / 5 min on `/api/auth/*`.
+- Cognito MFA required for every user.
+- CloudTrail multi-region with five managed alarms (root login, console
+  without MFA, IAM changes, KMS key deletion, trail disabled). Alerts go
+  to `equitaselite-prod-security-alerts` SNS topic.
+- pgaudit logs writes + DDL; `log_statement = ddl`; `log_connections /
+  disconnections = 1`.
 
-**Do not store real investor data, real deal terms, or real financial information in this version.**
+### Don'ts
 
-### Production Readiness Requirements
-
-Before onboarding real users, the following must be in place:
-
-1. **Real authentication** — Replace demo credentials with a proper auth provider (Supabase Auth, Auth0, or similar) supporting MFA
-2. **Server-side data** — Move all user profiles and deal data from `localStorage` to a PostgreSQL database with row-level security
-3. **Encrypted document storage** — Replace the mocked document vault with signed-URL file storage (Supabase Storage or AWS S3)
-4. **API security** — The matching algorithm must run server-side so scoring logic and user data are never exposed in client JS
-5. **Audit logging** — All deal room access and document views must be logged
-6. **Privacy policy & terms** — Required before collecting any real user data
-7. **Penetration testing** — Before launch to institutional investors
-
-### Recommended Production Stack
-
-See `README.md` for the recommended migration path to **Next.js + Supabase**.
+- Don't `aws configure` long-lived access keys. SSO + OIDC only.
+- Don't commit `prod.tfvars` or any `.env*`.
+- Don't disable RDS deletion protection. If you really need to destroy
+  the DB, take a manual snapshot first and re-enable protection on the
+  replacement.
+- Don't apply terraform with `-auto-approve` for unrelated drift.
+- Don't skip CI gates (`--no-verify`).
+- Don't put unencrypted PII in CloudWatch logs.
 
 ---
 
-## Agent Protocol
+## AI agents
 
-AI agents working on this codebase must follow `AGENTS.md` in full. Key points:
+Agents working on the codebase follow [`AGENTS.md`](AGENTS.md). The
+short version:
 
-- Always use `eeBootstrap('page.html')` — never inline nav HTML
-- Never duplicate mock data or scoring functions from `shared.js`
-- Never introduce new colors outside the token set
-- Never use `alert()` — use `eeShowToast()`
-- Test both user roles after any change to shared logic
-- Commit with a clear imperative message after each logical change
+- The project is a Next.js 15 App Router app with TypeScript and pg.
+  Read `src/lib/` to find the shared helpers before writing new ones.
+- DB-backed routes use `query<T>()` / `queryOne<T>()` from `@/lib/db`
+  with parameterized SQL — never string interpolation.
+- Schema changes go in `nextjs/db/migrations/`. The runner applies them
+  on each deploy.
+- Auth is JWT cookies + middleware-injected `x-user-id` header. Don't
+  trust client-sent identifiers.
+- Tier checks go through `lib/membership.ts`. Don't hardcode tier names.
+- Push to `master` deploys. Watch with `gh run watch`.

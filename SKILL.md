@@ -1,220 +1,204 @@
 # SKILL.md — Equitas Elite
 
-Reusable prompt patterns and task recipes for AI agents and developers working on this codebase. Each skill is a concrete, copy-paste-ready instruction that produces a predictable result.
+Reusable recipes for common changes to the Next.js codebase. Each skill is
+a concrete, copy-paste-ready prompt that produces a predictable result.
 
 ---
 
-## Page Skills
-
-### Add a New Page
+## Add an authenticated page
 
 ```
-Create a new authenticated page called [name].html for Equitas Elite.
+Create a new authenticated page called `/[route]` for Equitas Elite.
 
-The page should:
-- Follow the eeBootstrap pattern from AGENTS.md
-- Use '[name].html' as the activePage argument
-- Add it to the sidebar nav in shared.js (pages array) and mobile nav (items array)
-- Match the glass-panel card style and label-caps section headers from DESIGN.md
-- Include a page header with an eyebrow label, font-display headline, and subtitle
-- Pull any needed data from MOCK_* arrays in shared.js — do not add new mock data to the page file
+Requirements:
+- Lives at nextjs/src/app/(app)/[route]/page.tsx
+- Server component by default. Resolve the caller via `headers().get('x-user-id')`;
+  use `getEffectiveUserId(req)` instead in route handlers.
+- Add it to the sidebar nav (NAV_ITEMS) or top nav (TOP_NAV_ITEMS) in
+  nextjs/src/components/AppShell.tsx, with a Material Symbols icon name.
+- Match the existing page header pattern:
+    <p className="font-data text-[10px] tracking-[0.12em] text-ee-muted uppercase">{eyebrow}</p>
+    <h1 className="font-display text-3xl text-ee-gold mt-1">{title}</h1>
+    <p className="text-ee-muted text-sm mt-1">{subtitle}</p>
+- Wrap content cards in `glass-panel`.
+- Tier-gate where appropriate by resolving the caller's tier with
+  `getTier(userId)` from @/lib/membership and rendering lock overlays
+  on items above the tier.
 
 Page purpose: [describe what the page should show]
 ```
 
-### Add a Section to an Existing Page
+## Add a schema change
 
 ```
-Add a new section to [page].html in Equitas Elite.
+Add a schema migration to Equitas Elite.
 
-The section should:
-- Be wrapped in a glass-panel rounded-xl p-5 container
-- Use the label-caps eyebrow pattern for the section title
-- Follow the existing spacing rhythm on the page (gap-6 between sections)
-- Not introduce any new colors, fonts, or border-radius values outside DESIGN.md
+Requirements:
+- File at nextjs/db/migrations/0NN_short_name.sql (next available number).
+- Idempotent DDL only — `CREATE TABLE IF NOT EXISTS`, `ADD COLUMN IF NOT EXISTS`,
+  `CREATE INDEX IF NOT EXISTS`. For triggers, drop-then-create:
+    DROP TRIGGER IF EXISTS x ON table; CREATE TRIGGER x ...
+- Never edit an existing migration. The runner re-hashes every file on
+  every deploy and aborts on checksum mismatch.
+- The migration runner applies it automatically on the next deploy
+  (ECS one-off Fargate task). No /admin button required.
 
-Section content: [describe what to show]
+What the migration should change: [describe schema change]
 ```
 
----
-
-## Component Skills
-
-### Add a New Modal
+## Add a route handler
 
 ```
-Add a new modal to shared.js in Equitas Elite called [name].
+Add a route handler to Equitas Elite.
 
-It should:
-- Follow the eeInjectXxxModal() / eeOpenXxx() / eeCloseModal() pattern
-- Be injected inside eeBootstrap() so it's available on all pages
-- Use bg-surface-container-low, border-outline-variant/60, rounded-xl for the panel
-- Have a header with a label-caps eyebrow and font-display title, plus a close button
-- Call eeShowToast() on successful submission
-- Be openable via eeOpenModal('[name]-modal')
+Requirements:
+- File at nextjs/src/app/api/[path]/route.ts.
+- Export GET / POST / PATCH / DELETE handlers as needed.
+- Resolve the caller via `getEffectiveUserId(req)` from @/lib/acting-as
+  (it honors the concierge "Operate as" cookie).
+- Validate input with zod. On invalid input return NextResponse.json
+  with a flat string error and HTTP 400.
+- Use `query<T>()` / `queryOne<T>()` from @/lib/db with parameterized SQL.
+  Never string-interpolate user input.
+- For admin endpoints, gate on `isUserAdmin(userId, userEmail)` from @/lib/admin.
+- Return NextResponse.json with appropriate status: 200/201 ok, 401 unauth,
+  402 quota-exceeded (with `upgradeRequired`), 403 forbidden, 404 not found.
 
-Modal purpose: [describe what it does]
-Fields: [list any form fields needed]
+Endpoint behaviour: [describe]
 ```
 
-### Add a Toast Notification
+## Add an admin action
 
 ```
-Show a toast notification in Equitas Elite after [action].
-Use eeShowToast('[message]') for success or eeShowToast('[message]', 'error') for errors.
-Do not use alert() or any other notification mechanism.
+Add an admin-only operation to Equitas Elite.
+
+Requirements:
+- Route handler at nextjs/src/app/api/admin/[op]/route.ts.
+- Gate on `isUserAdmin(userId, userEmail)` first thing. Return 403 on failure.
+- Surface the action in nextjs/src/app/(app)/admin/page.tsx or its
+  MembersTable client component as appropriate.
+- If the action is destructive (delete user, etc.), require confirmation
+  in the client — don't just fire on click.
+- Log the action: insert a row into a forthcoming `admin_actions` audit
+  table, OR (interim) console.log with `[admin]` prefix.
+
+Action: [describe]
 ```
 
-### Add a Score Badge
+## Add a tier-gated feature
 
 ```
-Display an alignment score badge for a score of [value] in [page].html.
+Add a tier-gated feature to Equitas Elite.
 
-Use eeScoreColors(score) from shared.js to get the correct color classes:
-- bg, text, bar properties returned
-- Do not hardcode color values
-- Pair it with eeScoreLabel(score) for the text label (Exceptional / Strong / Good / Moderate)
+Requirements:
+- Source-of-truth for tier limits is nextjs/src/lib/membership.ts —
+  extend TIER_LIMITS, getLimits(tier), etc. if a new dimension is needed.
+- Server-side enforcement: resolve `await getTier(userId)` and check
+  before doing the work. Reject with 402 + { upgradeRequired: 'select' | 'sovereign' }
+  for tier-gated APIs.
+- Client-side surface: show the feature but render an "Upgrade to X"
+  CTA (linking /pricing) instead of the active control when the tier
+  is too low. See nextjs/src/components/MatchCard.tsx's `canSendIntros`
+  prop for the pattern.
+- Pricing page should reflect the feature — update PLANS in
+  nextjs/src/app/pricing/PricingClient.tsx so each tier's feature list
+  is accurate.
+
+Feature: [describe]
 ```
 
----
-
-## Data Skills
-
-### Add a Mock Profile
+## Add a notification
 
 ```
-Add a new [angel | family_office] profile to MOCK_[ANGELS | FAMILY_OFFICES] in shared.js.
+Add a notification trigger to Equitas Elite.
 
-The profile must include all required fields from the UserProfile schema in PROTOCOL.md:
-type, name, firm, title, location, aum, minCheck, maxCheck, stages[], sectors[], geography, riskTolerance
-Plus role-specific fields (expectedReturn + timeline for angel; mandate + concentration for family_office).
+Requirements:
+- In-app: insert a row in `notifications` (user_id, type, title, body,
+  link_url, related_id). Wrap in try/catch — pre-init the table may not
+  exist; don't fail the parent operation.
+- Email: add a new helper in nextjs/src/lib/email.ts that calls
+  SESv2 send-email. Gate on the recipient's
+  `email_notifications_enabled` column.
+- The NotificationsBell component picks up the new row automatically;
+  no client changes needed.
 
-Use only valid sector values: FinTech, Deep Tech, Life Sciences, Clean Energy, SaaS, AI / ML, Healthcare, Defense Tech, Consumer, Real Estate
-Use only valid geography values: North America, Europe, Asia-Pacific, Middle East, Global
-
-Profile details: [describe the profile]
+Trigger: [describe when this should fire]
+Email body: [optional template]
 ```
 
-### Update the Scoring Algorithm
+## Add a smoke check
 
 ```
-Update the eeMatchScore(a, b) function in shared.js for Equitas Elite.
+Extend the smoke runner to cover a new critical path.
 
-Current weights: Sector overlap 40%, Stage alignment 30%, Check size 20%, Geography 10%.
-Max score is capped at 99.
+Requirements:
+- Edit nextjs/scripts/smoke.mjs's CHECKS array.
+- For a GET endpoint that requires no auth, add { name, path, status, contains }.
+- For an auth-gated path that should redirect, use { status: [302,307,308],
+  redirectContains: '/signin', followRedirect: false }.
+- Pick a marker string that's specific to the page and unlikely to
+  appear anywhere else (e.g., a heading or unique form label).
+- The check runs on every deploy + hourly cron + manual dispatch.
+- A failure emails alert@equitaselite.com via SES automatically.
 
-The function must remain pure (no side effects, no DOM access) and return a number 0–99.
-Update eeScoreLabel() and eeScoreColors() thresholds if the scoring range changes.
-
-Requested change: [describe the change]
+Path to add: [path] · Why it's critical: [reason]
 ```
 
----
-
-## Deployment Skills
-
-### Commit and Deploy
+## Add a test
 
 ```
-Commit all current changes to the Equitas Elite repo and push to GitHub.
+Add a vitest unit test to Equitas Elite.
 
-Use a clear imperative commit message scoped to what changed.
-Run: git add [files] && git commit -m "[message]" && git push
+Requirements:
+- File at nextjs/src/lib/__tests__/[file].test.ts (mirroring the SUT path).
+- Use vi.mock for any DB dependency: `vi.mock('@/lib/db', () => ({ ... }))`.
+- For mocked rejections, prefer mockRejectedValueOnce over
+  mockRejectedValue — vitest's unhandled-rejection tracker is more
+  forgiving with the "Once" variant.
+- Coverage threshold is 80% line/statement/function, 75% branch.
+- DB-backed and AWS-SDK-backed modules (auth.ts, email.ts, admin.ts,
+  db.ts) are excluded from coverage via vitest.config.ts — don't try
+  to unit-test them, write integration tests instead.
 
-The site auto-deploys to equitaselite.com via GitHub Pages within ~60 seconds.
+What to test: [describe SUT and cases]
 ```
 
-### Deploy a Single File
+## Add a feature page to the marketing site
 
 ```
-Commit and push only [filename] to the Equitas Elite GitHub repo.
-Message: "[imperative description of the change]"
-```
+Add or update a section on the public marketing site at /.
 
----
+Requirements:
+- Edit nextjs/src/app/page.tsx (the unauthenticated landing).
+- Keep the brand voice: institutional, restrained, no exclamation points,
+  no marketing-speak ("revolutionary", "game-changing", etc.).
+- All hex colors must come from the ee-* token set (see DESIGN.md).
+- Material Symbols for icons; never inline SVG glyphs.
+- All CTAs should route to /request-access for unauthenticated visitors,
+  not mailto: links.
+- Tier names are Access, Select, Sovereign — match those exactly.
 
-## Design Skills
-
-### Audit a Page for Design Compliance
-
-```
-Audit [page].html in Equitas Elite for design system compliance.
-
-Check against DESIGN.md and flag any violations:
-- Hardcoded hex colors not in the token set
-- alert() calls instead of eeShowToast()
-- Missing font-label / font-display / font-body class usage
-- Border radius values inconsistent with the shape system
-- Interactive elements below 44px touch target
-- Nav HTML inlined instead of using eeBootstrap()
-- Mock data or scoring functions duplicated from shared.js
-
-Report violations with line numbers and the correct fix for each.
-```
-
-### Match a Design Reference
-
-```
-Implement the UI shown in [description] for Equitas Elite.
-
-Follow DESIGN.md strictly:
-- Dark background: bg-background (#031427)
-- Cards: glass-panel class (rgba(16,32,52,0.6) + backdrop-blur + 1px border)
-- Primary CTA: bg-secondary text-on-secondary (gold)
-- Success indicators: text-tertiary / bg-tertiary/15 (emerald)
-- Section headers: font-label text-[10px] tracking-widest uppercase text-on-surface-variant
-- Headings: font-display
-- Body: font-body
-- Labels/data: font-label
-```
-
----
-
-## Refactor Skills
-
-### Migrate Inline Nav to shared.js
-
-```
-Update [page].html to use the shared.js bootstrap pattern.
-
-1. Replace the inline <header> with <div id="ee-topbar"></div>
-2. Replace the inline <aside> with <div id="ee-sidebar"></div>
-3. Replace the inline mobile <nav> with <div id="ee-mobile-nav"></div>
-4. Add <script src="shared.js"></script> before the page's <script> block
-5. Update init() to call eeBootstrap('[page].html') and remove any manual nav population
-6. Remove any MOCK_* arrays or scoring functions duplicated from shared.js
-7. Replace matchScore() calls with eeMatchScore(), scoreLabel() with eeScoreLabel(), scoreColors() with eeScoreColors()
-```
-
-### Remove a Deprecated Function
-
-```
-Remove the function [functionName] from [file] in Equitas Elite.
-
-Before removing:
-1. Confirm it is not called anywhere with: grep -rn "[functionName]" .
-2. If called, replace each call site with the correct shared.js equivalent
-3. Remove the function definition
-4. Verify the page still works by opening it in a browser
+Section: [describe]
 ```
 
 ---
 
-## Upgrade Skills
+## Working in this codebase
 
-### Scaffold Next.js Migration
+- The Next.js standalone server forces `NODE_ENV=production` regardless
+  of what ECS sets. Don't rely on `NODE_ENV` for behaviour decisions in
+  scripts that run outside Next.js (use other signals — DB_HOST for
+  TLS, `process.env.AWS_REGION` for region, etc.).
+- The migration runner runs as the DB superuser today. Future work to
+  scope it down is in PLANNING.md.
+- For ECR retries, the deploy workflow tolerates "tag invalid: already
+  exists" because the IMMUTABLE policy rejects re-pushes of the same
+  SHA. Don't `--force` your way around this — it's load-bearing.
+- The `infrastructure/.gitignore` keeps `prod.tfvars` and `tfplan` out
+  of git. Both contain real account-specific values.
+- `/api/health` is the only DB-free endpoint. Useful for smoke and
+  load-balancer health checks; don't add DB queries to it.
 
-```
-Scaffold the Next.js + Supabase migration for Equitas Elite.
-
-Create a /nextjs directory (do not modify the existing HTML files) with:
-- next.config.js configured for Tailwind and App Router
-- tailwind.config.js with all EE_COLORS tokens from shared.js
-- /app/layout.tsx with the shared topbar, sidebar, and mobile nav as React components
-- /app/page.tsx as the login page (port of index.html)
-- /lib/supabase.ts with the Supabase client setup
-- /lib/scoring.ts with the eeMatchScore algorithm as a typed TypeScript function
-- /types/index.ts with the UserProfile interface from PROTOCOL.md
-
-Preserve all visual design exactly — same Tailwind classes, same fonts, same colors.
-```
+For first-time deploy steps, see [`infrastructure/DEPLOY.md`](infrastructure/DEPLOY.md).
+For DB recovery, see [`nextjs/db/RESTORE.md`](nextjs/db/RESTORE.md).
+For per-feature roadmap, see [`PLANNING.md`](PLANNING.md).

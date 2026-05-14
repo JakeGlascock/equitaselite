@@ -1,389 +1,297 @@
 # ARCHITECTURE.md — Equitas Elite
 
-Technical architecture documentation covering system design, data flow, module structure, and the production upgrade path.
+System architecture for the production deployment at
+[equitaselite.com](https://equitaselite.com).
 
 ---
 
-## System Overview
+## Overview
 
-Equitas Elite is a **single-tier client-side application**. There is no server, no API, and no database. All logic executes in the browser; all state persists in `localStorage`. The application is served as static files from GitHub Pages.
-
-```
-Browser
-  └── GitHub Pages (static file host)
-        ├── index.html          ← entry point
-        ├── shared.js           ← shared module (loaded by each page)
-        ├── [page].html × 10   ← authenticated pages
-        └── logo.png            ← brand asset
-```
-
-This architecture is intentional for the prototype phase — zero infrastructure, zero cost, deployable in seconds. The tradeoff is that all data is local to a single browser session and all logic is visible in the client.
-
----
-
-## Module System
-
-There is no bundler or module system. Pages share logic through a single **global script** — `shared.js` — which is loaded via a `<script src="shared.js">` tag at the bottom of every authenticated page body. All exports are global functions and constants on the `window` object.
-
-### Load Order (per page)
+Equitas Elite is a Next.js 15 application running on AWS ECS Fargate behind
+an Application Load Balancer, backed by RDS PostgreSQL 17 and AWS Cognito.
+Everything is encrypted at rest with customer-managed KMS keys; every
+inbound and outbound request is over TLS.
 
 ```
-1. <script> tailwind.config = {...}        ← must be first, before Tailwind CDN
-2. <script src="cdn.tailwindcss.com">      ← reads config, generates utility classes
-3. Google Fonts <link>                     ← Playfair Display, Inter, IBM Plex Sans
-4. Material Symbols <link>                 ← icon font
-5. Page HTML renders                       ← placeholder divs for nav injection
-6. <script src="shared.js">               ← defines all globals
-7. <script> init() { eeBootstrap(...) }    ← page-specific logic runs last
+                                  Route 53
+                                     │
+                         equitaselite.com (ALIAS)
+                                     │
+                                     ▼
+                              AWS WAF (rate-limit,
+                              AWS Managed Rules)
+                                     │
+                                     ▼
+                       Application Load Balancer (HTTPS,
+                                ACM TLS 1.3)
+                                     │
+                                     ▼
+                          ECS Fargate Service
+                          (2-10 tasks, multi-AZ)
+                          ┌────────────────────────────┐
+                          │  Next.js 15 standalone     │
+                          │  ┌──────────────────────┐  │
+                          │  │ Middleware           │  │
+                          │  │  - jose JWT verify   │  │
+                          │  │  - x-user-id header  │  │
+                          │  └──────────┬───────────┘  │
+                          │             │              │
+                          │  ┌──────────▼───────────┐  │
+                          │  │ Server components +  │  │
+                          │  │ Route handlers       │  │
+                          │  └──────────┬───────────┘  │
+                          │             │              │
+                          │  ┌──────────▼───────────┐  │
+                          │  │ src/lib (db, auth,   │  │
+                          │  │ matches, membership) │  │
+                          │  └──┬──────────┬────────┘  │
+                          └─────│──────────│───────────┘
+                                ▼          ▼
+                       RDS Postgres 17    AWS services
+                       (multi-AZ,         (Cognito, SES,
+                        KMS, 35d PITR)     S3, Secrets Mgr)
 ```
 
-The Tailwind config **must** precede the CDN script because the CDN reads `window.tailwind.config` synchronously on load. This is why the config cannot live in `shared.js`.
+## Runtime
 
----
+| Component | Choice | Why |
+|---|---|---|
+| Framework | Next.js 15 App Router | Server components keep DB queries server-side; route handlers cover the API surface |
+| Runtime | Node 24 in the runner image, `next start` standalone output | Standalone trace ships only the deps actually used; small image |
+| Container orchestration | ECS Fargate, 2-10 task auto-scaling | No EC2 hosts to manage; spreads across AZs |
+| Front door | ALB + ACM (TLS 1.3) | Standard AWS pattern; ACM cert auto-renews via DNS |
+| Edge filtering | AWS WAF | AWS managed rule groups (CRS, SQLi, IP reputation) + 1000 req/5min rate limit; 50 req/5min for `/api/auth/*` |
+| Auth | Cognito User Pool with TOTP MFA | Invite-only via `AdminCreateUser`; first sign-in forces password set + MFA pairing |
+| Database | RDS Postgres 17 (`db.t4g.medium` class) | Multi-AZ, gp3 storage, KMS encryption, 35-day PITR, IAM auth enabled, pgaudit + log_statement=ddl |
+| Email | SES v2, domain identity for `equitaselite.com` | DKIM + SPF + DMARC (`p=quarantine; pct=25`); sender `noreply@equitaselite.com` |
+| Object storage | S3 (KMS-encrypted) | Documents bucket + access logs bucket + CloudTrail bucket; all `BlockPublicAccess` |
+| Secrets | AWS Secrets Manager (KMS) | DB password, JWT-verify cookie secret, etc. — never in env files |
+| Observability | CloudWatch logs, Performance Insights, CloudTrail | Multi-region trail with five managed alarms (root login, no-MFA console, IAM changes, KMS key deletion, trail disabled) |
 
-## Page Architecture
-
-Every authenticated page follows an identical structural contract:
-
-```html
-<!DOCTYPE html>
-<html class="dark">
-<head>
-  <!-- Tailwind config (must be before CDN) -->
-  <!-- CDN scripts and font links -->
-  <!-- Page-specific styles -->
-</head>
-<body class="bg-background text-on-surface font-body">
-
-  <!-- Nav injection targets -->
-  <div id="ee-topbar"></div>
-  <div class="flex pt-14 min-h-screen">
-    <div id="ee-sidebar"></div>
-    <main class="flex-1 lg:ml-60 px-5 md:px-8 py-8 pb-24 lg:pb-8">
-      <!-- Page content -->
-    </main>
-  </div>
-  <div id="ee-mobile-nav"></div>
-
-  <!-- Modal injection targets (filled by eeBootstrap) -->
-
-  <script src="shared.js"></script>
-  <script>
-    function init() {
-      const user = eeBootstrap('this-page.html');
-      if (!user) return;
-      // Page-specific logic
-    }
-    init();
-  </script>
-</body>
-</html>
-```
-
-Pre-auth pages (`index.html`, `onboarding.html`) are exempt — they have standalone layouts and do not call `eeBootstrap`.
-
----
-
-## shared.js Architecture
-
-`shared.js` is the application's core module. It is structured in seven layers:
+## Authentication flow
 
 ```
-shared.js
-  ├── 1. Design Tokens        EE_COLORS object (reference, not injected)
-  ├── 2. Mock Data            MOCK_FAMILY_OFFICES, MOCK_ANGELS, MOCK_DEALS, MOCK_NOTIFICATIONS
-  ├── 3. Auth                 eeGetUser, eeCheckAuth, eeLogout
-  ├── 4. Scoring              eeMatchScore, eeScoreLabel, eeScoreColors
-  ├── 5. Nav Generators       eeSidebarHTML, eeTopbarHTML, eeMobileNavHTML
-  ├── 6. Modal System         eeOpenModal, eeCloseModal, eeInject*, eeOpen*, handlers
-  └── 7. Bootstrap            eeBootstrap (orchestrates layers 3–6)
+ ┌──────────┐   POST /api/auth/signin    ┌──────────┐
+ │ /signin  │ ──────────────────────────▶│ Cognito  │
+ │  page    │     {email, password}      │          │
+ └──────────┘                            └────┬─────┘
+      ▲                                       │
+      │                ChallengeName?         │
+      │     ┌─────────────────────────────────┤
+      │     │                                 │
+      │  NEW_PASSWORD                MFA_SETUP / SOFTWARE_TOKEN_MFA
+      │     │                                 │
+      │     ▼                                 ▼
+      │   force new password         show QR (mfa_setup) or
+      │   step                       prompt for 6-digit code (mfa)
+      │     │                                 │
+      │     └──────────────┬──────────────────┘
+      │                    ▼
+      │           Cognito issues
+      │           access + id + refresh tokens
+      │                    │
+      └────────────────────┘
+       Set as httpOnly cookies:
+       ee_access, ee_id (1h), ee_refresh (30d)
 ```
 
-### Layer Dependencies
+After sign-in, every request hits `src/middleware.ts`, which:
+1. Skips public paths (`/`, `/signin`, `/pricing`, `/request-access`, `/api/health`).
+2. Verifies the `ee_id` cookie against the Cognito JWKS using `jose`.
+3. Injects `x-user-id` and `x-user-email` headers into the downstream request.
+4. Redirects to `/signin` if the JWT is missing or invalid.
+
+Server components and route handlers read `x-user-id` from `headers()` /
+`req.headers.get(...)`. There's no client-side auth state — the cookie is
+the source of truth.
+
+## Module structure
 
 ```
-eeBootstrap
-  ├── calls eeCheckAuth        (layer 3)
-  ├── calls eeSidebarHTML      (layer 5) → reads MOCK_NOTIFICATIONS (layer 2)
-  ├── calls eeTopbarHTML       (layer 5) → reads MOCK_NOTIFICATIONS (layer 2)
-  ├── calls eeMobileNavHTML    (layer 5)
-  └── calls eeInject* × 6     (layer 6)
-
-Page init functions
-  ├── call eeBootstrap
-  ├── read MOCK_* arrays       (layer 2)
-  ├── call eeMatchScore        (layer 4)
-  ├── call eeScoreLabel        (layer 4)
-  ├── call eeScoreColors       (layer 4)
-  └── call eeOpen* / eeShowToast (layer 6)
+src/
+  middleware.ts           # JWT verify + header injection
+  app/
+    layout.tsx            # Root layout (font, metadata, global CSS)
+    page.tsx              # Marketing landing
+    signin/               # Cognito sign-in + MFA flows
+    pricing/              # Public pricing page (server-resolves current tier)
+    request-access/       # Public access-request form
+    onboarding/           # 4-step profile creation (validated client + server)
+    (app)/                # All authenticated surfaces (shared AppShell layout)
+      layout.tsx          # Loads profile, role, tier; renders AppShell
+      dashboard/          # Match cards, intro CTA, tier banners
+      profile/            # Self-edit profile
+      connections/        # Inbound + outbound intro management
+      admin/              # MembersTable, InviteForm, access-requests
+      concierge/          # Managed accounts + "Operate as"
+      insights/           # Tier-gated reports
+      events/             # Tier-gated event RSVPs
+      pricing/, …         # Other product pages
+    api/
+      auth/               # session, signin, signout, refresh
+      me/                 # GET/PATCH the current profile
+      onboarding/         # POST initial profile + tier=access
+      matches/            # (read via lib/matches.ts from RSC, no API needed)
+      introductions/      # POST + accept/decline + tier-limit enforcement
+      notifications/      # mark-read, etc.
+      concierge/          # Managed-profile CRUD + act-as cookie
+      admin/              # Invite, seed-demo-data, users PATCH, access-requests
+      health/             # 200 OK for smoke + ALB
+      request-access/     # Public unauth POST
+  lib/
+    db.ts                 # pg Pool singleton, query<T>() / queryOne<T>() helpers
+    auth.ts               # Cognito SDK wrappers (signIn, MFA, list/create users)
+    admin.ts              # isUserAdmin() — DB-backed + env-var break-glass
+    membership.ts         # Tier type, TIER_LIMITS, getTier, checkIntroQuota
+    matches.ts            # getMe, getCandidates, buildIntroMap, toMatchView
+    scoring.ts            # computeMatchScore (sector/stage/check/geography)
+    acting-as.ts          # Concierge "operate as" cookie + getEffectiveUserId
+    email.ts              # SES wrappers (intro events)
+    aws.ts                # AWS SDK clients
+  components/
+    AppShell.tsx          # Top bar + left nav + acting-as banner + tier badge
+    MatchCard.tsx         # Score ring + intro action
+    NotificationsBell.tsx # Bell + dropdown + mark-read
+  scripts/
+    migrate.mjs           # DB migration runner (run as ECS one-off task)
+    smoke.mjs             # Smoke checks against prod (run from GitHub Actions)
+  db/
+    migrations/           # 001-008 SQL files
+    RESTORE.md            # Recovery playbook
 ```
 
----
+## Data model
 
-## Authentication Architecture
-
-Authentication is simulated. There is no token, no session, no server verification.
-
-### Login Flow
+Single primary table: `profiles`. Identities come from Cognito (the
+`sub` claim becomes `profiles.id`). Demo and concierge-managed accounts use
+`demo_*` / `managed_*` ID prefixes and bypass Cognito.
 
 ```
-index.html
-  └── handleLogin(event)
-        ├── reads ee_users from localStorage
-        ├── finds matching email + password
-        ├── writes ee_current_user to localStorage
-        └── redirects →
-              onboarding.html  (if user.onboarded !== true)
-              dashboard.html   (otherwise)
+profiles                          schema_migrations
+├── id              PK            ├── version    PK
+├── email           UNIQUE        ├── checksum
+├── role            ENUM          └── applied_at
+├── full_name
+├── firm_name                     introductions
+├── sectors, stages, geography    ├── id (uuid)
+├── check_size_min/max            ├── requester_id  FK → profiles
+├── risk_tolerance, …             ├── recipient_id  FK → profiles
+├── is_admin                      ├── status        pending/accepted/declined
+├── is_concierge                  ├── message
+├── managed_by      FK → profiles ├── created_at
+├── membership      access/select/sovereign
+├── email_notifications_enabled   notifications
+├── onboarding_completed          ├── id (uuid)
+├── created_at                    ├── user_id   FK → profiles
+└── updated_at                    ├── type, title, body
+                                  ├── link_url, related_id
+                                  └── is_read, created_at
+
+access_requests
+├── id (uuid)
+├── email, full_name, firm_name, role, brief
+├── status   new/contacted/onboarded/declined
+└── created_at
 ```
 
-### Auth Guard
+`schema_migrations.checksum` protects against editing an applied migration —
+the runner re-hashes each file and aborts the next deploy on mismatch.
 
-Every authenticated page calls `eeBootstrap()` which calls `eeCheckAuth()`:
+## Match scoring
 
-```
-eeCheckAuth()
-  ├── reads ee_current_user from localStorage
-  ├── if null → window.location.href = 'index.html'  (redirect)
-  └── if present → returns user object
-```
+`computeMatchScore(user, candidate)` returns `{ total, sector, stage,
+checkSize, geography, label }`. Weights: sector 40, stage 30, check size
+20, geography 10. Total is capped at 99 (perfect-match would be 100; we
+reserve that for hypothetical future cases).
 
-There is no token expiry, no refresh, and no server-side session. Logging out clears `ee_current_user` from localStorage and redirects to `index.html`.
+`getCandidates(me)` runs the opposite-role query (`angel ↔ family_office`),
+filters out concierges, and (now) selects `membership` so the dashboard
+can sort with **priority placement** (Sovereign rows first, then Select,
+then Access). Within a tier, results are sorted by score descending. The
+dashboard then slices to the caller's tier limit (Access: 10; Select +
+Sovereign: unlimited).
 
-### Demo Seed Data
+## Tier enforcement (Phase 0 + 1)
 
-`index.html` seeds two demo accounts into `ee_users` on every load if they don't already exist:
-
-```js
-// Seeded on index.html load
-[
-  { email: 'demo@angelinvestor.com', password: 'demo123', type: 'angel', onboarded: true, ... },
-  { email: 'demo@familyoffice.com',  password: 'demo123', type: 'family_office', onboarded: true, ... }
-]
-```
-
----
-
-## Matching Algorithm Architecture
-
-The matching score is a **weighted multi-dimensional similarity function**. It runs entirely client-side in JavaScript.
-
-### `eeMatchScore(a, b)` — Simple Score (shared.js)
-
-Used across all list and card views. Returns a single integer 0–99.
+`src/lib/membership.ts` is the single source of truth:
 
 ```
-Input:  Two UserProfile objects (a = current user, b = candidate)
-Output: Integer 0–99
-
-Dimensions:
-  Sector overlap   → Jaccard similarity × 40
-  Stage alignment  → Jaccard similarity × 30
-  Check size       → Binary range overlap × 20
-  Geography        → Exact match or Global × 10
-
-Cap: Math.min(score, 99)  — never returns 100
+                Access   Select       Sovereign
+Matches/month   10       unlimited    unlimited
+Intros/30d      0        5            unlimited
+Priority rank   2        1            0
 ```
 
-### `detailedScore(a, b)` — Dimensional Score (alignment.html)
+- `/api/introductions` POST calls `checkIntroQuota` first; over-quota
+  returns `402` with `{ upgradeRequired, used, limit }`. The MatchCard's
+  intro button is replaced with "Upgrade to introduce" on Access (and on
+  Select-at-cap).
+- The dashboard renders an upgrade banner when matches are capped or
+  intros are exhausted.
+- `/pricing` server-resolves the caller's tier and highlights the current
+  plan; `/insights` and `/events` page-server resolves it and pass to the
+  client, which renders lock overlays on items above the user's tier.
 
-Used only on the Alignment Report. Returns per-dimension scores for the breakdown visualization.
+## Concierge / "Operate as"
 
-```
-Input:  Two UserProfile objects
-Output: {
-  overall:     0–99  (weighted composite)
-  sectorScore: 0–100 (Jaccard × 100)
-  stageScore:  0–100 (Jaccard × 100)
-  checkScore:  0–100 (range overlap ratio × 100)
-  geoScore:    20 | 100
-  riskScore:   0 | 50 | 100 (Conservative/Moderate/Aggressive alignment)
-  sectorOverlap: string[]  (shared sector names)
-}
-```
+A concierge (`profiles.is_concierge = TRUE`) can create managed-account
+profiles (`managed_*` IDs, no Cognito account) on behalf of clients. The
+"Operate as" button sets a server-readable `ee_acting_as` cookie scoped
+to a single managed profile. `getEffectiveUserId(req)` and
+`getActingAsState()` (in `lib/acting-as.ts`) return the impersonated id
+when present and the lookup verifies the caller actually owns that
+managed profile — stale cookies are silently ignored.
 
-### Score Classification
+## Deploy pipeline
 
-```
-eeScoreLabel(score):
-  ≥ 85 → 'Exceptional'
-  ≥ 70 → 'Strong'
-  ≥ 55 → 'Good'
-  < 55 → 'Moderate'
+`.github/workflows/deploy.yml` triggers on push to `master` when
+`nextjs/**`, `infrastructure/ecs.tf`, or `.github/workflows/deploy.yml`
+changes. The job:
 
-eeScoreColors(score):
-  ≥ 85 → { text: 'text-tertiary',          bg: 'bg-tertiary/15 border-tertiary/30',   bar: '#4edea3' }
-  ≥ 70 → { text: 'text-secondary',         bg: 'bg-secondary/15 border-secondary/30', bar: '#e9c176' }
-  < 70 → { text: 'text-on-surface-variant', bg: 'bg-surface-container ...',            bar: '#909097' }
-```
+1. Builds the Docker image, pushes to ECR using the commit SHA as the
+   tag (ECR has `IMMUTABLE` tag policy; the push step tolerates "already
+   exists" if the same SHA was pushed by a prior failed run).
+2. Registers a new task definition revision pointing at the new image.
+3. Runs `nextjs/scripts/migrate.mjs` as a one-off Fargate task using the
+   new task definition (command override). The task reuses the service's
+   networkConfiguration so it lands in the same private subnets and SG.
+   Deploy aborts on non-zero exit.
+4. Updates the ECS service, waits for stable, hits `/api/health`.
 
----
+OIDC to AWS uses the `equitaselite-github-deploy-prod` role; no
+long-lived access keys exist.
 
-## State Management Architecture
+## Smoke + alerts
 
-There is no state management library. State flows through `localStorage` and direct DOM manipulation.
+`.github/workflows/smoke.yml` runs the smoke script after every
+successful deploy (`workflow_run` trigger) and hourly (cron). On
+failure, it assumes the same OIDC deploy role and calls SESv2
+`send-email` to `alert@equitaselite.com` with the last 30 lines of
+script output and a link to the workflow run.
 
-### localStorage as the Data Layer
+Checks: `/api/health` JSON marker · `/`, `/signin`, `/pricing`,
+`/request-access` body markers · `/dashboard` redirect to `/signin`.
 
-```
-ee_users            []UserProfile     All registered accounts
-ee_current_user     UserProfile       The active session
-ee_selected_candidate UserProfile     Passed from list → detail view
-```
+## CI gates
 
-### Cross-Page Data Flow
+`.github/workflows/ci.yml` runs on every push and PR:
 
-```
-dashboard.html / discovery.html
-  └── user clicks a match card
-        └── openAlignment(candidate)
-              ├── localStorage.setItem('ee_selected_candidate', JSON.stringify(candidate))
-              └── window.location.href = 'alignment.html'
+- `tsc --noEmit` + `next lint`
+- Vitest with 80% line/statement/function + 75% branch thresholds
+- `npm audit --audit-level=high`
+- Trivy container scan (HIGH + CRITICAL, fixed-only)
+- Checkov Terraform scan (with a documented `skip_check` list)
+- Gitleaks secret scan
 
-alignment.html
-  └── init()
-        ├── user = eeGetUser()            ← current user from localStorage
-        ├── candidate = localStorage.getItem('ee_selected_candidate')
-        └── renderReport(user, candidate) ← generates full alignment report
-```
+Failures surface to the GitHub Security tab as SARIF.
 
-### In-Page State
+## What's not in this architecture (yet)
 
-Page-level state (filter state, view mode, active tab) is held in JavaScript variables scoped to the page's `<script>` block. It does not persist across navigation — each page load starts fresh from localStorage.
+- A read replica for analytics
+- Cross-region backup copies
+- Storage autoscaling on the RDS instance
+- A scoped migration role (the runner currently uses the DB superuser)
+- A staging environment (every deploy is straight to prod; smoke tests
+  catch obvious breakage within ~30 seconds)
 
----
-
-## Navigation Architecture
-
-Navigation is injected at runtime by `eeBootstrap`. The three nav surfaces are generated as HTML strings and replace their placeholder `<div>` elements via `outerHTML` assignment.
-
-### Nav Surfaces
-
-| Surface | Element ID | Visibility | Content |
-|---------|-----------|------------|---------|
-| Topbar | `ee-topbar` | Always | Logo, primary nav links (desktop), New Deal, notifications, avatar |
-| Sidebar | `ee-sidebar` | `lg:` only | User profile, all nav links, Join Syndicate, Settings, Sign Out |
-| Mobile Nav | `ee-mobile-nav` | `< lg` only | 5 primary destinations as icon+label tabs |
-
-### Active Page Highlighting
-
-`eeBootstrap(activePage)` passes the active page filename to all three nav generators. Each generator compares `activePage` to each link's `href` and applies active styling to the matching item:
-
-```js
-// Sidebar example
-activePage === p.href
-  ? 'bg-secondary/12 text-secondary border-r-2 border-secondary'  // active
-  : 'text-on-surface-variant hover:bg-surface-container'           // inactive
-```
-
-`alignment.html` uses `'deal-room.html'` as its active page since it is accessed from the Deal Room flow and has no dedicated sidebar entry.
-
----
-
-## Modal Architecture
-
-All modals are injected into `document.body` by `eeBootstrap` via six `eeInject*` functions. They are appended once per page load and persist for the session.
-
-### Modal Lifecycle
-
-```
-eeBootstrap()
-  └── eeInjectNewDealModal()       → appends #new-deal-modal (hidden)
-  └── eeInjectNotificationsDrawer() → appends #notifications-drawer (hidden)
-  └── eeInjectMessageModal()       → appends #message-modal (hidden)
-  └── eeInjectInviteModal()        → appends #invite-modal (hidden)
-  └── eeInjectUploadModal()        → appends #upload-modal (hidden)
-  └── eeInjectSyndicateModal()     → appends #syndicate-modal (hidden)
-
-eeOpenModal(id)   → el.classList.remove('hidden'); el.classList.add('flex')
-eeCloseModal(id)  → el.classList.add('hidden');    el.classList.remove('flex')
-```
-
-### Backdrop Click Dismissal
-
-A single document-level click listener in `shared.js` handles backdrop dismissal for all modals. Each modal's backdrop div has an `onclick="eeCloseModal('modal-id')"` attribute.
-
----
-
-## Rendering Architecture
-
-Pages use **direct DOM manipulation** — `innerHTML` assignment and `insertAdjacentHTML`. There is no virtual DOM, no diffing, and no reactivity.
-
-### Render Patterns
-
-| Pattern | Used In | Description |
-|---------|---------|-------------|
-| `el.innerHTML = html` | All pages | Full section re-render from a JS template literal |
-| `el.outerHTML = html` | `eeBootstrap` | Replace placeholder div with injected nav |
-| `insertAdjacentHTML('beforeend', html)` | Modal injection | Append modal HTML to body once |
-| `el.style.property = value` | Score rings, bars | Animate SVG and bar fills after render |
-
-### SVG Animation Pattern
-
-Score rings and bar charts are rendered with their animated properties at their start state, then updated after a short `setTimeout` to trigger CSS transitions:
-
-```js
-// Render with start state
-`<circle style="stroke-dashoffset: ${circleC}"/>`  // fully hidden
-
-// Animate after render
-setTimeout(() => {
-  document.getElementById('score-ring').style.strokeDashoffset = offset;
-}, 100);
-```
-
----
-
-## Asset Architecture
-
-```
-equitaselite/
-  logo.png         ← Brand mark (referenced by relative path in shared.js and HTML files)
-```
-
-All other assets (icons, fonts) are loaded from external CDNs:
-- **Tailwind CSS** — `cdn.tailwindcss.com`
-- **Google Fonts** — `fonts.googleapis.com` (Playfair Display, Inter, IBM Plex Sans)
-- **Material Symbols** — `fonts.googleapis.com` (icon font, variable weight/fill)
-
-The application has no build step and no asset pipeline. `logo.png` is served directly by GitHub Pages.
-
----
-
-## Production Architecture (Recommended)
-
-The current client-side prototype should migrate to the following architecture before onboarding real users:
-
-```
-                    ┌─────────────────────────────┐
-                    │         Vercel (CDN)         │
-                    │    Next.js App Router (SSR)  │
-                    └──────────────┬──────────────┘
-                                   │
-              ┌────────────────────┼────────────────────┐
-              │                    │                    │
-    ┌─────────▼────────┐  ┌────────▼───────┐  ┌────────▼───────┐
-    │  Supabase Auth   │  │  Supabase DB   │  │Supabase Storage│
-    │  (MFA, OAuth)    │  │  (PostgreSQL + │  │ (Document Vault│
-    │                  │  │   Row-Level    │  │  signed URLs)  │
-    │                  │  │   Security)    │  │                │
-    └──────────────────┘  └───────────────┘  └────────────────┘
-```
-
-### Migration Priority Order
-
-1. **Auth** — Replace `localStorage` login with Supabase Auth (MFA from day one)
-2. **User Profiles** — Move `ee_users` to `profiles` table with RLS (users see only their own row)
-3. **Matching** — Move `eeMatchScore` to a Supabase Edge Function or Next.js API route
-4. **Deals** — Move `MOCK_DEALS` to a `deals` table with participant-based RLS
-5. **Documents** — Move document vault to Supabase Storage with signed URL access
-6. **Notifications** — Replace `MOCK_NOTIFICATIONS` with a `notifications` table + Supabase Realtime
-7. **Chat** — Replace the mocked secure chat with Supabase Realtime subscriptions on a `messages` table
-
-### What Stays the Same
-
-- All Tailwind CSS classes and design tokens
-- All page layouts and component structure
-- The scoring algorithm logic (ported to TypeScript)
-- The `DESIGN.md` design system
-- The `equitaselite.com` domain (update DNS from GitHub Pages IPs to Vercel)
+See [`PLANNING.md`](PLANNING.md) for the roadmap.

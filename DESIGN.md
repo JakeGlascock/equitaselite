@@ -160,10 +160,11 @@ The fixed sidebar is the primary navigation surface. Active page is indicated by
 - *Tertiary / Syndicate:* `bg-tertiary/15 border-tertiary/30 text-tertiary`. Exclusive to syndicate and network join actions.
 
 **Score Badges**
-Alignment scores use a 3-tier color system:
-- **85%+ Exceptional:** `bg-tertiary/15 border-tertiary/30 text-tertiary` (Emerald)
-- **70–84% Strong:** `bg-secondary/15 border-secondary/30 text-secondary` (Gold)
-- **Below 70%:** `bg-surface-container border-outline-variant/30 text-on-surface-variant` (Neutral)
+Match scores use a 4-tier band system (see `src/lib/scoring.ts`):
+- **80+ Strong Fit:** Emerald `#4edea3`
+- **65–79 Good Fit:** Gold `#e9c176`
+- **50–64 Possible Fit:** Amber `#f59e0b`
+- **<50 Low Fit:** Red `#ef4444`
 
 **Glass Panels**
 The primary card surface: `background: rgba(16,32,52,0.6); backdrop-filter: blur(12px); border: 1px solid rgba(69,70,77,0.5)`. Applied to all major content containers on the dark base.
@@ -172,7 +173,10 @@ The primary card surface: `background: rgba(16,32,52,0.6); backdrop-filter: blur
 No vertical dividers. Horizontal rules use `border-outline-variant/20`. Alternating row backgrounds use `hover:bg-surface-container/40`. Column headers use `label-caps` style with a bottom border. Numeric columns use IBM Plex Sans with `tnum` feature.
 
 **Score Ring (SVG)**
-Animated donut ring used on the Alignment Report. SVG circle with `stroke-dasharray` equal to full circumference, animated to target `stroke-dashoffset` on load (1.5s ease transition). Stroke color `#4edea3` (Emerald). Background ring `rgba(69,70,77,0.4)`.
+Animated donut ring used on every MatchCard (`src/components/MatchCard.tsx`).
+SVG circle with `stroke-dasharray` equal to full circumference, animated to
+the target `stroke-dashoffset` on load (~0.6s ease). Stroke color matches
+the score's band (see Score Badges). Background ring `rgba(255,255,255,0.07)`.
 
 **Chips & Sector Tags**
 Shared sector chips: `font-label text-[10px] tracking-wider px-2 py-0.5 rounded-full border`.
@@ -187,14 +191,16 @@ Fixed full-screen overlay with `bg-black/60 backdrop-blur-sm` backdrop. Content 
 
 ## Algorithmic Scoring
 
-The match alignment score is computed across 5 weighted dimensions:
+The match score is computed in `src/lib/scoring.ts` across 4 weighted dimensions:
 
 | Dimension | Weight | Logic |
 |---|---|---|
-| Sector Overlap | 40% | Jaccard similarity of sector arrays |
-| Stage Alignment | 30% | Jaccard similarity of stage arrays |
-| Check Size Compatibility | 20% | Range overlap (binary: full overlap = 20pts) |
-| Geography | 10% | Exact match or either party is "Global" |
-| Risk Profile | — | Displayed in report; not yet weighted in score |
+| Sector overlap | 40% | `matches / max(|A|, |B|)` across each side's sector array |
+| Stage overlap | 30% | same formula across stage arrays |
+| Check size compatibility | 20% | overlap-of-ranges / span (1.0 when both collapse to the same point) |
+| Geography overlap | 10% | same formula across geography arrays |
 
-Score is capped at 99 (never 100 — conveys ongoing discovery). Labels: **Exceptional** (85+), **Strong** (70–84), **Good** (55–69), **Moderate** (<55).
+Score is capped at 99 (never 100 — conveys ongoing discovery). Bands:
+**Strong Fit** (80+), **Good Fit** (65–79), **Possible Fit** (50–64),
+**Low Fit** (<50). Risk profile is captured in the profile but not yet
+folded into the score.
