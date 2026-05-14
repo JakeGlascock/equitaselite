@@ -18,9 +18,11 @@ module.exports = {
         'ee-outline':      '#45464d',
       },
       fontFamily: {
-        display: ['Playfair Display', 'serif'],
-        body:    ['Inter', 'sans-serif'],
-        data:    ['IBM Plex Sans', 'sans-serif'],
+        // Variables come from next/font in app/layout.tsx — fallback stacks
+        // preserved so unstyled rendering still picks system fonts.
+        display: ['var(--font-display)', 'Playfair Display', 'serif'],
+        body:    ['var(--font-body)',    'Inter',            'sans-serif'],
+        data:    ['var(--font-data)',    'IBM Plex Sans',    'sans-serif'],
       },
       backdropBlur: {
         glass: '12px',
