@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 
 export default function RequestForm() {
   const [email,    setEmail]    = useState('')
@@ -51,7 +52,7 @@ export default function RequestForm() {
           Thanks, {fullName.split(' ')[0]}. We&apos;ll review your request and respond within
           two business days. Look out for an email from <span className="text-ee-primary">noreply@equitaselite.com</span>.
         </p>
-        <a href="/" className="inline-block btn-ghost mt-2">Back to home</a>
+        <Link href="/" className="inline-block btn-ghost mt-2">Back to home</Link>
       </div>
     )
   }
