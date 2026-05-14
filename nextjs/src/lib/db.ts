@@ -10,12 +10,17 @@ function getPool(): Pool {
       database: process.env.DB_NAME,
       user:     process.env.DB_USER,
       password: process.env.DB_PASSWORD,
-      // RDS uses Amazon's CA which isn't in Node's default root bundle. The
-      // connection is still TLS-encrypted and the DB is only reachable from
-      // within our private VPC (no internet exposure), so rejectUnauthorized:
-      // false is acceptable. Upgrade path: bundle rds-ca-2019-root.pem in the
-      // image and set ca + rejectUnauthorized: true.
-      ssl:      process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+      // RDS enforces SSL via rds.force_ssl=1, so we must upgrade to TLS for
+      // any *.amazonaws.com host. (Previously this keyed off NODE_ENV, but
+      // Next.js's standalone server silently forces NODE_ENV=production
+      // regardless of what ECS sets — relying on that is brittle, and the
+      // migration runner outside Next.js doesn't get that treatment.)
+      // rejectUnauthorized: false is acceptable here — the connection is
+      // already inside the private VPC. Upgrade path: bundle the RDS CA bundle
+      // in the image and set ca + rejectUnauthorized: true.
+      ssl: (process.env.DB_HOST ?? '').endsWith('.amazonaws.com')
+        ? { rejectUnauthorized: false }
+        : false,
       max:      10,
       idleTimeoutMillis: 30_000,
     })
