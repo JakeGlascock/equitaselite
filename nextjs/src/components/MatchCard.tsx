@@ -87,22 +87,33 @@ function checkDisplay(min: number, max: number): string {
   return `${fmt(min)}–${fmt(max)}`
 }
 
-function IntroAction({ recipientId, initial }: { recipientId: string; initial: IntroState }) {
-  const [intro, setIntro] = useState<IntroState>(initial)
-  const [loading, setLoading] = useState(false)
-  const [error, setError]     = useState('')
+function IntroAction({ recipientId, recipientFirstName, initial }: {
+  recipientId: string
+  recipientFirstName: string
+  initial: IntroState
+}) {
+  const [intro, setIntro]         = useState<IntroState>(initial)
+  const [composing, setComposing] = useState(false)
+  const [message, setMessage]     = useState('')
+  const [loading, setLoading]     = useState(false)
+  const [error, setError]         = useState('')
 
-  async function request() {
+  async function send() {
     setLoading(true); setError('')
     try {
       const res = await fetch('/api/introductions', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ recipient_id: recipientId }),
+        body:    JSON.stringify({
+          recipient_id: recipientId,
+          message:      message.trim() || undefined,
+        }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? 'Failed')
       setIntro({ status: 'pending', direction: 'outgoing', contactEmail: null })
+      setComposing(false)
+      setMessage('')
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed')
     } finally {
@@ -137,18 +148,55 @@ function IntroAction({ recipientId, initial }: { recipientId: string; initial: I
     return <span className="text-xs px-3 py-1.5 rounded-full border border-ee-border text-ee-muted/60 whitespace-nowrap">Declined</span>
   }
 
+  if (composing) {
+    return (
+      <div className="w-full space-y-2">
+        <label className="block text-[10px] text-ee-muted font-data uppercase tracking-wider">
+          Add a note for {recipientFirstName} (optional)
+        </label>
+        <textarea
+          value={message}
+          onChange={e => setMessage(e.target.value)}
+          rows={3}
+          maxLength={500}
+          placeholder={`Saw your mandate — would love to compare notes on…`}
+          className="input-field text-xs resize-none leading-relaxed"
+          autoFocus
+        />
+        <div className="flex items-center justify-between">
+          <span className="text-[10px] text-ee-muted font-data">{message.length}/500</span>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => { setComposing(false); setMessage(''); setError('') }}
+              disabled={loading}
+              className="text-xs px-3 py-1.5 rounded-full border border-ee-border text-ee-muted hover:text-ee-primary hover:border-white/20 disabled:opacity-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={send}
+              disabled={loading}
+              className="text-xs px-3 py-1.5 rounded-full bg-ee-gold text-ee-bg font-semibold hover:brightness-110 disabled:opacity-50 whitespace-nowrap"
+            >
+              {loading ? 'Sending…' : 'Send request'}
+            </button>
+          </div>
+        </div>
+        {error && <p className="text-xs text-red-400">{error}</p>}
+      </div>
+    )
+  }
+
   return (
-    <div className="flex flex-col items-end gap-1">
-      <button
-        type="button"
-        onClick={request}
-        disabled={loading}
-        className="text-xs px-3 py-1.5 rounded-full bg-ee-gold text-ee-bg font-semibold hover:brightness-110 disabled:opacity-50 whitespace-nowrap"
-      >
-        {loading ? 'Requesting…' : 'Request introduction'}
-      </button>
-      {error && <span className="text-xs text-red-400">{error}</span>}
-    </div>
+    <button
+      type="button"
+      onClick={() => setComposing(true)}
+      className="text-xs px-3 py-1.5 rounded-full bg-ee-gold text-ee-bg font-semibold hover:brightness-110 whitespace-nowrap"
+    >
+      Request introduction
+    </button>
   )
 }
 
@@ -213,7 +261,11 @@ export default function MatchCard({ match }: { match: Match }) {
 
         {/* Introduction action */}
         <div className="flex justify-end pt-2">
-          <IntroAction recipientId={match.id} initial={match.intro} />
+          <IntroAction
+            recipientId={match.id}
+            recipientFirstName={match.fullName.split(' ')[0]}
+            initial={match.intro}
+          />
         </div>
       </div>
     </div>

@@ -63,13 +63,18 @@ export async function POST(req: NextRequest) {
         [userId]
       )
       if (me) {
+        const trimmed = message?.trim() ?? ''
+        const snippet = trimmed.length > 100 ? `${trimmed.slice(0, 100)}…` : trimmed
+        const body    = snippet
+          ? `${me.firm_name} — “${snippet}”`
+          : `From ${me.firm_name}`
         await query(
           `INSERT INTO notifications (user_id, type, title, body, link_url, related_id)
            VALUES ($1, 'intro_requested', $2, $3, '/connections', $4)`,
           [
             recipient_id,
             `${me.full_name} requested an introduction`,
-            `From ${me.firm_name}`,
+            body,
             intro?.id ?? null,
           ]
         )
