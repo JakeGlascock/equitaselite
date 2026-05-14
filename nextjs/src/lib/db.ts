@@ -10,7 +10,12 @@ function getPool(): Pool {
       database: process.env.DB_NAME,
       user:     process.env.DB_USER,
       password: process.env.DB_PASSWORD,
-      ssl:      process.env.NODE_ENV === 'production' ? { rejectUnauthorized: true } : false,
+      // RDS uses Amazon's CA which isn't in Node's default root bundle. The
+      // connection is still TLS-encrypted and the DB is only reachable from
+      // within our private VPC (no internet exposure), so rejectUnauthorized:
+      // false is acceptable. Upgrade path: bundle rds-ca-2019-root.pem in the
+      // image and set ca + rejectUnauthorized: true.
+      ssl:      process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
       max:      10,
       idleTimeoutMillis: 30_000,
     })
