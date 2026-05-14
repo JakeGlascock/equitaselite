@@ -6,6 +6,7 @@ import ConciergeToggle from './ConciergeToggle'
 import ManagedAccountAssignment from './ManagedAccountAssignment'
 
 export type MemberStatus = 'Invited' | 'Onboarding' | 'Active' | 'Disabled' | 'Demo'
+export type Membership   = 'access' | 'select' | 'sovereign'
 
 export interface MemberRow {
   email:       string
@@ -18,8 +19,21 @@ export interface MemberRow {
   isAdmin:     boolean
   isConcierge: boolean
   managedBy:   string | null
+  membership:  Membership | null
   togglable:   boolean
   toggleReason?: string
+}
+
+const MEMBERSHIP_LABEL: Record<Membership, string> = {
+  access:    'Access',
+  select:    'Select',
+  sovereign: 'Sovereign',
+}
+
+const MEMBERSHIP_STYLES: Record<Membership, string> = {
+  access:    'border-ee-primary/30 bg-ee-primary/5  text-ee-primary',
+  select:    'border-ee-gold/40    bg-ee-gold/10    text-ee-gold',
+  sovereign: 'border-ee-emerald/40 bg-ee-emerald/10 text-ee-emerald',
 }
 
 export interface ConciergeOption {
@@ -60,11 +74,17 @@ export default function MembersTable({
 }) {
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState<typeof STATUS_FILTERS[number]['key']>('all')
+  const [tier,   setTier]   = useState<'all' | Membership | 'none'>('all')
   const [page,   setPage]   = useState(1)
 
   const filtered = useMemo(() => {
     let out = rows
     if (status !== 'all') out = out.filter(r => r.status === status)
+    if (tier !== 'all') {
+      out = tier === 'none'
+        ? out.filter(r => !r.membership)
+        : out.filter(r => r.membership === tier)
+    }
     if (search.trim()) {
       const q = search.toLowerCase()
       out = out.filter(r =>
@@ -74,14 +94,23 @@ export default function MembersTable({
       )
     }
     return out
-  }, [rows, status, search])
+  }, [rows, status, tier, search])
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
   const safePage   = Math.min(page, totalPages)
   const pageRows   = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE)
 
   function setStatusAndReset(k: typeof status) { setStatus(k); setPage(1) }
+  function setTierAndReset(k: typeof tier)      { setTier(k);   setPage(1) }
   function setSearchAndReset(v: string)         { setSearch(v); setPage(1) }
+
+  const TIER_FILTERS: Array<{ key: typeof tier; label: string }> = [
+    { key: 'all',       label: 'Any tier'  },
+    { key: 'access',    label: 'Access'    },
+    { key: 'select',    label: 'Select'    },
+    { key: 'sovereign', label: 'Sovereign' },
+    { key: 'none',      label: 'Unset'     },
+  ]
 
   return (
     <div className="glass-panel overflow-hidden">
@@ -121,6 +150,20 @@ export default function MembersTable({
             ))}
           </div>
         </div>
+        <div className="flex gap-1 bg-white/5 border border-ee-border rounded-lg p-1 self-start">
+          {TIER_FILTERS.map(t => (
+            <button
+              key={t.key}
+              type="button"
+              onClick={() => setTierAndReset(t.key)}
+              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+                tier === t.key ? 'bg-ee-gold text-ee-bg' : 'text-ee-muted hover:text-ee-primary'
+              }`}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Table */}
@@ -135,6 +178,7 @@ export default function MembersTable({
               <th className="text-left  px-6 py-3 font-normal">Email</th>
               <th className="text-left  px-6 py-3 font-normal">Name</th>
               <th className="text-left  px-6 py-3 font-normal">Role</th>
+              <th className="text-left  px-6 py-3 font-normal">Tier</th>
               <th className="text-left  px-6 py-3 font-normal">Status</th>
               <th className="text-left  px-6 py-3 font-normal">Admin</th>
               <th className="text-left  px-6 py-3 font-normal">Concierge</th>
@@ -149,6 +193,15 @@ export default function MembersTable({
                 <td className="px-6 py-3 text-ee-muted">{m.name ?? '—'}</td>
                 <td className="px-6 py-3 text-ee-muted">
                   {m.role === 'angel' ? 'Angel' : m.role === 'family_office' ? 'Family Office' : '—'}
+                </td>
+                <td className="px-6 py-3">
+                  {m.membership ? (
+                    <span className={`text-xs px-2 py-0.5 rounded-full border ${MEMBERSHIP_STYLES[m.membership]}`}>
+                      {MEMBERSHIP_LABEL[m.membership]}
+                    </span>
+                  ) : (
+                    <span className="text-xs text-ee-muted/50 italic">—</span>
+                  )}
                 </td>
                 <td className="px-6 py-3">
                   <span className={`text-xs px-2 py-0.5 rounded-full border ${STATUS_STYLES[m.status]}`}>

@@ -173,6 +173,16 @@ const DEMO_PROFILES: DemoProfile[] = [
   },
 ]
 
+const TIERS = ['access', 'select', 'sovereign'] as const
+
+// Deterministic hash so the same demo id always gets the same tier — keeps
+// reseeds idempotent and predictable for screenshots / QA.
+function pickTier(seed: string): typeof TIERS[number] {
+  let h = 0
+  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) | 0
+  return TIERS[Math.abs(h) % TIERS.length]
+}
+
 export async function POST(req: NextRequest) {
   const userId    = req.headers.get('x-user-id')
   const userEmail = req.headers.get('x-user-email')
@@ -185,38 +195,76 @@ export async function POST(req: NextRequest) {
   )
   const existingCount = Number(existing?.count ?? 0)
 
+  // Detect whether the membership column has been initialized; if not,
+  // skip writing it (admin can run InitMembershipButton then reseed).
+  let hasMembership = true
+  try {
+    await query("SELECT membership FROM profiles LIMIT 1")
+  } catch {
+    hasMembership = false
+  }
+
   let inserted = 0
   for (const p of DEMO_PROFILES) {
-    await query(
-      `INSERT INTO profiles (
-         id, email, role, full_name, title, firm_name, location, aum,
-         sectors, stages, geography,
-         check_size_min, check_size_max, risk_tolerance,
-         expected_return, timeline, mandate_type, concentration,
-         onboarding_completed
-       ) VALUES (
-         $1,$2,$3,$4,$5,$6,$7,$8,
-         $9,$10,$11,
-         $12,$13,$14,
-         $15,$16,$17,$18,
-         TRUE
-       )
-       ON CONFLICT (id) DO NOTHING`,
-      [
-        p.id, p.email, p.role, p.full_name, p.title,
-        p.firm_name, p.location, p.aum,
-        p.sectors, p.stages, p.geography,
-        p.check_size_min, p.check_size_max, p.risk_tolerance,
-        p.expected_return, p.timeline, p.mandate_type, p.concentration,
-      ]
-    )
+    const tier = pickTier(p.id)
+    if (hasMembership) {
+      await query(
+        `INSERT INTO profiles (
+           id, email, role, full_name, title, firm_name, location, aum,
+           sectors, stages, geography,
+           check_size_min, check_size_max, risk_tolerance,
+           expected_return, timeline, mandate_type, concentration,
+           membership, onboarding_completed
+         ) VALUES (
+           $1,$2,$3,$4,$5,$6,$7,$8,
+           $9,$10,$11,
+           $12,$13,$14,
+           $15,$16,$17,$18,
+           $19, TRUE
+         )
+         ON CONFLICT (id) DO UPDATE SET membership = EXCLUDED.membership`,
+        [
+          p.id, p.email, p.role, p.full_name, p.title,
+          p.firm_name, p.location, p.aum,
+          p.sectors, p.stages, p.geography,
+          p.check_size_min, p.check_size_max, p.risk_tolerance,
+          p.expected_return, p.timeline, p.mandate_type, p.concentration,
+          tier,
+        ]
+      )
+    } else {
+      await query(
+        `INSERT INTO profiles (
+           id, email, role, full_name, title, firm_name, location, aum,
+           sectors, stages, geography,
+           check_size_min, check_size_max, risk_tolerance,
+           expected_return, timeline, mandate_type, concentration,
+           onboarding_completed
+         ) VALUES (
+           $1,$2,$3,$4,$5,$6,$7,$8,
+           $9,$10,$11,
+           $12,$13,$14,
+           $15,$16,$17,$18,
+           TRUE
+         )
+         ON CONFLICT (id) DO NOTHING`,
+        [
+          p.id, p.email, p.role, p.full_name, p.title,
+          p.firm_name, p.location, p.aum,
+          p.sectors, p.stages, p.geography,
+          p.check_size_min, p.check_size_max, p.risk_tolerance,
+          p.expected_return, p.timeline, p.mandate_type, p.concentration,
+        ]
+      )
+    }
     inserted++
   }
 
   return NextResponse.json({
-    ok:               true,
+    ok:                true,
     totalDemoProfiles: DEMO_PROFILES.length,
-    rowsBefore:       existingCount,
-    upserted:         inserted,
+    rowsBefore:        existingCount,
+    upserted:          inserted,
+    membershipAssigned: hasMembership,
   })
 }

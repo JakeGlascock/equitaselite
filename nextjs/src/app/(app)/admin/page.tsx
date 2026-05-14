@@ -10,6 +10,7 @@ import InitEmailPrefButton from './InitEmailPrefButton'
 import InitIsAdminButton from './InitIsAdminButton'
 import InitConciergeButton from './InitConciergeButton'
 import InitAccessRequestsButton from './InitAccessRequestsButton'
+import InitMembershipButton from './InitMembershipButton'
 import ManagedAccountAssignment from './ManagedAccountAssignment'
 import MembersTable, { type MemberRow } from './MembersTable'
 
@@ -23,6 +24,7 @@ interface ProfileRow {
   is_admin: boolean | null
   is_concierge: boolean | null
   managed_by: string | null
+  membership: 'access' | 'select' | 'sovereign' | null
   created_at: Date | string
 }
 
@@ -52,24 +54,33 @@ export default async function AdminPage() {
   try {
     profiles = await query<ProfileRow>(
       `SELECT id, email, full_name, firm_name, role, onboarding_completed,
-              is_admin, is_concierge, managed_by, created_at
+              is_admin, is_concierge, managed_by, membership, created_at
        FROM profiles
        ORDER BY created_at DESC`
     )
   } catch {
     try {
-      profiles = (await query<Omit<ProfileRow, 'is_concierge' | 'managed_by'>>(
+      profiles = (await query<Omit<ProfileRow, 'membership'>>(
         `SELECT id, email, full_name, firm_name, role, onboarding_completed,
-                is_admin, created_at
+                is_admin, is_concierge, managed_by, created_at
          FROM profiles
          ORDER BY created_at DESC`
-      )).map(p => ({ ...p, is_concierge: null, managed_by: null }))
+      )).map(p => ({ ...p, membership: null }))
     } catch {
-      profiles = (await query<Omit<ProfileRow, 'is_admin' | 'is_concierge' | 'managed_by'>>(
-        `SELECT id, email, full_name, firm_name, role, onboarding_completed, created_at
-         FROM profiles
-         ORDER BY created_at DESC`
-      )).map(p => ({ ...p, is_admin: null, is_concierge: null, managed_by: null }))
+      try {
+        profiles = (await query<Omit<ProfileRow, 'is_concierge' | 'managed_by' | 'membership'>>(
+          `SELECT id, email, full_name, firm_name, role, onboarding_completed,
+                  is_admin, created_at
+           FROM profiles
+           ORDER BY created_at DESC`
+        )).map(p => ({ ...p, is_concierge: null, managed_by: null, membership: null }))
+      } catch {
+        profiles = (await query<Omit<ProfileRow, 'is_admin' | 'is_concierge' | 'managed_by' | 'membership'>>(
+          `SELECT id, email, full_name, firm_name, role, onboarding_completed, created_at
+           FROM profiles
+           ORDER BY created_at DESC`
+        )).map(p => ({ ...p, is_admin: null, is_concierge: null, managed_by: null, membership: null }))
+      }
     }
   }
 
@@ -128,6 +139,7 @@ export default async function AdminPage() {
       isAdmin:      p?.is_admin ?? false,
       isConcierge:  p?.is_concierge ?? false,
       managedBy:    p?.managed_by ?? null,
+      membership:   p?.membership ?? null,
       togglable,
       toggleReason: !p ? 'Profile not created yet' : status === 'Disabled' ? 'User is disabled' : undefined,
     })
@@ -146,6 +158,7 @@ export default async function AdminPage() {
       isAdmin:      p.is_admin ?? false,
       isConcierge:  p.is_concierge ?? false,
       managedBy:    p.managed_by ?? null,
+      membership:   p.membership ?? null,
       togglable:    !p.id.startsWith('demo_'),
       toggleReason: p.id.startsWith('demo_') ? 'Demo accounts cannot be made admin or concierge' : undefined,
     })
@@ -208,6 +221,7 @@ export default async function AdminPage() {
             <InitIsAdminButton />
             <InitConciergeButton />
             <InitAccessRequestsButton />
+            <InitMembershipButton />
           </div>
         </details>
 
