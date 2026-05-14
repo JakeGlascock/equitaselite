@@ -44,12 +44,15 @@ export default function ManagedAccountAssignment({ accountId, currentId, concier
         value={selected ?? ''}
         onChange={e => save(e.target.value || null)}
         disabled={loading}
-        className="input-field text-xs py-1.5 disabled:opacity-50 min-w-[180px]"
+        className="input-field text-xs py-1 px-2 disabled:opacity-50 w-[140px]"
+        title={selected
+          ? concierges.find(c => c.id === selected)?.full_name ?? 'Assigned'
+          : 'Unassigned'}
       >
-        <option value="">— Unassigned —</option>
+        <option value="">— None —</option>
         {concierges.map(c => (
           <option key={c.id} value={c.id}>
-            {c.full_name}{c.firm_name ? ` · ${c.firm_name}` : ''}
+            {c.full_name}
           </option>
         ))}
       </select>

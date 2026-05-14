@@ -172,43 +172,45 @@ export default function MembersTable({
           No members match the current filters.
         </p>
       ) : (
-        <table className="w-full text-sm">
+        <table className="w-full text-sm table-auto">
           <thead>
             <tr className="text-xs text-ee-muted uppercase tracking-wider font-data">
-              <th className="text-left  px-6 py-3 font-normal">Email</th>
-              <th className="text-left  px-6 py-3 font-normal">Name</th>
-              <th className="text-left  px-6 py-3 font-normal">Role</th>
-              <th className="text-left  px-6 py-3 font-normal">Tier</th>
-              <th className="text-left  px-6 py-3 font-normal">Status</th>
-              <th className="text-left  px-6 py-3 font-normal">Admin</th>
-              <th className="text-left  px-6 py-3 font-normal">Concierge</th>
-              <th className="text-left  px-6 py-3 font-normal">Managed by</th>
-              <th className="text-right px-6 py-3 font-normal">Joined</th>
+              <th className="text-left  px-4 py-2.5 font-normal">Member</th>
+              <th className="text-left  px-3 py-2.5 font-normal">Role</th>
+              <th className="text-left  px-3 py-2.5 font-normal">Tier</th>
+              <th className="text-left  px-3 py-2.5 font-normal">Status</th>
+              <th className="text-center px-3 py-2.5 font-normal" title="Admin">A</th>
+              <th className="text-center px-3 py-2.5 font-normal" title="Concierge">C</th>
+              <th className="text-left  px-3 py-2.5 font-normal">Managed by</th>
+              <th className="text-right px-4 py-2.5 font-normal">Joined</th>
             </tr>
           </thead>
           <tbody>
             {pageRows.map(m => (
-              <tr key={m.email} className="border-t border-ee-border/60">
-                <td className="px-6 py-3 text-ee-primary truncate max-w-[14rem]">{m.email}</td>
-                <td className="px-6 py-3 text-ee-muted">{m.name ?? '—'}</td>
-                <td className="px-6 py-3 text-ee-muted">
-                  {m.role === 'angel' ? 'Angel' : m.role === 'family_office' ? 'Family Office' : '—'}
+              <tr key={m.email} className="border-t border-ee-border/60 align-middle">
+                <td className="px-4 py-2.5 max-w-[18rem]">
+                  <p className="text-ee-primary truncate">{m.name ?? m.email.split('@')[0]}</p>
+                  <p className="text-xs text-ee-muted truncate">{m.email}</p>
+                  {m.firm && <p className="text-[11px] text-ee-muted/70 truncate">{m.firm}</p>}
                 </td>
-                <td className="px-6 py-3">
+                <td className="px-3 py-2.5 text-ee-muted whitespace-nowrap">
+                  {m.role === 'angel' ? 'Angel' : m.role === 'family_office' ? 'FO' : '—'}
+                </td>
+                <td className="px-3 py-2.5">
                   {m.membership ? (
-                    <span className={`text-xs px-2 py-0.5 rounded-full border ${MEMBERSHIP_STYLES[m.membership]}`}>
+                    <span className={`text-[11px] px-2 py-0.5 rounded-full border whitespace-nowrap ${MEMBERSHIP_STYLES[m.membership]}`}>
                       {MEMBERSHIP_LABEL[m.membership]}
                     </span>
                   ) : (
                     <span className="text-xs text-ee-muted/50 italic">—</span>
                   )}
                 </td>
-                <td className="px-6 py-3">
-                  <span className={`text-xs px-2 py-0.5 rounded-full border ${STATUS_STYLES[m.status]}`}>
+                <td className="px-3 py-2.5">
+                  <span className={`text-[11px] px-2 py-0.5 rounded-full border whitespace-nowrap ${STATUS_STYLES[m.status]}`}>
                     {m.status}
                   </span>
                 </td>
-                <td className="px-6 py-3">
+                <td className="px-3 py-2.5 text-center">
                   {m.userId ? (
                     <AdminToggle
                       userId={m.userId}
@@ -221,7 +223,7 @@ export default function MembersTable({
                     <span className="text-xs text-ee-muted/50 italic" title="Profile not created yet">—</span>
                   )}
                 </td>
-                <td className="px-6 py-3">
+                <td className="px-3 py-2.5 text-center">
                   {m.userId ? (
                     <ConciergeToggle
                       userId={m.userId}
@@ -233,7 +235,7 @@ export default function MembersTable({
                     <span className="text-xs text-ee-muted/50 italic" title="Profile not created yet">—</span>
                   )}
                 </td>
-                <td className="px-6 py-3">
+                <td className="px-3 py-2.5">
                   {m.userId && !m.isConcierge ? (
                     <ManagedAccountAssignment
                       accountId={m.userId}
@@ -247,7 +249,7 @@ export default function MembersTable({
                     </span>
                   )}
                 </td>
-                <td className="px-6 py-3 text-right text-ee-muted">{fmtDate(m.joined)}</td>
+                <td className="px-4 py-2.5 text-right text-ee-muted text-xs whitespace-nowrap">{fmtDate(m.joined)}</td>
               </tr>
             ))}
           </tbody>
