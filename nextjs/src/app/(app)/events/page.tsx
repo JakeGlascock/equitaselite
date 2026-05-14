@@ -1,6 +1,14 @@
+import { headers } from 'next/headers'
+import { redirect } from 'next/navigation'
+import { getTier } from '@/lib/membership'
 import EventsClient from './EventsClient'
 
-export default function EventsPage() {
+export default async function EventsPage() {
+  const h = await headers()
+  const userId = h.get('x-user-id')
+  if (!userId) redirect('/signin')
+  const tier = await getTier(userId)
+
   return (
     <div className="px-5 md:px-8 py-8">
       <div className="max-w-4xl mx-auto space-y-8">
@@ -12,7 +20,7 @@ export default function EventsPage() {
           </p>
         </div>
 
-        <EventsClient />
+        <EventsClient currentTier={tier} />
       </div>
     </div>
   )

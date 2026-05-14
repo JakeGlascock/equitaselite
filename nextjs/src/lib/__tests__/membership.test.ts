@@ -89,7 +89,7 @@ describe('getTier', () => {
   })
 
   it('defaults to access when the membership column does not exist yet', async () => {
-    mockQueryOne.mockRejectedValue(new Error('column "membership" does not exist'))
+    mockQueryOne.mockRejectedValueOnce(new Error('column "membership" does not exist'))
     expect(await getTier('user-1')).toBe(DEFAULT_TIER)
   })
 
@@ -111,7 +111,7 @@ describe('getIntroCountLast30Days', () => {
   })
 
   it('returns 0 when the table does not exist (pre-init)', async () => {
-    mockQueryOne.mockRejectedValue(new Error('relation "introductions" does not exist'))
+    mockQueryOne.mockRejectedValueOnce(new Error('relation "introductions" does not exist'))
     expect(await getIntroCountLast30Days('user-1')).toBe(0)
   })
 })

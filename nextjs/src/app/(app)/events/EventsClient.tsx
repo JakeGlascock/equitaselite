@@ -1,6 +1,22 @@
 'use client'
 
+import Link from 'next/link'
 import { useState } from 'react'
+
+type Tier = 'access' | 'select' | 'sovereign'
+const TIER_RANK: Record<Tier, number> = { access: 0, select: 1, sovereign: 2 }
+
+// Map the human-readable tier strings on each event to the minimum tier
+// the viewer needs to RSVP.
+function minTierFor(label: 'All members' | 'Select+' | 'Sovereign only'): Tier {
+  if (label === 'All members')    return 'access'
+  if (label === 'Select+')        return 'select'
+  return 'sovereign'
+}
+function meets(userTier: Tier, requires: Tier): boolean {
+  return TIER_RANK[userTier] >= TIER_RANK[requires]
+}
+const TIER_LABEL: Record<Tier, string> = { access: 'Access', select: 'Select', sovereign: 'Sovereign' }
 
 interface EventItem {
   id:          string
@@ -106,9 +122,11 @@ function DateBadge({ iso }: { iso: string }) {
   )
 }
 
-function EventCard({ e, past = false }: { e: EventItem; past?: boolean }) {
+function EventCard({ e, past = false, currentTier }: { e: EventItem; past?: boolean; currentTier: Tier }) {
   const [rsvp, setRsvp] = useState<'idle' | 'pending' | 'done'>('idle')
   const color = TYPE_COLOR[e.type]
+  const required = minTierFor(e.tier)
+  const unlocked = meets(currentTier, required)
 
   async function handleRSVP() {
     setRsvp('pending')
@@ -116,7 +134,7 @@ function EventCard({ e, past = false }: { e: EventItem; past?: boolean }) {
   }
 
   return (
-    <article className={`glass-panel p-5 ${past ? 'opacity-70' : ''}`}>
+    <article className={`glass-panel p-5 ${past || !unlocked ? 'opacity-70' : ''}`}>
       <div className="flex gap-4">
         <DateBadge iso={e.date} />
         <div className="flex-1 min-w-0 space-y-2">
@@ -145,18 +163,29 @@ function EventCard({ e, past = false }: { e: EventItem; past?: boolean }) {
               {e.registered} / {e.capacity}
             </span>
             {!past && (
-              <button
-                type="button"
-                onClick={handleRSVP}
-                disabled={rsvp !== 'idle'}
-                className={`ml-auto text-xs px-3 py-1.5 rounded-full font-data uppercase tracking-wider transition-all ${
-                  rsvp === 'done'
-                    ? 'bg-ee-emerald/15 border border-ee-emerald/40 text-ee-emerald'
-                    : 'bg-ee-gold text-ee-bg font-semibold hover:brightness-110 disabled:opacity-50'
-                }`}
-              >
-                {rsvp === 'done' ? 'Registered ✓' : rsvp === 'pending' ? 'Saving…' : 'RSVP'}
-              </button>
+              unlocked ? (
+                <button
+                  type="button"
+                  onClick={handleRSVP}
+                  disabled={rsvp !== 'idle'}
+                  className={`ml-auto text-xs px-3 py-1.5 rounded-full font-data uppercase tracking-wider transition-all ${
+                    rsvp === 'done'
+                      ? 'bg-ee-emerald/15 border border-ee-emerald/40 text-ee-emerald'
+                      : 'bg-ee-gold text-ee-bg font-semibold hover:brightness-110 disabled:opacity-50'
+                  }`}
+                >
+                  {rsvp === 'done' ? 'Registered ✓' : rsvp === 'pending' ? 'Saving…' : 'RSVP'}
+                </button>
+              ) : (
+                <Link
+                  href="/pricing"
+                  className="ml-auto text-xs px-3 py-1.5 rounded-full font-data uppercase tracking-wider inline-flex items-center gap-1.5 border border-ee-border text-ee-muted hover:text-ee-gold hover:border-ee-gold/40"
+                  title={`${TIER_LABEL[required]} membership required to RSVP`}
+                >
+                  <span className="material-symbols-outlined text-sm">lock</span>
+                  Upgrade to {TIER_LABEL[required]}
+                </Link>
+              )
             )}
           </div>
         </div>
@@ -165,20 +194,20 @@ function EventCard({ e, past = false }: { e: EventItem; past?: boolean }) {
   )
 }
 
-export default function EventsClient() {
+export default function EventsClient({ currentTier }: { currentTier: Tier }) {
   return (
     <div className="space-y-8">
       <section>
         <h2 className="font-display text-xl text-ee-primary mb-4">Upcoming</h2>
         <div className="space-y-3">
-          {UPCOMING.map(e => <EventCard key={e.id} e={e} />)}
+          {UPCOMING.map(e => <EventCard key={e.id} e={e} currentTier={currentTier} />)}
         </div>
       </section>
 
       <section>
         <h2 className="font-display text-xl text-ee-primary mb-4">Recently passed</h2>
         <div className="space-y-3">
-          {PAST.map(e => <EventCard key={e.id} e={e} past />)}
+          {PAST.map(e => <EventCard key={e.id} e={e} past currentTier={currentTier} />)}
         </div>
       </section>
     </div>

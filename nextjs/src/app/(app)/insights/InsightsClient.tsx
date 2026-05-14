@@ -1,6 +1,13 @@
 'use client'
 
+import Link from 'next/link'
 import { useState } from 'react'
+
+type Tier = 'access' | 'select' | 'sovereign'
+const TIER_RANK: Record<Tier, number> = { access: 0, select: 1, sovereign: 2 }
+function meets(userTier: Tier, requires: Tier): boolean {
+  return TIER_RANK[userTier] >= TIER_RANK[requires]
+}
 
 interface Report {
   id:       string
@@ -11,6 +18,7 @@ interface Report {
   date:     string
   readTime: number
   featured?: boolean
+  minTier:  Tier   // 'select' for standard reports, 'sovereign' for Deal Flow
 }
 
 const REPORTS: Report[] = [
@@ -19,49 +27,49 @@ const REPORTS: Report[] = [
     title:    'Q1 2026 FinTech Investment Outlook',
     summary:  'Post-correction valuations, where Series-A funding has concentrated, and which sub-sectors are seeing the most family-office interest heading into Q2.',
     sector:   'FinTech', type: 'Sector Report',
-    date:     '2026-04-12', readTime: 14,
+    date:     '2026-04-12', readTime: 14, minTier: 'select',
   },
   {
     id: 'r2',
     title:    'Climate Tech: Capital Deployment Trends',
     summary:  'A breakdown of where angel capital has flowed across clean energy sub-sectors over the last 18 months, with check-size and stage benchmarks.',
     sector:   'Clean Energy', type: 'Benchmark',
-    date:     '2026-04-03', readTime: 11,
+    date:     '2026-04-03', readTime: 11, minTier: 'select',
   },
   {
     id: 'r3',
     title:    'AI Series A Median Round Size Hits $18M',
     summary:  'Up 34% YoY. We look at the deals driving the median, the firms leading them, and what it means for downstream Series B pricing.',
     sector:   'AI / ML', type: 'Commentary',
-    date:     '2026-03-28', readTime: 6,
+    date:     '2026-03-28', readTime: 6, minTier: 'select',
   },
   {
     id: 'r4',
     title:    'Family Office Allocation Patterns 2025',
     summary:  'Aggregate analysis of mandate disclosures from 47 family offices on the platform. Sector tilts, geographic concentration, and risk-tolerance distribution.',
     sector:   'Cross-sector', type: 'Benchmark',
-    date:     '2026-03-15', readTime: 18,
+    date:     '2026-03-15', readTime: 18, minTier: 'sovereign',
   },
   {
     id: 'r5',
     title:    'Defense Tech: From Niche to Mainstream',
     summary:  'Capital allocated to defense tech grew 4.2x over three years. Which segments are seeing the most activity and why family offices are leaning in.',
     sector:   'Defense Tech', type: 'Sector Report',
-    date:     '2026-03-08', readTime: 9,
+    date:     '2026-03-08', readTime: 9, minTier: 'select',
   },
   {
     id: 'r6',
     title:    'Life Sciences Bridge Round Activity',
     summary:  'Bridge rounds doubled in life sciences last quarter. We examine the runway dynamics and which therapeutic areas are seeing the most extensions.',
     sector:   'Life Sciences', type: 'Deal Flow',
-    date:     '2026-02-22', readTime: 7,
+    date:     '2026-02-22', readTime: 7, minTier: 'sovereign',
   },
   {
     id: 'r7',
     title:    'Consumer SaaS: Multiples Compression',
     summary:  'Revenue multiples for consumer SaaS contracted 38% YoY. The new pricing reality and what it means for follow-on rounds.',
     sector:   'SaaS', type: 'Commentary',
-    date:     '2026-02-09', readTime: 8,
+    date:     '2026-02-09', readTime: 8, minTier: 'select',
   },
 ]
 
@@ -71,9 +79,14 @@ function formatDate(s: string): string {
   return new Date(s).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
-function ReportCard({ r }: { r: Report }) {
+const TIER_LABEL: Record<Tier, string> = { access: 'Access', select: 'Select', sovereign: 'Sovereign' }
+
+function ReportCard({ r, currentTier }: { r: Report; currentTier: Tier }) {
+  const unlocked = meets(currentTier, r.minTier)
   return (
-    <article className="glass-panel p-6 flex flex-col gap-3 hover:border-ee-gold/30 transition-colors">
+    <article className={`glass-panel p-6 flex flex-col gap-3 relative transition-colors ${
+      unlocked ? 'hover:border-ee-gold/30' : 'opacity-70'
+    }`}>
       <div className="flex items-center justify-between">
         <span className="font-data text-[10px] uppercase tracking-widest text-ee-gold">{r.type}</span>
         <span className="font-data text-[10px] text-ee-muted">{r.readTime} min</span>
@@ -87,20 +100,32 @@ function ReportCard({ r }: { r: Report }) {
           </span>
           <span className="text-xs text-ee-muted">{formatDate(r.date)}</span>
         </div>
-        <button
-          type="button"
-          className="text-xs text-ee-gold hover:underline font-data uppercase tracking-wider"
-        >
-          Read →
-        </button>
+        {unlocked ? (
+          <button
+            type="button"
+            className="text-xs text-ee-gold hover:underline font-data uppercase tracking-wider"
+          >
+            Read →
+          </button>
+        ) : (
+          <Link
+            href="/pricing"
+            className="text-xs text-ee-muted hover:text-ee-gold font-data uppercase tracking-wider inline-flex items-center gap-1"
+            title={`${TIER_LABEL[r.minTier]} membership required`}
+          >
+            <span className="material-symbols-outlined text-sm">lock</span>
+            {TIER_LABEL[r.minTier]}
+          </Link>
+        )}
       </div>
     </article>
   )
 }
 
-export default function InsightsClient() {
+export default function InsightsClient({ currentTier }: { currentTier: Tier }) {
   const [filter, setFilter] = useState('All')
   const featured = REPORTS.find(r => r.featured)!
+  const featuredUnlocked = meets(currentTier, featured.minTier)
   const rest     = REPORTS.filter(r => !r.featured && (filter === 'All' || r.sector === filter))
 
   return (
@@ -116,7 +141,14 @@ export default function InsightsClient() {
           <h2 className="font-display text-3xl text-ee-primary leading-tight">{featured.title}</h2>
           <p className="text-ee-muted leading-relaxed">{featured.summary}</p>
           <div className="flex items-center gap-3 pt-2">
-            <button type="button" className="btn-gold">Read full report</button>
+            {featuredUnlocked ? (
+              <button type="button" className="btn-gold">Read full report</button>
+            ) : (
+              <Link href="/pricing" className="btn-gold inline-flex items-center gap-1.5">
+                <span className="material-symbols-outlined text-sm">lock</span>
+                Upgrade to {TIER_LABEL[featured.minTier]}
+              </Link>
+            )}
             <span className="text-xs text-ee-muted font-data">{featured.readTime} min · {formatDate(featured.date)}</span>
           </div>
         </div>
@@ -162,7 +194,7 @@ export default function InsightsClient() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {rest.map(r => <ReportCard key={r.id} r={r} />)}
+          {rest.map(r => <ReportCard key={r.id} r={r} currentTier={currentTier} />)}
         </div>
       )}
     </div>

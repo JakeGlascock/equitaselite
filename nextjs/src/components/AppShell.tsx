@@ -5,11 +5,21 @@ import Link from 'next/link'
 import { useState } from 'react'
 import NotificationsBell from './NotificationsBell'
 
+type Tier = 'access' | 'select' | 'sovereign'
+
 interface ShellUser {
   fullName:    string
   role:        'angel' | 'family_office'
   isAdmin:     boolean
   isConcierge: boolean
+  tier:        Tier
+}
+
+const TIER_LABEL: Record<Tier, string> = { access: 'Access', select: 'Select', sovereign: 'Sovereign' }
+const TIER_STYLE: Record<Tier, string> = {
+  access:    'border-ee-primary/30 bg-ee-primary/5  text-ee-primary',
+  select:    'border-ee-gold/40    bg-ee-gold/10    text-ee-gold',
+  sovereign: 'border-ee-emerald/40 bg-ee-emerald/10 text-ee-emerald',
 }
 
 interface NavItem {
@@ -163,6 +173,13 @@ export default function AppShell({
               Admin
             </Link>
           )}
+          <Link
+            href="/pricing"
+            title={`${TIER_LABEL[user.tier]} plan — click to manage`}
+            className={`hidden sm:flex h-7 px-2.5 items-center font-data text-[10px] font-bold tracking-widest uppercase rounded-full border hover:brightness-110 transition-all ${TIER_STYLE[user.tier]}`}
+          >
+            {TIER_LABEL[user.tier]}
+          </Link>
           <NotificationsBell />
           <Link
             href="/profile"

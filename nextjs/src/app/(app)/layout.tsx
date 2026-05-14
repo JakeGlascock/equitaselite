@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import { queryOne } from '@/lib/db'
 import { isUserAdmin } from '@/lib/admin'
 import { getActingAsState, type ManagedProfileLite } from '@/lib/acting-as'
+import { getTier } from '@/lib/membership'
 import AppShell from '@/components/AppShell'
 
 interface ShellProfile {
@@ -38,9 +39,14 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const actingAs     = isConcierge ? await getActingAsState() : null
   const managedAs: ManagedProfileLite | null = actingAs?.managedProfile ?? null
 
+  // When operating as a managed account, show that profile's tier (not the
+  // concierge's own) so the badge reflects what the concierge is operating on.
+  const tierUserId = actingAs?.managedProfile?.id ?? userId
+  const tier       = await getTier(tierUserId)
+
   return (
     <AppShell
-      user={{ fullName: profile.full_name, role: profile.role, isAdmin, isConcierge }}
+      user={{ fullName: profile.full_name, role: profile.role, isAdmin, isConcierge, tier }}
       actingAs={managedAs}
     >
       {children}
