@@ -36,10 +36,11 @@ const pool = new Pool({
   user:     required('DB_USER'),
   password: required('DB_PASSWORD'),
   database: required('DB_NAME'),
-  // RDS lives in the same VPC private subnet as this task; no SSL needed.
-  // Matches the production setting in src/lib/db.ts (NODE_ENV is "prod" in
-  // prod, not "production", so SSL is intentionally off there too).
-  ssl: false,
+  // RDS enforces SSL via rds.force_ssl=1, so the migration task must
+  // upgrade to TLS. rejectUnauthorized: false is fine here — connection
+  // is inside the VPC private subnet, and RDS's certificate chain
+  // would need an explicit CA bundle to validate strictly.
+  ssl: { rejectUnauthorized: false },
   // The migration task runs on its own; no need for a large pool.
   max:               2,
   idleTimeoutMillis: 5000,

@@ -175,16 +175,18 @@ jobs:
         env:
           TASK_ARN: ${{ steps.migrate.outputs.task_arn }}
         run: |
-          # ECS log stream name: <prefix>/<container>/<task-uuid>
+          # ECS log stream name: <awslogs-stream-prefix>/<container>/<task-uuid>.
+          # The prefix on this task definition is "app" (not "ecs"), so the
+          # constructed stream is app/app/<task-id>.
           TASK_ID=$(echo "$TASK_ARN" | awk -F'/' '{print $NF}')
-          STREAM="ecs/$CONTAINER_NAME/$TASK_ID"
+          STREAM="app/$CONTAINER_NAME/$TASK_ID"
           echo "Log stream: /ecs/$TASK_FAMILY :: $STREAM"
           aws logs get-log-events \
             --log-group-name "/ecs/$TASK_FAMILY" \
             --log-stream-name "$STREAM" \
             --start-from-head \
             --query 'events[*].message' --output text \
-            2>/dev/null || echo "(no logs)"
+            || echo "(no logs — stream may not exist yet)"
 
       - name: Update ECS service
         run: |
