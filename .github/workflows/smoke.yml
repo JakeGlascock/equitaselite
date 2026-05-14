@@ -1,0 +1,39 @@
+name: Smoke Tests
+
+on:
+  # After every successful Deploy
+  workflow_run:
+    workflows: ["Deploy"]
+    types: [completed]
+  # Hourly heartbeat (UTC). Catches drift, cert expiry, infra anomalies.
+  schedule:
+    - cron: '0 * * * *'
+  # Ad-hoc trigger (Actions tab → Run workflow)
+  workflow_dispatch:
+    inputs:
+      url:
+        description: 'Base URL to test'
+        default:     'https://equitaselite.com'
+        required:    false
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    name: Smoke critical paths
+    runs-on: ubuntu-latest
+    # Skip if the triggering Deploy failed (no point smoke-testing a known-bad rollout)
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Run smoke checks
+        env:
+          SMOKE_URL: ${{ github.event.inputs.url || 'https://equitaselite.com' }}
+        run: node nextjs/scripts/smoke.mjs
