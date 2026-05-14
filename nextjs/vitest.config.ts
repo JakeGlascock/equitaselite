@@ -9,6 +9,11 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       reporter: ['text', 'lcov', 'html'],
+      // Coverage measures the libraries and unit-testable route handlers.
+      // Pages and components are exercised by the production smoke job;
+      // scripts/ has its own dedicated test file; middleware's pure helper
+      // is unit-tested (see __tests__/middleware.test.ts) but the
+      // jose-backed verify path lives outside this measured scope.
       include: ['src/lib/**', 'src/app/api/**'],
       exclude: [
         'src/test/**',
@@ -38,11 +43,16 @@ export default defineConfig({
         // Admin route calls Cognito Admin API; tested via integration tests
         'src/app/api/admin/**',
       ],
+      // Ratcheted up from 80/75 — current measured coverage on the included
+      // scope (src/lib/** + src/app/api/**, minus the AWS/DB-backed excludes)
+      // is 100% lines/functions/statements and 99% branches, so we have plenty
+      // of headroom. Tightening these protects against accidental regressions
+      // when new untested code lands in lib/ or api/.
       thresholds: {
-        lines:     80,
-        functions: 80,
-        branches:  75,
-        statements: 80,
+        lines:      90,
+        functions:  90,
+        branches:   85,
+        statements: 90,
       },
     },
   },

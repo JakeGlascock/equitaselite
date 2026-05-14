@@ -16,7 +16,10 @@ const PUBLIC_PREFIXES = ['/_next/', '/favicon.ico', '/logo.png']
 const PUBLIC_EXACT    = ['/', '/signin', '/pricing', '/request-access']
 const PUBLIC_API      = ['/api/auth/', '/api/health', '/api/request-access']
 
-function isPublic(pathname: string): boolean {
+// Exported so the auth-gate test suite can assert which paths are reachable
+// without a Cognito session. If you add a new public route, add it to the
+// matching list above AND extend the test.
+export function isPublic(pathname: string): boolean {
   if (PUBLIC_EXACT.includes(pathname))                   return true
   if (PUBLIC_PREFIXES.some(p => pathname.startsWith(p))) return true
   if (PUBLIC_API.some(p => pathname.startsWith(p)))      return true
