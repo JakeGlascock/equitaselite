@@ -19,6 +19,7 @@ interface ProfileRow {
   is_concierge: boolean | null
   managed_by: string | null
   membership: 'access' | 'select' | 'sovereign' | null
+  relationship_manager_id: string | null
   created_at: Date | string
 }
 
@@ -48,32 +49,42 @@ export default async function AdminPage() {
   try {
     profiles = await query<ProfileRow>(
       `SELECT id, email, full_name, firm_name, role, onboarding_completed,
-              is_admin, is_concierge, managed_by, membership, created_at
+              is_admin, is_concierge, managed_by, membership,
+              relationship_manager_id, created_at
        FROM profiles
        ORDER BY created_at DESC`
     )
   } catch {
     try {
-      profiles = (await query<Omit<ProfileRow, 'membership'>>(
+      profiles = (await query<Omit<ProfileRow, 'relationship_manager_id'>>(
         `SELECT id, email, full_name, firm_name, role, onboarding_completed,
-                is_admin, is_concierge, managed_by, created_at
+                is_admin, is_concierge, managed_by, membership, created_at
          FROM profiles
          ORDER BY created_at DESC`
-      )).map(p => ({ ...p, membership: null }))
+      )).map(p => ({ ...p, relationship_manager_id: null }))
     } catch {
       try {
-        profiles = (await query<Omit<ProfileRow, 'is_concierge' | 'managed_by' | 'membership'>>(
+        profiles = (await query<Omit<ProfileRow, 'membership' | 'relationship_manager_id'>>(
           `SELECT id, email, full_name, firm_name, role, onboarding_completed,
-                  is_admin, created_at
+                  is_admin, is_concierge, managed_by, created_at
            FROM profiles
            ORDER BY created_at DESC`
-        )).map(p => ({ ...p, is_concierge: null, managed_by: null, membership: null }))
+        )).map(p => ({ ...p, membership: null, relationship_manager_id: null }))
       } catch {
-        profiles = (await query<Omit<ProfileRow, 'is_admin' | 'is_concierge' | 'managed_by' | 'membership'>>(
-          `SELECT id, email, full_name, firm_name, role, onboarding_completed, created_at
-           FROM profiles
-           ORDER BY created_at DESC`
-        )).map(p => ({ ...p, is_admin: null, is_concierge: null, managed_by: null, membership: null }))
+        try {
+          profiles = (await query<Omit<ProfileRow, 'is_concierge' | 'managed_by' | 'membership' | 'relationship_manager_id'>>(
+            `SELECT id, email, full_name, firm_name, role, onboarding_completed,
+                    is_admin, created_at
+             FROM profiles
+             ORDER BY created_at DESC`
+          )).map(p => ({ ...p, is_concierge: null, managed_by: null, membership: null, relationship_manager_id: null }))
+        } catch {
+          profiles = (await query<Omit<ProfileRow, 'is_admin' | 'is_concierge' | 'managed_by' | 'membership' | 'relationship_manager_id'>>(
+            `SELECT id, email, full_name, firm_name, role, onboarding_completed, created_at
+             FROM profiles
+             ORDER BY created_at DESC`
+          )).map(p => ({ ...p, is_admin: null, is_concierge: null, managed_by: null, membership: null, relationship_manager_id: null }))
+        }
       }
     }
   }
@@ -134,6 +145,7 @@ export default async function AdminPage() {
       isConcierge:  p?.is_concierge ?? false,
       managedBy:    p?.managed_by ?? null,
       membership:   p?.membership ?? null,
+      relationshipManagerId: p?.relationship_manager_id ?? null,
       togglable,
       toggleReason: !p ? 'Profile not created yet' : status === 'Disabled' ? 'User is disabled' : undefined,
     })
@@ -153,6 +165,7 @@ export default async function AdminPage() {
       isConcierge:  p.is_concierge ?? false,
       managedBy:    p.managed_by ?? null,
       membership:   p.membership ?? null,
+      relationshipManagerId: p.relationship_manager_id ?? null,
       togglable:    !p.id.startsWith('demo_'),
       toggleReason: p.id.startsWith('demo_') ? 'Demo accounts cannot be made admin or concierge' : undefined,
     })

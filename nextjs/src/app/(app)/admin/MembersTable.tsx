@@ -5,6 +5,7 @@ import AdminToggle from './AdminToggle'
 import ConciergeToggle from './ConciergeToggle'
 import ManagedAccountAssignment from './ManagedAccountAssignment'
 import TierAssignment from './TierAssignment'
+import RmAssignment from './RmAssignment'
 
 export type MemberStatus = 'Invited' | 'Onboarding' | 'Active' | 'Disabled' | 'Demo'
 export type Membership   = 'access' | 'select' | 'sovereign'
@@ -21,6 +22,7 @@ export interface MemberRow {
   isConcierge: boolean
   managedBy:   string | null
   membership:  Membership | null
+  relationshipManagerId: string | null
   togglable:   boolean
   toggleReason?: string
 }
@@ -171,6 +173,7 @@ export default function MembersTable({
               <th className="text-center px-3 py-2.5 font-normal" title="Admin">A</th>
               <th className="text-center px-3 py-2.5 font-normal" title="Concierge">C</th>
               <th className="text-left  px-3 py-2.5 font-normal">Managed by</th>
+              <th className="text-left  px-3 py-2.5 font-normal" title="Relationship manager">RM</th>
               <th className="text-right px-4 py-2.5 font-normal">Joined</th>
             </tr>
           </thead>
@@ -237,6 +240,22 @@ export default function MembersTable({
                   ) : (
                     <span className="text-xs text-ee-muted/50 italic"
                       title={m.isConcierge ? 'Concierges manage others, not the reverse' : 'Profile not created yet'}>
+                      —
+                    </span>
+                  )}
+                </td>
+                <td className="px-3 py-2.5">
+                  {m.userId && !m.isConcierge ? (
+                    <RmAssignment
+                      userId={m.userId}
+                      current={m.relationshipManagerId}
+                      concierges={concierges}
+                      disabled={!m.togglable}
+                      disabledReason={m.toggleReason}
+                    />
+                  ) : (
+                    <span className="text-xs text-ee-muted/50 italic"
+                      title={m.isConcierge ? 'Concierges are RMs, not RM recipients' : 'Profile not created yet'}>
                       —
                     </span>
                   )}

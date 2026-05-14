@@ -180,7 +180,27 @@ export default async function ConciergePage() {
     )
   }
 
-  // Non-concierge: the existing white-glove service page
+  // Non-concierge: the existing white-glove service page.
+  // Look up the assigned RM if one exists; otherwise fall back to a
+  // hardcoded relationship-manager card so the page never looks empty.
+  let assignedRm: { full_name: string; email: string } | null = null
+  if (userId) {
+    try {
+      const rm = await queryOne<{ full_name: string; email: string }>(
+        `SELECT rm.full_name, rm.email
+         FROM profiles me
+         JOIN profiles rm ON rm.id = me.relationship_manager_id
+         WHERE me.id = $1 AND rm.is_concierge = TRUE`,
+        [userId]
+      )
+      if (rm) assignedRm = rm
+    } catch { /* relationship_manager_id column not yet migrated */ }
+  }
+
+  const rmName  = assignedRm?.full_name ?? 'Olivia Marchetti'
+  const rmEmail = assignedRm?.email     ?? 'olivia@equitaselite.com'
+  const rmKind  = assignedRm ? 'Your dedicated relationship manager' : 'Your relationship manager'
+
   return (
     <div className="px-5 md:px-8 py-8">
       <div className="max-w-4xl mx-auto space-y-8">
@@ -202,15 +222,15 @@ export default async function ConciergePage() {
             </span>
           </div>
           <div className="flex-1 min-w-0">
-            <p className="font-data text-[10px] uppercase tracking-widest text-ee-gold mb-1">Your relationship manager</p>
-            <p className="font-display text-lg text-ee-primary">Olivia Marchetti</p>
+            <p className="font-data text-[10px] uppercase tracking-widest text-ee-gold mb-1">{rmKind}</p>
+            <p className="font-display text-lg text-ee-primary">{rmName}</p>
             <p className="text-xs text-ee-muted">Available 9am–6pm ET · responds within 4 business hours</p>
           </div>
           <a
-            href="mailto:olivia@equitaselite.com"
+            href={`mailto:${rmEmail}`}
             className="hidden sm:inline btn-ghost whitespace-nowrap"
           >
-            Email Olivia
+            Email {rmName.split(' ')[0]}
           </a>
         </div>
 

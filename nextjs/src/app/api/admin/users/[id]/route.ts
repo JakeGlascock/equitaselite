@@ -9,8 +9,13 @@ const PatchSchema = z.object({
   // null = clear back to "no tier" (rare; mostly the value flips between
   // access | select | sovereign as admins grant/downgrade).
   membership:   z.enum(['access', 'select', 'sovereign']).nullable().optional(),
+  // null = unassign the user's relationship manager.
+  relationship_manager_id: z.string().min(1).nullable().optional(),
 }).refine(
-  d => d.is_admin !== undefined || d.is_concierge !== undefined || d.membership !== undefined,
+  d => d.is_admin !== undefined
+    || d.is_concierge !== undefined
+    || d.membership !== undefined
+    || d.relationship_manager_id !== undefined,
   { message: 'Provide at least one field to update.' }
 )
 
@@ -35,26 +40,48 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     )
   }
 
-  // Distinguish "not in payload" from "explicit null" so we can clear
-  // membership when the admin picks "— None —".
-  const membershipParam = parsed.data.membership === undefined
-    ? undefined            // leave unchanged
-    : parsed.data.membership  // 'access' | 'select' | 'sovereign' | null
+  // Distinguish "not in payload" from "explicit null" so we can clear values
+  // when the admin picks "— None —".
+  const membershipParam   = parsed.data.membership
+  const rmParam           = parsed.data.relationship_manager_id
+
+  // Validate RM is actually a concierge (if assigning)
+  if (rmParam) {
+    if (rmParam === id) {
+      return NextResponse.json({ error: 'A user cannot be their own relationship manager.' }, { status: 400 })
+    }
+    const rmRow = await queryOne<{ id: string }>(
+      'SELECT id FROM profiles WHERE id = $1 AND is_concierge = TRUE',
+      [rmParam]
+    )
+    if (!rmRow) {
+      return NextResponse.json({ error: 'Relationship manager must be a concierge.' }, { status: 400 })
+    }
+  }
 
   try {
-    const updated = await queryOne<{ id: string; is_admin: boolean; is_concierge: boolean; membership: string | null }>(
+    const updated = await queryOne<{
+      id: string
+      is_admin: boolean
+      is_concierge: boolean
+      membership: string | null
+      relationship_manager_id: string | null
+    }>(
       `UPDATE profiles
-       SET is_admin     = COALESCE($2, is_admin),
-           is_concierge = COALESCE($3, is_concierge),
-           membership   = CASE WHEN $4::boolean THEN $5::text ELSE membership END
+       SET is_admin                = COALESCE($2, is_admin),
+           is_concierge            = COALESCE($3, is_concierge),
+           membership              = CASE WHEN $4::boolean THEN $5::text ELSE membership              END,
+           relationship_manager_id = CASE WHEN $6::boolean THEN $7::text ELSE relationship_manager_id END
        WHERE id = $1
-       RETURNING id, is_admin, is_concierge, membership`,
+       RETURNING id, is_admin, is_concierge, membership, relationship_manager_id`,
       [
         id,
         parsed.data.is_admin     ?? null,
         parsed.data.is_concierge ?? null,
-        membershipParam !== undefined,  // $4: did the caller send membership?
-        membershipParam ?? null,        // $5: the new value (null = clear)
+        membershipParam !== undefined,
+        membershipParam ?? null,
+        rmParam !== undefined,
+        rmParam ?? null,
       ]
     )
     if (!updated) return NextResponse.json({ error: 'Not found' }, { status: 404 })
@@ -63,13 +90,19 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     const msg = err instanceof Error ? err.message : ''
     if (msg.includes('is_concierge')) {
       return NextResponse.json(
-        { error: 'Initialize the concierge columns first — admin page → "Initialize concierge columns" button.' },
+        { error: 'Initialize the concierge columns first.' },
         { status: 400 }
       )
     }
     if (msg.includes('membership')) {
       return NextResponse.json(
-        { error: 'Initialize the membership column first — admin page → "Initialize membership column" button.' },
+        { error: 'Initialize the membership column first.' },
+        { status: 400 }
+      )
+    }
+    if (msg.includes('relationship_manager_id')) {
+      return NextResponse.json(
+        { error: 'relationship_manager_id column missing — wait for the next deploy to run the migration.' },
         { status: 400 }
       )
     }
