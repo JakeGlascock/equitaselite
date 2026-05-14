@@ -14,7 +14,15 @@ interface ProfileRow {
   firm_name: string | null
   role: 'angel' | 'family_office' | null
   onboarding_completed: boolean
-  created_at: string
+  // pg returns TIMESTAMPTZ as Date at runtime, even though node-postgres
+  // typings don't reflect that. Treat as unknown and normalize on read.
+  created_at: Date | string
+}
+
+function toIso(d: Date | string | null | undefined): string {
+  if (!d) return ''
+  if (d instanceof Date) return d.toISOString()
+  return d
 }
 
 type MemberStatus = 'Invited' | 'Onboarding' | 'Active' | 'Disabled' | 'Demo'
@@ -98,7 +106,7 @@ export default async function AdminPage() {
       firm:   p?.firm_name ?? null,
       role:   p?.role ?? null,
       status,
-      joined: p?.created_at ?? u.createdAt,
+      joined: toIso(p?.created_at) || u.createdAt,
     })
   }
 
@@ -111,7 +119,7 @@ export default async function AdminPage() {
       firm:   p.firm_name,
       role:   p.role,
       status: 'Demo',
-      joined: p.created_at,
+      joined: toIso(p.created_at),
     })
   }
 
