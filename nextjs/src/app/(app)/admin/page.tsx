@@ -10,9 +10,8 @@ import InitEmailPrefButton from './InitEmailPrefButton'
 import InitIsAdminButton from './InitIsAdminButton'
 import InitConciergeButton from './InitConciergeButton'
 import InitAccessRequestsButton from './InitAccessRequestsButton'
-import AdminToggle from './AdminToggle'
-import ConciergeToggle from './ConciergeToggle'
 import ManagedAccountAssignment from './ManagedAccountAssignment'
+import MembersTable, { type MemberRow } from './MembersTable'
 
 interface ProfileRow {
   id: string
@@ -23,42 +22,16 @@ interface ProfileRow {
   onboarding_completed: boolean
   is_admin: boolean | null
   is_concierge: boolean | null
+  managed_by: string | null
   created_at: Date | string
 }
 
-type MemberStatus = 'Invited' | 'Onboarding' | 'Active' | 'Disabled' | 'Demo'
-
-interface MergedRow {
-  email:    string
-  name:     string | null
-  firm:     string | null
-  role:     'angel' | 'family_office' | null
-  status:   MemberStatus
-  joined:   string
-  userId:   string | null       // profile id, if any
-  isAdmin:  boolean              // current admin state
-  isConcierge: boolean            // current concierge state
-  togglable: boolean             // whether the toggle should be enabled
-  toggleReason?: string
-}
+type MemberStatus = MemberRow['status']
 
 function toIso(d: Date | string | null | undefined): string {
   if (!d) return ''
   if (d instanceof Date) return d.toISOString()
   return d
-}
-
-function fmtDate(s: string): string {
-  if (!s) return '—'
-  return new Date(s).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-}
-
-const STATUS_STYLES: Record<MemberStatus, string> = {
-  Active:     'border-ee-emerald/40 bg-ee-emerald/10 text-ee-emerald',
-  Onboarding: 'border-ee-gold/40    bg-ee-gold/10    text-ee-gold',
-  Invited:    'border-ee-primary/30 bg-ee-primary/10 text-ee-primary',
-  Disabled:   'border-ee-border     bg-white/5       text-ee-muted',
-  Demo:       'border-ee-border     bg-white/5       text-ee-muted',
 }
 
 const STATUS_ORDER: Record<MemberStatus, number> = {
@@ -72,36 +45,35 @@ export default async function AdminPage() {
   if (!userId) redirect('/signin')
   if (!(await isUserAdmin(userId, userEmail))) redirect('/dashboard')
 
-  // Profiles may not yet have the is_admin column (before init-is-admin runs).
-  // Try the column-aware query first, fall back to without.
+  // Profiles may not yet have the is_admin / is_concierge / managed_by columns
+  // (before the corresponding init buttons run). Try most-complete query first,
+  // fall back progressively.
   let profiles: ProfileRow[]
   try {
     profiles = await query<ProfileRow>(
       `SELECT id, email, full_name, firm_name, role, onboarding_completed,
-              is_admin, is_concierge, created_at
+              is_admin, is_concierge, managed_by, created_at
        FROM profiles
        ORDER BY created_at DESC`
     )
   } catch {
     try {
-      profiles = (await query<Omit<ProfileRow, 'is_concierge'>>(
+      profiles = (await query<Omit<ProfileRow, 'is_concierge' | 'managed_by'>>(
         `SELECT id, email, full_name, firm_name, role, onboarding_completed,
                 is_admin, created_at
          FROM profiles
          ORDER BY created_at DESC`
-      )).map(p => ({ ...p, is_concierge: null }))
+      )).map(p => ({ ...p, is_concierge: null, managed_by: null }))
     } catch {
-      profiles = (await query<Omit<ProfileRow, 'is_admin' | 'is_concierge'>>(
+      profiles = (await query<Omit<ProfileRow, 'is_admin' | 'is_concierge' | 'managed_by'>>(
         `SELECT id, email, full_name, firm_name, role, onboarding_completed, created_at
          FROM profiles
          ORDER BY created_at DESC`
-      )).map(p => ({ ...p, is_admin: null, is_concierge: null }))
+      )).map(p => ({ ...p, is_admin: null, is_concierge: null, managed_by: null }))
     }
   }
 
-  // Concierges (active platform staff who can manage profiles) and managed
-  // accounts (id LIKE 'managed_%', created by a concierge). Both queries
-  // depend on the concierge columns being initialized.
+  // Concierges and managed accounts. Both depend on the concierge columns.
   interface ConciergeOption { id: string; full_name: string; firm_name: string | null }
   interface ManagedRow {
     id: string
@@ -123,7 +95,7 @@ export default async function AdminPage() {
     managedAccounts = await query<ManagedRow>(
       `SELECT id, full_name, firm_name, role, email, managed_by
        FROM profiles
-       WHERE id LIKE 'managed_%'
+       WHERE managed_by IS NOT NULL
        ORDER BY created_at DESC`
     )
   } catch { /* concierge columns not yet initialized */ }
@@ -134,7 +106,7 @@ export default async function AdminPage() {
   })
 
   const profileByEmail = new Map(profiles.map(p => [p.email.toLowerCase(), p]))
-  const merged: MergedRow[] = []
+  const merged: MemberRow[] = []
 
   for (const u of cognitoUsers) {
     const p = profileByEmail.get(u.email)
@@ -155,25 +127,27 @@ export default async function AdminPage() {
       userId:       p?.id ?? null,
       isAdmin:      p?.is_admin ?? false,
       isConcierge:  p?.is_concierge ?? false,
+      managedBy:    p?.managed_by ?? null,
       togglable,
       toggleReason: !p ? 'Profile not created yet' : status === 'Disabled' ? 'User is disabled' : undefined,
     })
   }
 
   for (const p of profiles) {
-    if (!p.id.startsWith('demo_')) continue
+    if (!p.id.startsWith('demo_') && !p.id.startsWith('managed_')) continue
     merged.push({
       email:        p.email,
       name:         p.full_name,
       firm:         p.firm_name,
       role:         p.role,
-      status:       'Demo',
+      status:       p.id.startsWith('demo_') ? 'Demo' : (p.onboarding_completed ? 'Active' : 'Onboarding'),
       joined:       toIso(p.created_at),
       userId:       p.id,
       isAdmin:      p.is_admin ?? false,
       isConcierge:  p.is_concierge ?? false,
-      togglable:    false,
-      toggleReason: 'Demo accounts cannot be made admin or concierge',
+      managedBy:    p.managed_by ?? null,
+      togglable:    !p.id.startsWith('demo_'),
+      toggleReason: p.id.startsWith('demo_') ? 'Demo accounts cannot be made admin or concierge' : undefined,
     })
   }
 
@@ -214,80 +188,39 @@ export default async function AdminPage() {
         </div>
 
         <InviteForm />
-        <SeedDemoButton />
-        <InitNotificationsButton />
-        <InitEmailPrefButton />
-        <InitIsAdminButton />
-        <InitConciergeButton />
-        <InitAccessRequestsButton />
 
-        <div className="glass-panel overflow-hidden">
-          <div className="px-6 py-4 border-b border-ee-border">
-            <h2 className="font-display text-base text-ee-primary">Members</h2>
+        <details className="glass-panel group">
+          <summary className="px-6 py-4 cursor-pointer list-none flex items-center justify-between gap-4 select-none">
+            <div>
+              <h2 className="font-display text-base text-ee-primary">Setup &amp; maintenance</h2>
+              <p className="text-xs text-ee-muted mt-0.5">
+                One-time schema migrations and demo data seeders.
+              </p>
+            </div>
+            <span className="material-symbols-outlined text-ee-muted transition-transform group-open:rotate-180">
+              expand_more
+            </span>
+          </summary>
+          <div className="px-6 pb-6 pt-2 space-y-3 border-t border-ee-border">
+            <SeedDemoButton />
+            <InitNotificationsButton />
+            <InitEmailPrefButton />
+            <InitIsAdminButton />
+            <InitConciergeButton />
+            <InitAccessRequestsButton />
           </div>
+        </details>
 
-          {merged.length === 0 ? (
-            <p className="px-6 py-10 text-center text-sm text-ee-muted">
-              No members yet.
-            </p>
-          ) : (
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-xs text-ee-muted uppercase tracking-wider font-data">
-                  <th className="text-left  px-6 py-3 font-normal">Email</th>
-                  <th className="text-left  px-6 py-3 font-normal">Name</th>
-                  <th className="text-left  px-6 py-3 font-normal">Role</th>
-                  <th className="text-left  px-6 py-3 font-normal">Status</th>
-                  <th className="text-left  px-6 py-3 font-normal">Admin</th>
-                  <th className="text-left  px-6 py-3 font-normal">Concierge</th>
-                  <th className="text-right px-6 py-3 font-normal">Joined</th>
-                </tr>
-              </thead>
-              <tbody>
-                {merged.map(m => (
-                  <tr key={m.email} className="border-t border-ee-border/60">
-                    <td className="px-6 py-3 text-ee-primary truncate max-w-[14rem]">{m.email}</td>
-                    <td className="px-6 py-3 text-ee-muted">{m.name ?? '—'}</td>
-                    <td className="px-6 py-3 text-ee-muted">
-                      {m.role === 'angel' ? 'Angel' : m.role === 'family_office' ? 'Family Office' : '—'}
-                    </td>
-                    <td className="px-6 py-3">
-                      <span className={`text-xs px-2 py-0.5 rounded-full border ${STATUS_STYLES[m.status]}`}>
-                        {m.status}
-                      </span>
-                    </td>
-                    <td className="px-6 py-3">
-                      {m.userId ? (
-                        <AdminToggle
-                          userId={m.userId}
-                          initial={m.isAdmin}
-                          selfUserId={userId}
-                          disabled={!m.togglable}
-                          disabledReason={m.toggleReason}
-                        />
-                      ) : (
-                        <span className="text-xs text-ee-muted/50 italic" title="Profile not created yet">—</span>
-                      )}
-                    </td>
-                    <td className="px-6 py-3">
-                      {m.userId ? (
-                        <ConciergeToggle
-                          userId={m.userId}
-                          initial={m.isConcierge}
-                          disabled={!m.togglable}
-                          disabledReason={m.toggleReason}
-                        />
-                      ) : (
-                        <span className="text-xs text-ee-muted/50 italic" title="Profile not created yet">—</span>
-                      )}
-                    </td>
-                    <td className="px-6 py-3 text-right text-ee-muted">{fmtDate(m.joined)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
+        {merged.length === 0 ? (
+          <div className="glass-panel overflow-hidden">
+            <div className="px-6 py-4 border-b border-ee-border">
+              <h2 className="font-display text-base text-ee-primary">Members</h2>
+            </div>
+            <p className="px-6 py-10 text-center text-sm text-ee-muted">No members yet.</p>
+          </div>
+        ) : (
+          <MembersTable rows={merged} selfUserId={userId} concierges={concierges} />
+        )}
 
         {/* Managed accounts ─ reassignment */}
         {managedAccounts.length > 0 && (
@@ -295,7 +228,7 @@ export default async function AdminPage() {
             <div className="px-6 py-4 border-b border-ee-border">
               <h2 className="font-display text-base text-ee-primary">Managed accounts</h2>
               <p className="text-xs text-ee-muted mt-1">
-                Profiles created by concierges on behalf of clients. Change the assignment by picking a different concierge.
+                Every profile currently assigned to a concierge. Change the assignment by picking a different concierge, or clear it to remove management.
               </p>
             </div>
             <table className="w-full text-sm">

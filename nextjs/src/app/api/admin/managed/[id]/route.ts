@@ -22,6 +22,14 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
   }
   const newConcierge = parsed.data.managed_by
 
+  // Don't let a profile be assigned to itself (cycle)
+  if (newConcierge === id) {
+    return NextResponse.json(
+      { error: 'A profile cannot manage itself.' },
+      { status: 400 }
+    )
+  }
+
   // Verify the target concierge actually exists + is a concierge
   if (newConcierge !== null) {
     const concierge = await queryOne<{ id: string }>(
@@ -33,16 +41,19 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     }
   }
 
+  // Any profile can be assigned to a concierge — not just concierge-created
+  // managed_* IDs. This lets admins convert existing Cognito-backed accounts
+  // into managed ones (concierge can operate on their behalf).
   const updated = await queryOne<{ id: string; managed_by: string | null }>(
     `UPDATE profiles
      SET managed_by = $2
-     WHERE id = $1 AND id LIKE 'managed_%'
+     WHERE id = $1
      RETURNING id, managed_by`,
     [id, newConcierge]
   )
 
   if (!updated) {
-    return NextResponse.json({ error: 'Managed account not found.' }, { status: 404 })
+    return NextResponse.json({ error: 'Profile not found.' }, { status: 404 })
   }
   return NextResponse.json(updated)
 }
