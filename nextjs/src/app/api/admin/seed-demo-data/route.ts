@@ -1,12 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { query, queryOne } from '@/lib/db'
-
-function adminEmails(): string[] {
-  return (process.env.ADMIN_EMAILS ?? '')
-    .split(',')
-    .map(e => e.trim().toLowerCase())
-    .filter(Boolean)
-}
+import { isUserAdmin } from '@/lib/admin'
 
 interface DemoProfile {
   id: string
@@ -180,9 +174,9 @@ const DEMO_PROFILES: DemoProfile[] = [
 ]
 
 export async function POST(req: NextRequest) {
-  const userEmail = req.headers.get('x-user-email')?.toLowerCase()
-  const admins = adminEmails()
-  if (!userEmail || !admins.includes(userEmail)) {
+  const userId    = req.headers.get('x-user-id')
+  const userEmail = req.headers.get('x-user-email')
+  if (!(await isUserAdmin(userId, userEmail))) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 

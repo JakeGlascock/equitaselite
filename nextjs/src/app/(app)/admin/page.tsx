@@ -2,10 +2,13 @@ import { headers } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { query } from '@/lib/db'
 import { listCognitoUsers } from '@/lib/auth'
+import { isUserAdmin } from '@/lib/admin'
 import InviteForm from './InviteForm'
 import SeedDemoButton from './SeedDemoButton'
 import InitNotificationsButton from './InitNotificationsButton'
 import InitEmailPrefButton from './InitEmailPrefButton'
+import InitIsAdminButton from './InitIsAdminButton'
+import AdminToggle from './AdminToggle'
 
 interface ProfileRow {
   id: string
@@ -14,35 +17,29 @@ interface ProfileRow {
   firm_name: string | null
   role: 'angel' | 'family_office' | null
   onboarding_completed: boolean
-  // pg returns TIMESTAMPTZ as Date at runtime, even though node-postgres
-  // typings don't reflect that. Treat as unknown and normalize on read.
+  is_admin: boolean | null
   created_at: Date | string
+}
+
+type MemberStatus = 'Invited' | 'Onboarding' | 'Active' | 'Disabled' | 'Demo'
+
+interface MergedRow {
+  email:    string
+  name:     string | null
+  firm:     string | null
+  role:     'angel' | 'family_office' | null
+  status:   MemberStatus
+  joined:   string
+  userId:   string | null       // profile id, if any
+  isAdmin:  boolean              // current admin state
+  togglable: boolean             // whether the toggle should be enabled
+  toggleReason?: string
 }
 
 function toIso(d: Date | string | null | undefined): string {
   if (!d) return ''
   if (d instanceof Date) return d.toISOString()
   return d
-}
-
-type MemberStatus = 'Invited' | 'Onboarding' | 'Active' | 'Disabled' | 'Demo'
-
-interface MergedRow {
-  email:      string
-  name:       string | null
-  firm:       string | null
-  role:       'angel' | 'family_office' | null
-  status:     MemberStatus
-  joined:     string  // ISO
-}
-
-function isAdmin(email: string | null): boolean {
-  if (!email) return false
-  const admins = (process.env.ADMIN_EMAILS ?? '')
-    .split(',')
-    .map(e => e.trim().toLowerCase())
-    .filter(Boolean)
-  return admins.includes(email.toLowerCase())
 }
 
 function fmtDate(s: string): string {
@@ -58,13 +55,8 @@ const STATUS_STYLES: Record<MemberStatus, string> = {
   Demo:       'border-ee-border     bg-white/5       text-ee-muted',
 }
 
-// Ordering for the table — actionable states first
 const STATUS_ORDER: Record<MemberStatus, number> = {
-  Invited:    0,
-  Onboarding: 1,
-  Active:     2,
-  Disabled:   3,
-  Demo:       4,
+  Invited: 0, Onboarding: 1, Active: 2, Disabled: 3, Demo: 4,
 }
 
 export default async function AdminPage() {
@@ -72,54 +64,70 @@ export default async function AdminPage() {
   const userId    = h.get('x-user-id')
   const userEmail = h.get('x-user-email')
   if (!userId) redirect('/signin')
-  if (!isAdmin(userEmail)) redirect('/dashboard')
+  if (!(await isUserAdmin(userId, userEmail))) redirect('/dashboard')
 
-  // Fetch in parallel — DB profiles + every Cognito user
-  const [profiles, cognitoUsers] = await Promise.all([
-    query<ProfileRow>(
+  // Profiles may not yet have the is_admin column (before init-is-admin runs).
+  // Try the column-aware query first, fall back to without.
+  let profiles: ProfileRow[]
+  try {
+    profiles = await query<ProfileRow>(
+      `SELECT id, email, full_name, firm_name, role, onboarding_completed,
+              is_admin, created_at
+       FROM profiles
+       ORDER BY created_at DESC`
+    )
+  } catch {
+    profiles = (await query<Omit<ProfileRow, 'is_admin'>>(
       `SELECT id, email, full_name, firm_name, role, onboarding_completed, created_at
        FROM profiles
        ORDER BY created_at DESC`
-    ),
-    listCognitoUsers().catch(err => {
-      console.error('listCognitoUsers failed:', err)
-      return [] as Awaited<ReturnType<typeof listCognitoUsers>>
-    }),
-  ])
+    )).map(p => ({ ...p, is_admin: null }))
+  }
+
+  const cognitoUsers = await listCognitoUsers().catch(err => {
+    console.error('listCognitoUsers failed:', err)
+    return [] as Awaited<ReturnType<typeof listCognitoUsers>>
+  })
 
   const profileByEmail = new Map(profiles.map(p => [p.email.toLowerCase(), p]))
   const merged: MergedRow[] = []
 
-  // First, every Cognito user (gives us "Invited" rows for accounts that
-  // haven't yet started onboarding)
   for (const u of cognitoUsers) {
     const p = profileByEmail.get(u.email)
     let status: MemberStatus
-    if (!u.enabled)               status = 'Disabled'
-    else if (!p)                  status = 'Invited'
-    else if (!p.onboarding_completed) status = 'Onboarding'
-    else                          status = 'Active'
+    if (!u.enabled)                   status = 'Disabled'
+    else if (!p)                       status = 'Invited'
+    else if (!p.onboarding_completed)  status = 'Onboarding'
+    else                               status = 'Active'
 
+    const togglable = !!p && status !== 'Disabled'
     merged.push({
-      email:  u.email,
-      name:   p?.full_name ?? null,
-      firm:   p?.firm_name ?? null,
-      role:   p?.role ?? null,
+      email:   u.email,
+      name:    p?.full_name ?? null,
+      firm:    p?.firm_name ?? null,
+      role:    p?.role ?? null,
       status,
-      joined: toIso(p?.created_at) || u.createdAt,
+      joined:  toIso(p?.created_at) || u.createdAt,
+      userId:  p?.id ?? null,
+      isAdmin: p?.is_admin ?? false,
+      togglable,
+      toggleReason: !p ? 'Profile not created yet' : status === 'Disabled' ? 'User is disabled' : undefined,
     })
   }
 
-  // Then, demo profiles (id LIKE 'demo_%') — they have no Cognito user
   for (const p of profiles) {
     if (!p.id.startsWith('demo_')) continue
     merged.push({
-      email:  p.email,
-      name:   p.full_name,
-      firm:   p.firm_name,
-      role:   p.role,
-      status: 'Demo',
-      joined: toIso(p.created_at),
+      email:   p.email,
+      name:    p.full_name,
+      firm:    p.firm_name,
+      role:    p.role,
+      status:  'Demo',
+      joined:  toIso(p.created_at),
+      userId:  p.id,
+      isAdmin: p.is_admin ?? false,
+      togglable: false,
+      toggleReason: 'Demo accounts cannot be made admin',
     })
   }
 
@@ -129,34 +137,31 @@ export default async function AdminPage() {
     return (b.joined ?? '').localeCompare(a.joined ?? '')
   })
 
-  // Headline counts
   const counts = {
     invited:    merged.filter(m => m.status === 'Invited').length,
     onboarding: merged.filter(m => m.status === 'Onboarding').length,
     active:     merged.filter(m => m.status === 'Active').length,
     demo:       merged.filter(m => m.status === 'Demo').length,
+    admins:     merged.filter(m => m.isAdmin).length,
   }
 
   return (
     <div className="px-5 md:px-8 py-8">
-      <div className="max-w-4xl mx-auto space-y-6">
-
+      <div className="max-w-5xl mx-auto space-y-6">
         <div>
           <p className="font-data text-[10px] tracking-[0.12em] text-ee-muted uppercase">Operations</p>
           <h1 className="font-display text-3xl text-ee-gold mt-1">Admin</h1>
           <p className="text-ee-muted text-sm mt-1">
-            {merged.length} total · {counts.invited} invited · {counts.onboarding} onboarding · {counts.active} active
+            {merged.length} total · {counts.invited} invited · {counts.onboarding} onboarding · {counts.active} active · {counts.admins} {counts.admins === 1 ? 'admin' : 'admins'}
             {counts.demo > 0 && ` · ${counts.demo} demo`}
           </p>
         </div>
 
         <InviteForm />
-
         <SeedDemoButton />
-
         <InitNotificationsButton />
-
         <InitEmailPrefButton />
+        <InitIsAdminButton />
 
         <div className="glass-panel overflow-hidden">
           <div className="px-6 py-4 border-b border-ee-border">
@@ -165,16 +170,17 @@ export default async function AdminPage() {
 
           {merged.length === 0 ? (
             <p className="px-6 py-10 text-center text-sm text-ee-muted">
-              No members yet. Invited users will appear here as soon as the invitation is created.
+              No members yet.
             </p>
           ) : (
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-xs text-ee-muted uppercase tracking-wider font-data">
-                  <th className="text-left px-6 py-3 font-normal">Email</th>
-                  <th className="text-left px-6 py-3 font-normal">Name</th>
-                  <th className="text-left px-6 py-3 font-normal">Role</th>
-                  <th className="text-left px-6 py-3 font-normal">Status</th>
+                  <th className="text-left  px-6 py-3 font-normal">Email</th>
+                  <th className="text-left  px-6 py-3 font-normal">Name</th>
+                  <th className="text-left  px-6 py-3 font-normal">Role</th>
+                  <th className="text-left  px-6 py-3 font-normal">Status</th>
+                  <th className="text-left  px-6 py-3 font-normal">Admin</th>
                   <th className="text-right px-6 py-3 font-normal">Joined</th>
                 </tr>
               </thead>
@@ -191,6 +197,19 @@ export default async function AdminPage() {
                         {m.status}
                       </span>
                     </td>
+                    <td className="px-6 py-3">
+                      {m.userId ? (
+                        <AdminToggle
+                          userId={m.userId}
+                          initial={m.isAdmin}
+                          selfUserId={userId}
+                          disabled={!m.togglable}
+                          disabledReason={m.toggleReason}
+                        />
+                      ) : (
+                        <span className="text-xs text-ee-muted/50 italic" title="Profile not created yet">—</span>
+                      )}
+                    </td>
                     <td className="px-6 py-3 text-right text-ee-muted">{fmtDate(m.joined)}</td>
                   </tr>
                 ))}
@@ -200,10 +219,7 @@ export default async function AdminPage() {
         </div>
 
         <p className="text-xs text-ee-muted text-center">
-          <strong className="text-ee-primary">Invited</strong> — invitation email sent, awaiting first sign-in ·{' '}
-          <strong className="text-ee-primary">Onboarding</strong> — signed in but profile incomplete ·{' '}
-          <strong className="text-ee-primary">Active</strong> — profile complete · {' '}
-          <strong className="text-ee-primary">Demo</strong> — seeded sample profile.
+          Admin status is granted per-user. <code className="font-data">ADMIN_EMAILS</code> remains as a break-glass fallback so the initial admin can always sign in.
         </p>
       </div>
     </div>

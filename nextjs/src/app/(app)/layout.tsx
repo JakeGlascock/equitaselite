@@ -1,6 +1,7 @@
 import { headers } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { queryOne } from '@/lib/db'
+import { isUserAdmin } from '@/lib/admin'
 import AppShell from '@/components/AppShell'
 
 interface ShellProfile {
@@ -12,7 +13,7 @@ interface ShellProfile {
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const h = await headers()
   const userId    = h.get('x-user-id')
-  const userEmail = h.get('x-user-email')?.toLowerCase() ?? ''
+  const userEmail = h.get('x-user-email')
   if (!userId) redirect('/signin')
 
   const profile = await queryOne<ShellProfile>(
@@ -22,9 +23,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   if (!profile || !profile.onboarding_completed) redirect('/onboarding')
 
-  const adminEmails = (process.env.ADMIN_EMAILS ?? '')
-    .split(',').map(e => e.trim().toLowerCase()).filter(Boolean)
-  const isAdmin = adminEmails.includes(userEmail)
+  const isAdmin = await isUserAdmin(userId, userEmail)
 
   return (
     <AppShell user={{ fullName: profile.full_name, role: profile.role, isAdmin }}>

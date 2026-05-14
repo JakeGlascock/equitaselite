@@ -1,15 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { query } from '@/lib/db'
-
-function isAdmin(email: string | null): boolean {
-  if (!email) return false
-  const admins = (process.env.ADMIN_EMAILS ?? '')
-    .split(',').map(e => e.trim().toLowerCase()).filter(Boolean)
-  return admins.includes(email.toLowerCase())
-}
+import { isUserAdmin } from '@/lib/admin'
 
 export async function POST(req: NextRequest) {
-  if (!isAdmin(req.headers.get('x-user-email'))) {
+  const userId    = req.headers.get('x-user-id')
+  const userEmail = req.headers.get('x-user-email')
+  if (!(await isUserAdmin(userId, userEmail))) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
