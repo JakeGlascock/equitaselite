@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { QRCodeSVG } from 'qrcode.react'
 
 type Step = 'credentials' | 'new_password' | 'mfa_setup' | 'mfa'
@@ -122,7 +123,7 @@ export default function LoginPage() {
 
               <p className="text-center text-xs text-ee-muted">
                 Access is by invitation only.{' '}
-                <a href="/request-access" className="text-ee-gold hover:underline">Request access</a>
+                <Link href="/request-access" className="text-ee-gold hover:underline">Request access</Link>
               </p>
               <p className="text-center text-xs text-ee-muted">
                 <a href="/pricing" className="hover:text-ee-primary transition-colors">View membership plans →</a>
