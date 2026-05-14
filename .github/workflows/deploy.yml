@@ -70,8 +70,24 @@ jobs:
           echo "FULL_IMAGE=$FULL_IMAGE" >> "$GITHUB_ENV"
 
       - name: Push image
+        # ECR has IMMUTABLE tag policy and we tag by commit SHA. If a prior
+        # run already pushed this exact tag (e.g., this is a `gh run rerun`
+        # after a later step failed), the push fails — but the image is
+        # already where we need it. Detect that case and continue.
         run: |
-          docker push "$FULL_IMAGE"
+          set +e
+          OUT=$(docker push "$FULL_IMAGE" 2>&1)
+          CODE=$?
+          set -e
+          echo "$OUT"
+          if [ $CODE -eq 0 ]; then
+            echo "Push OK"
+          elif echo "$OUT" | grep -q "tag invalid.*already exists"; then
+            echo "Tag $FULL_IMAGE already exists in ECR (immutable). Reusing."
+          else
+            echo "Push failed with exit code $CODE"
+            exit $CODE
+          fi
 
       - name: Register new task definition revision
         id: register
