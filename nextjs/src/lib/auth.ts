@@ -6,7 +6,9 @@ import {
   AdminCreateUserCommand,
   AssociateSoftwareTokenCommand,
   VerifySoftwareTokenCommand,
+  ListUsersCommand,
   type AuthenticationResultType,
+  type UserType,
 } from '@aws-sdk/client-cognito-identity-provider'
 import { cognitoClient } from './aws'
 
@@ -78,6 +80,38 @@ export async function refreshTokens(refreshToken: string): Promise<AuthTokens> {
     })
   )
   return toTokens(AuthenticationResult!)
+}
+
+export interface CognitoUserRow {
+  email:      string
+  status:     string  // FORCE_CHANGE_PASSWORD | CONFIRMED | ARCHIVED | ...
+  enabled:    boolean
+  createdAt:  string  // ISO
+}
+
+export async function listCognitoUsers(): Promise<CognitoUserRow[]> {
+  const out: CognitoUserRow[] = []
+  let paginationToken: string | undefined
+  do {
+    const res = await cognitoClient.send(new ListUsersCommand({
+      UserPoolId:      process.env.COGNITO_USER_POOL_ID!,
+      Limit:           60,
+      PaginationToken: paginationToken,
+    }))
+    for (const u of (res.Users ?? []) as UserType[]) {
+      const email = u.Attributes?.find(a => a.Name === 'email')?.Value
+                 ?? u.Username
+                 ?? ''
+      out.push({
+        email:     email.toLowerCase(),
+        status:    u.UserStatus ?? 'UNKNOWN',
+        enabled:   u.Enabled ?? true,
+        createdAt: u.UserCreateDate?.toISOString() ?? '',
+      })
+    }
+    paginationToken = res.PaginationToken
+  } while (paginationToken)
+  return out
 }
 
 export async function inviteUser(email: string): Promise<void> {
