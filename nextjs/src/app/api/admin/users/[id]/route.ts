@@ -31,16 +31,26 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     )
   }
 
-  // COALESCE leaves unchanged fields alone
-  const updated = await queryOne<{ id: string; is_admin: boolean; is_concierge: boolean }>(
-    `UPDATE profiles
-     SET is_admin     = COALESCE($2, is_admin),
-         is_concierge = COALESCE($3, is_concierge)
-     WHERE id = $1
-     RETURNING id, is_admin, is_concierge`,
-    [id, parsed.data.is_admin ?? null, parsed.data.is_concierge ?? null]
-  )
-
-  if (!updated) return NextResponse.json({ error: 'Not found' }, { status: 404 })
-  return NextResponse.json(updated)
+  try {
+    const updated = await queryOne<{ id: string; is_admin: boolean; is_concierge: boolean }>(
+      `UPDATE profiles
+       SET is_admin     = COALESCE($2, is_admin),
+           is_concierge = COALESCE($3, is_concierge)
+       WHERE id = $1
+       RETURNING id, is_admin, is_concierge`,
+      [id, parsed.data.is_admin ?? null, parsed.data.is_concierge ?? null]
+    )
+    if (!updated) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+    return NextResponse.json(updated)
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : ''
+    if (msg.includes('is_concierge')) {
+      return NextResponse.json(
+        { error: 'Initialize the concierge columns first — admin page → "Initialize concierge columns" button.' },
+        { status: 400 }
+      )
+    }
+    console.error('admin user PATCH failed:', err)
+    return NextResponse.json({ error: msg || 'Failed' }, { status: 500 })
+  }
 }
