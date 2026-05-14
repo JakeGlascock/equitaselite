@@ -176,8 +176,8 @@ export default function PricingPage() {
                 </div>
 
                 {/* CTA */}
-                <a
-                  href="mailto:access@equitaselite.com"
+                <Link
+                  href="/request-access"
                   className={`text-center py-2.5 rounded-lg text-sm font-semibold transition-all ${
                     plan.highlight
                       ? 'bg-ee-gold text-ee-bg hover:brightness-110'
@@ -185,7 +185,7 @@ export default function PricingPage() {
                   }`}
                 >
                   {plan.cta}
-                </a>
+                </Link>
 
                 {/* Feature list */}
                 <ul className="space-y-3">
