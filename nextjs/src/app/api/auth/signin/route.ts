@@ -34,10 +34,21 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: `Unexpected challenge: ${result.challengeName}` }, { status: 400 })
     }
 
-    // MFA-setup verification step: { step, session, code }
+    // MFA-setup verification step: { step, session, code, username }
+    // After the authenticator is paired (VerifySoftwareToken), Cognito still
+    // wants a SOFTWARE_TOKEN_MFA challenge response to finish the original
+    // sign-in. We chain that call here using the same TOTP code (still valid
+    // in its 30s window) so the user isn't prompted a second time. If the
+    // chain fails (clock skew, code at edge of window, etc.), fall back to
+    // the normal MFA prompt.
     if (body.step === 'mfa_setup_verify') {
-      const { session } = await verifyMfaSetup(body.session, body.code)
-      return NextResponse.json({ challenge: 'mfa', session })
+      const { session: nextSession } = await verifyMfaSetup(body.session, body.code)
+      try {
+        const tokens = await respondToMfaChallenge(body.username, body.code, nextSession)
+        return tokenResponse(tokens)
+      } catch {
+        return NextResponse.json({ challenge: 'mfa', session: nextSession })
+      }
     }
 
     // MFA step (backward compat): { email, code, session }

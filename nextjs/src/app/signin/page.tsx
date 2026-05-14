@@ -64,7 +64,7 @@ export default function LoginPage() {
 
   async function handleMfaSetup(e: React.FormEvent) {
     e.preventDefault(); setError(''); setLoading(true)
-    try { handleChallenge(await postSignin({ step: 'mfa_setup_verify', session, code: setupCode })) }
+    try { handleChallenge(await postSignin({ step: 'mfa_setup_verify', session, code: setupCode, username: email })) }
     catch (err: unknown) { setError(err instanceof Error ? err.message : 'Invalid code') }
     finally { setLoading(false) }
   }
