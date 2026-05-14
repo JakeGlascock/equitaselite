@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { QRCodeSVG } from 'qrcode.react'
 
 type Step = 'credentials' | 'new_password' | 'mfa_setup' | 'mfa'
 
@@ -176,16 +177,34 @@ export default function LoginPage() {
               </div>
 
               <div className="space-y-3">
-                <div className="bg-white/5 border border-ee-border rounded-lg p-4 space-y-2">
-                  <p className="text-xs text-ee-muted font-data uppercase tracking-wider">Secret key</p>
-                  <p className="font-data text-sm text-ee-gold break-all leading-relaxed">
-                    {formatSecret(secretCode)}
-                  </p>
-                </div>
+                {/* QR code — scan with phone authenticator */}
+                {otpauthUri && (
+                  <div className="flex justify-center bg-white p-4 rounded-lg">
+                    <QRCodeSVG
+                      value={otpauthUri}
+                      size={192}
+                      level="M"
+                      includeMargin={false}
+                    />
+                  </div>
+                )}
+
+                {/* Manual entry fallback */}
+                <details className="text-xs">
+                  <summary className="text-ee-muted cursor-pointer hover:text-ee-primary py-1 text-center">
+                    Can&apos;t scan? Enter the key manually
+                  </summary>
+                  <div className="mt-2 bg-white/5 border border-ee-border rounded-lg p-4 space-y-2">
+                    <p className="text-xs text-ee-muted font-data uppercase tracking-wider">Secret key</p>
+                    <p className="font-data text-sm text-ee-gold break-all leading-relaxed">
+                      {formatSecret(secretCode)}
+                    </p>
+                  </div>
+                </details>
 
                 <a
                   href={otpauthUri}
-                  className="block text-center text-xs text-ee-muted hover:text-ee-primary py-1"
+                  className="block text-center text-xs text-ee-muted hover:text-ee-primary py-1 md:hidden"
                 >
                   Open in authenticator (mobile)
                 </a>
