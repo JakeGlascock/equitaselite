@@ -33,6 +33,8 @@ export default defineConfig({
         'src/lib/reports.ts',
         // Portfolio-reports (bespoke briefings) — same pattern
         'src/lib/portfolio-reports.ts',
+        // Analytics — pure SQL aggregations over real prod data; integration only
+        'src/lib/analytics.ts',
         // Thin Cognito proxy routes — call signIn/signOut/refreshTokens from lib/auth
         'src/app/api/auth/signin/**',
         'src/app/api/auth/signout/**',

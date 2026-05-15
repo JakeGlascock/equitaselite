@@ -280,14 +280,26 @@ export default async function AdminPage() {
           </p>
         </div>
 
-        <div className="glass-panel p-5 flex items-center justify-between gap-4">
-          <div>
-            <h2 className="font-display text-base text-ee-primary mb-1">Access requests</h2>
-            <p className="text-xs text-ee-muted">
-              Submissions from <code className="font-data">/request-access</code> on the landing page.
-            </p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="glass-panel p-5 flex items-center justify-between gap-4">
+            <div>
+              <h2 className="font-display text-base text-ee-primary mb-1">Access requests</h2>
+              <p className="text-xs text-ee-muted">
+                Submissions from <code className="font-data">/request-access</code> on the landing page.
+              </p>
+            </div>
+            <a href="/admin/access-requests" className="btn-ghost whitespace-nowrap">View →</a>
           </div>
-          <a href="/admin/access-requests" className="btn-ghost whitespace-nowrap">View →</a>
+
+          <div className="glass-panel p-5 flex items-center justify-between gap-4 border-ee-gold/30">
+            <div>
+              <h2 className="font-display text-base text-ee-primary mb-1">Mandate analytics</h2>
+              <p className="text-xs text-ee-muted">
+                Members by tier, intro funnel, sector breakdown, and mandate-density heatmap.
+              </p>
+            </div>
+            <a href="/admin/analytics" className="btn-ghost whitespace-nowrap">Open →</a>
+          </div>
         </div>
 
         <InviteForm />

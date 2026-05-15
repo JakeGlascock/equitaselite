@@ -35,6 +35,7 @@ const CHECKS = [
   { name: 'gate-dashboard',    path: '/dashboard',          status: [302, 307, 308], redirectContains: '/signin', followRedirect: false },
   { name: 'gate-admin',        path: '/admin',              status: [302, 307, 308], redirectContains: '/signin', followRedirect: false },
   { name: 'gate-admin-access', path: '/admin/access-requests', status: [302, 307, 308], redirectContains: '/signin', followRedirect: false },
+  { name: 'gate-admin-analytics', path: '/admin/analytics',    status: [302, 307, 308], redirectContains: '/signin', followRedirect: false },
   { name: 'gate-match',        path: '/match/anything',     status: [302, 307, 308], redirectContains: '/signin', followRedirect: false },
   { name: 'gate-profile',      path: '/profile',            status: [302, 307, 308], redirectContains: '/signin', followRedirect: false },
   { name: 'gate-onboarding',   path: '/onboarding',         status: [302, 307, 308], redirectContains: '/signin', followRedirect: false },
