@@ -8,6 +8,7 @@ import WalkthroughDriver from './WalkthroughDriver'
 import WalkthroughMobile from './WalkthroughMobile'
 import PreviewBanner from './PreviewBanner'
 import PreviewWalkthroughDriver from './PreviewWalkthroughDriver'
+import PreviewWalkthroughMobile from './PreviewWalkthroughMobile'
 
 type Tier = 'access' | 'select' | 'sovereign'
 
@@ -321,7 +322,10 @@ export default function AppShell({
       </main>
 
       {previewMode ? (
-        <PreviewWalkthroughDriver />
+        <>
+          <PreviewWalkthroughDriver />
+          <PreviewWalkthroughMobile />
+        </>
       ) : (
         <>
           <WalkthroughDriver
