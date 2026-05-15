@@ -8,6 +8,7 @@ import SeedDemoButton from './SeedDemoButton'
 import ManagedAccountAssignment from './ManagedAccountAssignment'
 import MembersTable, { type MemberRow } from './MembersTable'
 import CreateEventForm from './CreateEventForm'
+import PreviewTokensPanel from './PreviewTokensPanel'
 
 interface ProfileRow {
   id: string
@@ -148,6 +149,36 @@ export default async function AdminPage() {
     date: ev.date instanceof Date ? ev.date.toISOString() : ev.date,
   }))
 
+  // Demo profiles populate the "View as" dropdown in PreviewTokensPanel.
+  // Falls back to empty if seed-demo-data hasn't run yet — the panel
+  // handles the empty case gracefully.
+  interface DemoProfile {
+    id: string
+    full_name: string
+    firm_name: string
+    role: 'angel' | 'family_office'
+    membership: 'access' | 'select' | 'sovereign' | null
+  }
+  let demoProfiles: DemoProfile[] = []
+  try {
+    demoProfiles = await query<DemoProfile>(
+      `SELECT id, full_name, firm_name, role, membership
+         FROM profiles
+        WHERE id LIKE 'demo\\_%' ESCAPE '\\'
+          AND onboarding_completed = TRUE
+        ORDER BY role, full_name`,
+    )
+  } catch { /* membership column may be missing on older envs */
+    demoProfiles = await query<Omit<DemoProfile,'membership'>>(
+      `SELECT id, full_name, firm_name, role
+         FROM profiles
+        WHERE id LIKE 'demo\\_%' ESCAPE '\\'
+          AND onboarding_completed = TRUE
+        ORDER BY role, full_name`,
+    ).then(rows => rows.map(r => ({ ...r, membership: null })))
+     .catch(() => [])
+  }
+
   const cognitoUsers = await listCognitoUsers().catch(err => {
     console.error('listCognitoUsers failed:', err)
     return [] as Awaited<ReturnType<typeof listCognitoUsers>>
@@ -272,6 +303,29 @@ export default async function AdminPage() {
           </summary>
           <div className="px-6 pb-6 pt-2 border-t border-ee-border">
             <CreateEventForm existing={existingEventsForClient} />
+          </div>
+        </details>
+
+        <details className="glass-panel group">
+          <summary className="px-6 py-4 cursor-pointer list-none flex items-center justify-between gap-4 select-none">
+            <div>
+              <h2 className="font-display text-base text-ee-primary">Investor preview links</h2>
+              <p className="text-xs text-ee-muted mt-0.5">
+                Mint a one-time link that lets a fundraising investor browse the platform as a demo profile. Read-only — all mutations are blocked.
+              </p>
+            </div>
+            <span className="material-symbols-outlined text-ee-muted transition-transform group-open:rotate-180">
+              expand_more
+            </span>
+          </summary>
+          <div className="px-6 pb-6 pt-2 border-t border-ee-border">
+            {demoProfiles.length === 0 ? (
+              <p className="text-xs text-ee-muted">
+                No demo profiles yet — run <strong>Seed demo data</strong> above first.
+              </p>
+            ) : (
+              <PreviewTokensPanel demoProfiles={demoProfiles} />
+            )}
           </div>
         </details>
 

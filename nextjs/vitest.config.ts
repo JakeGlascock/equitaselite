@@ -48,6 +48,8 @@ export default defineConfig({
         // DB-backed event RSVP + unsubscribe routes; tested via integration tests
         'src/app/api/events/**',
         'src/app/api/unsubscribe/**',
+        // Investor-preview cookie clear; trivial DB-less wrapper
+        'src/app/api/preview/**',
       ],
       // Ratcheted up from 80/75 — current measured coverage on the included
       // scope (src/lib/** + src/app/api/**, minus the AWS/DB-backed excludes)

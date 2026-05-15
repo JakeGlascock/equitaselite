@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { buildTour, buildMobileTour } from '@/lib/walkthrough'
+import { buildTour, buildMobileTour, buildPreviewTour } from '@/lib/walkthrough'
 
 const BASE = {
   role:        'angel' as const,
@@ -143,5 +143,40 @@ describe('buildMobileTour', () => {
         expect(step.body.length).toBeGreaterThan(0)
       }
     }
+  })
+})
+
+describe('buildPreviewTour', () => {
+  it('returns a fixed 5-step tour', () => {
+    expect(buildPreviewTour()).toHaveLength(5)
+  })
+
+  it('opens and closes with centered no-anchor steps', () => {
+    const steps = buildPreviewTour()
+    expect(steps[0].element).toBeUndefined()
+    expect(steps[steps.length - 1].element).toBeUndefined()
+  })
+
+  it('anchors the middle steps to the same selectors as the user tour', () => {
+    const steps = buildPreviewTour()
+    expect(steps.map(s => s.element)).toEqual([
+      undefined,
+      '[data-tour="match-list"]',
+      '[data-tour="tier-badge"]',
+      '[data-tour="top-nav"]',
+      undefined,
+    ])
+  })
+
+  it('every step has non-empty title and body', () => {
+    for (const step of buildPreviewTour()) {
+      expect(step.title.length).toBeGreaterThan(0)
+      expect(step.body.length).toBeGreaterThan(0)
+    }
+  })
+
+  it('uses fundraising-investor framing, not user framing', () => {
+    const all = buildPreviewTour().map(s => s.body).join(' ')
+    expect(all).toMatch(/preview|demo profile|pricing wedge|reply to the email/i)
   })
 })

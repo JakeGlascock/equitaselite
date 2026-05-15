@@ -66,11 +66,19 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   // flow (see scripts that mint managed_* ids in /api/concierge/**).
   const isManaged = userId.startsWith('managed_')
 
+  // Investor-preview mode — middleware sets this header after threading
+  // through the ee_preview cookie. In this branch the user is browsing
+  // as a demo profile; we suppress the regular walkthrough (their seen-at
+  // would be stamped from the seed anyway) and the AppShell mounts a
+  // preview-specific banner + tour instead.
+  const previewMode = h.get('x-preview-mode') === '1'
+
   return (
     <AppShell
       user={{ fullName: profile.full_name, role: profile.role, isAdmin, isConcierge, isManaged, tier }}
       actingAs={managedAs}
-      walkthroughPending={walkthroughPending}
+      walkthroughPending={walkthroughPending && !previewMode}
+      previewMode={previewMode}
     >
       {children}
     </AppShell>

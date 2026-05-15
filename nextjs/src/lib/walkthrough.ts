@@ -29,6 +29,40 @@ const TIER_COPY: Record<Tier, string> = {
   sovereign: 'You\'re on Sovereign — unlimited matches, unlimited intros, and a dedicated relationship manager.',
 }
 
+// Investor-preview tour — used in fundraising demos where the visitor
+// is browsing as a demo profile (not a real user). Copy frames the
+// product from a *prospective investor in EE the company* perspective,
+// not a user-of-the-platform perspective. Five steps, no staff
+// appendices, no role/tier conditionals (the demo profile is already
+// fixed at token-mint time).
+export function buildPreviewTour(): TourStep[] {
+  return [
+    {
+      title: 'You\'re previewing Equitas Elite',
+      body:  'A read-only walkthrough using a real demo profile, so you see exactly what an investor on the platform sees. Click around freely — nothing here will send.',
+    },
+    {
+      element: '[data-tour="match-list"]',
+      title:   'The core unit of value',
+      body:    'Mandate-matched introductions. Every match is scored against the user\'s declared mandate — sector, stage, geography, check size, risk tolerance. Higher score = tighter alignment.',
+    },
+    {
+      element: '[data-tour="tier-badge"]',
+      title:   'The pricing wedge',
+      body:    'Three tiers — Access, Select, Sovereign — gate match volume, intro caps per month, and concierge support. Self-serve on Access; concierge-managed on Sovereign.',
+    },
+    {
+      element: '[data-tour="top-nav"]',
+      title:   'The platform around the engine',
+      body:    'Insights aggregates publications that move institutional capital. Events are invitation-only summits and roundtables. Concierge is the white-glove layer for Select+ members.',
+    },
+    {
+      title: 'That\'s the tour',
+      body:  'Browse anything you like — the rest of the product responds to the demo profile you\'re viewing as. To talk through the business, reply to the email that sent you here.',
+    },
+  ]
+}
+
 // Mobile-specific copy — same concepts as buildTour() but no element
 // anchors (mobile uses a bottom-sheet carousel, not a spotlight overlay)
 // and tighter wording for small screens. Staff-only steps are omitted on

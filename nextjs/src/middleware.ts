@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { jwtVerify, createRemoteJWKSet } from 'jose'
+import { PREVIEW_COOKIE_NAME, isDemoProfileId } from '@/lib/preview'
 
 const POOL_ID = process.env.COGNITO_USER_POOL_ID
 const REGION  = process.env.AWS_REGION ?? 'us-east-1'
@@ -12,9 +13,9 @@ const JWKS = ISSUER
   ? createRemoteJWKSet(new URL(`${ISSUER}/.well-known/jwks.json`))
   : null
 
-const PUBLIC_PREFIXES = ['/_next/', '/favicon.ico', '/logo.png']
+const PUBLIC_PREFIXES = ['/_next/', '/favicon.ico', '/logo.png', '/preview/']
 const PUBLIC_EXACT    = ['/', '/signin', '/pricing', '/request-access', '/unsubscribe', '/privacy']
-const PUBLIC_API      = ['/api/auth/', '/api/health', '/api/request-access', '/api/unsubscribe']
+const PUBLIC_API      = ['/api/auth/', '/api/health', '/api/request-access', '/api/unsubscribe', '/api/preview/']
 
 // Exported so the auth-gate test suite can assert which paths are reachable
 // without a Cognito session. If you add a new public route, add it to the
@@ -35,7 +36,28 @@ export async function middleware(req: NextRequest) {
   if (!JWKS || !ISSUER) return NextResponse.next()
 
   const idToken = req.cookies.get('ee_id')?.value
-  if (!idToken) return redirectToLogin(req)
+
+  // No Cognito session — try the investor-preview cookie before redirecting.
+  // The cookie value is the demo profile id (validated start-with prefix +
+  // length cap). If present, thread it through as x-user-id but block any
+  // mutating API call so previewers can browse but not edit shared state.
+  if (!idToken) {
+    const previewId = req.cookies.get(PREVIEW_COOKIE_NAME)?.value
+    if (isDemoProfileId(previewId)) {
+      // Mutation gate. Preview visitors are explicitly read-only.
+      if (req.method !== 'GET' && req.method !== 'HEAD' && pathname.startsWith('/api/')) {
+        return NextResponse.json(
+          { error: 'Preview mode — sign up for an account to send.' },
+          { status: 403 },
+        )
+      }
+      const headers = new Headers(req.headers)
+      headers.set('x-user-id', previewId)
+      headers.set('x-preview-mode', '1')
+      return NextResponse.next({ request: { headers } })
+    }
+    return redirectToLogin(req)
+  }
 
   try {
     const { payload } = await jwtVerify(idToken, JWKS, { issuer: ISSUER })

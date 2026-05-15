@@ -39,7 +39,17 @@ describe('middleware: isPublic', () => {
       '/api/health',
       '/api/request-access',
       '/api/unsubscribe',
+      '/api/preview/clear',
     ])('treats %s as public', (path) => {
+      expect(isPublic(path)).toBe(true)
+    })
+  })
+
+  describe('preview-token entry paths', () => {
+    it.each([
+      '/preview/abc123',
+      '/preview/0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
+    ])('treats %s as public (token gate runs in the page itself)', (path) => {
       expect(isPublic(path)).toBe(true)
     })
   })

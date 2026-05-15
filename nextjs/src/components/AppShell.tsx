@@ -6,6 +6,8 @@ import { useState } from 'react'
 import NotificationsBell from './NotificationsBell'
 import WalkthroughDriver from './WalkthroughDriver'
 import WalkthroughMobile from './WalkthroughMobile'
+import PreviewBanner from './PreviewBanner'
+import PreviewWalkthroughDriver from './PreviewWalkthroughDriver'
 
 type Tier = 'access' | 'select' | 'sovereign'
 
@@ -84,7 +86,7 @@ async function exitActingAs() {
 }
 
 export default function AppShell({
-  user, actingAs, walkthroughPending, children,
+  user, actingAs, walkthroughPending, previewMode, children,
 }: {
   user: ShellUser
   actingAs?: ActingAsLite | null
@@ -92,6 +94,11 @@ export default function AppShell({
   // is a no-op unless this is true AND the user is on /dashboard AND on
   // a desktop-width viewport. See WalkthroughDriver.tsx for the full gate.
   walkthroughPending?: boolean
+  // True when the visitor is browsing the platform via an investor-preview
+  // token (middleware sets x-preview-mode after threading ee_preview).
+  // Swaps the regular walkthrough for the preview-specific one and renders
+  // a persistent banner at the top.
+  previewMode?: boolean
   children: React.ReactNode
 }) {
   const pathname = usePathname()
@@ -110,10 +117,20 @@ export default function AppShell({
   const displayName = actingAs?.full_name ?? user.fullName
   const initial     = (displayName || '?')[0].toUpperCase()
 
+  // Both the acting-as banner and the investor-preview banner are 36px tall
+  // and mutually exclusive (a concierge wouldn't be in preview mode and
+  // vice versa). The offsets below collapse cleanly under a single flag.
+  const topBanner = !!actingAs || !!previewMode
+
   return (
     <div className="min-h-screen">
+      {/* Investor-preview banner — takes precedence in the unlikely case both flags are set */}
+      {previewMode && (
+        <PreviewBanner viewingAsName={user.fullName} viewingAsRole={user.role} />
+      )}
+
       {/* Acting-as banner */}
-      {actingAs && (
+      {actingAs && !previewMode && (
         <div className="fixed top-0 left-0 right-0 h-9 bg-ee-emerald/15 border-b border-ee-emerald/40 z-[60] flex items-center justify-between px-4 md:px-6 text-xs">
           <span className="text-ee-emerald flex items-center gap-2 min-w-0">
             <span
@@ -139,7 +156,7 @@ export default function AppShell({
       {/* Top bar — shifted down when the acting-as banner is visible */}
       <header
         className="fixed left-0 right-0 h-14 bg-ee-surface-low/90 backdrop-blur-md border-b border-ee-outline/40 z-50 flex items-center justify-between px-4 md:px-6"
-        style={{ top: actingAs ? 36 : 0 }}
+        style={{ top: topBanner ? 36 : 0 }}
       >
         <div className="flex items-center gap-5 min-w-0">
           <button
@@ -210,7 +227,7 @@ export default function AppShell({
       {/* Left sidebar (desktop) */}
       <aside
         className="fixed left-0 bottom-0 w-60 bg-ee-surface-low border-r border-ee-outline/40 hidden lg:flex flex-col z-40"
-        style={{ top: actingAs ? 36 + 56 : 56 }}
+        style={{ top: topBanner ? 36 + 56 : 56 }}
       >
         <div className="p-4 border-b border-ee-outline/30">
           <div className="flex items-center gap-3">
@@ -255,7 +272,7 @@ export default function AppShell({
           <div className="lg:hidden fixed inset-0 bg-black/60 z-40" onClick={() => setMobileOpen(false)} />
           <aside
             className="lg:hidden fixed left-0 bottom-0 w-72 bg-ee-surface-low border-r border-ee-outline/40 z-50 flex flex-col"
-            style={{ top: actingAs ? 36 + 56 : 56 }}
+            style={{ top: topBanner ? 36 + 56 : 56 }}
           >
             <div className="p-4 border-b border-ee-outline/30">
               <p className="text-[13px] font-semibold text-ee-primary truncate">{user.fullName}</p>
@@ -298,27 +315,33 @@ export default function AppShell({
       {/* Main content */}
       <main
         className="lg:pl-60 min-h-screen"
-        style={{ paddingTop: actingAs ? 36 + 56 : 56 }}
+        style={{ paddingTop: topBanner ? 36 + 56 : 56 }}
       >
         {children}
       </main>
 
-      <WalkthroughDriver
-        pending={walkthroughPending ?? false}
-        role={user.role}
-        tier={user.tier}
-        isAdmin={user.isAdmin}
-        isConcierge={user.isConcierge}
-        isManaged={user.isManaged}
-      />
-      <WalkthroughMobile
-        pending={walkthroughPending ?? false}
-        role={user.role}
-        tier={user.tier}
-        isAdmin={user.isAdmin}
-        isConcierge={user.isConcierge}
-        isManaged={user.isManaged}
-      />
+      {previewMode ? (
+        <PreviewWalkthroughDriver />
+      ) : (
+        <>
+          <WalkthroughDriver
+            pending={walkthroughPending ?? false}
+            role={user.role}
+            tier={user.tier}
+            isAdmin={user.isAdmin}
+            isConcierge={user.isConcierge}
+            isManaged={user.isManaged}
+          />
+          <WalkthroughMobile
+            pending={walkthroughPending ?? false}
+            role={user.role}
+            tier={user.tier}
+            isAdmin={user.isAdmin}
+            isConcierge={user.isConcierge}
+            isManaged={user.isManaged}
+          />
+        </>
+      )}
     </div>
   )
 }
