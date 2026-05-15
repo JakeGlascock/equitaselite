@@ -4,6 +4,7 @@ import { usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { useState } from 'react'
 import NotificationsBell from './NotificationsBell'
+import FeedbackWidget from './FeedbackWidget'
 import WalkthroughDriver from './WalkthroughDriver'
 import WalkthroughMobile from './WalkthroughMobile'
 import PreviewBanner from './PreviewBanner'
@@ -207,6 +208,16 @@ export default function AppShell({
           >
             {TIER_LABEL[user.tier]}
           </Link>
+          {!previewMode && (
+            <FeedbackWidget
+              contextTags={{
+                tier: user.tier,
+                role: user.role,
+                isAdmin:     user.isAdmin     ? 'true' : undefined,
+                isConcierge: user.isConcierge ? 'true' : undefined,
+              }}
+            />
+          )}
           <NotificationsBell />
           <Link
             href="/profile"
