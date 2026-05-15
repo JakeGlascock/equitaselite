@@ -26,8 +26,6 @@ export default defineConfig({
         'src/lib/email.ts',
         // Admin check helper — requires live DB
         'src/lib/admin.ts',
-        // RSS surface loader — thin pg query wrapper; tested via integration
-        'src/lib/rss-surface.ts',
         // Thin Cognito proxy routes — call signIn/signOut/refreshTokens from lib/auth
         'src/app/api/auth/signin/**',
         'src/app/api/auth/signout/**',
@@ -45,9 +43,6 @@ export default defineConfig({
         'src/app/api/walkthrough/**',
         // Admin route calls Cognito Admin API; tested via integration tests
         'src/app/api/admin/**',
-        // DB-backed event RSVP + unsubscribe routes; tested via integration tests
-        'src/app/api/events/**',
-        'src/app/api/unsubscribe/**',
         // Investor-preview cookie clear; trivial DB-less wrapper
         'src/app/api/preview/**',
       ],
