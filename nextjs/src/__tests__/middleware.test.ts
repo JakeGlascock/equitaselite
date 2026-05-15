@@ -14,6 +14,7 @@ describe('middleware: isPublic', () => {
       '/request-access',
       '/unsubscribe',
       '/privacy',
+      '/preview-denied',
     ])('treats %s as public', (path) => {
       expect(isPublic(path)).toBe(true)
     })
