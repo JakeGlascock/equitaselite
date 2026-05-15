@@ -38,6 +38,9 @@ runbook.
 | Admin (`/admin`: invite, members table, tier dropdown, access requests) | ✅ Live |
 | Access requests (public `/request-access` → `access_requests` table + SES) | ✅ Live |
 | Automated DB migration runner (ECS one-off task per deploy) | ✅ Live |
+| Weekly match digest (`scripts/digest.mjs` via EventBridge → ECS run-task → SES) | ✅ Live |
+| Events + RSVPs (`/events`, `/admin/events` create/list/delete) | ✅ Live |
+| Relationship-manager assignment (`relationship_manager_id` per profile, admin assigns) | ✅ Live |
 | Smoke tests + email alerts to `alert@equitaselite.com` (deploy + hourly) | ✅ Live |
 | GitHub OIDC + scoped deploy role (no long-lived AWS keys) | ✅ Live |
 | Brand-aligned SES sender (DKIM + SPF + DMARC `p=quarantine; pct=25`) | ✅ Live |
@@ -54,13 +57,13 @@ exist mostly to tease the value of higher tiers:
 | Surface | Status | Notes |
 |---|---|---|
 | `/insights` reports | ⚠️ Static | Hardcoded `REPORTS` array; tier-gated UI is real |
-| `/events` listings | ⚠️ Static | Hardcoded `UPCOMING` + `PAST`; tier-gated UI is real |
+| `/events` listings | ✅ DB-backed | `events` + `event_rsvps` tables; admin creates from `/admin` |
 | `/portfolio` view | ✅ DB-backed | Shows intro history as the proxy "deal pipeline" |
 | `/connections` | ✅ DB-backed | Real intro state |
 | `/network` | ⚠️ Static | Stub page |
 | `/reports` | ⚠️ Static | Stub page |
 | `/discovery` | ⚠️ Static | Stub page |
-| Relationship-manager assignment | ⚠️ Hardcoded | Single "Olivia Marchetti" shown to all non-concierges |
+| Relationship-manager assignment | ✅ DB-backed | Per-user `relationship_manager_id`; falls back to "Olivia" if unassigned |
 
 ---
 
@@ -89,13 +92,20 @@ done.
 - [x] Lock-icon overlays on `/insights` and `/events` for items above tier
 - [x] Contextual CTA — Upgrade / Contact us / Current plan
 
-### Phase 3 — Email deal alerts
-Last gap on the Access tier feature list.
-- [ ] `match_digest_state` table (`user_id`, `last_sent_at`)
-- [ ] Weekly EventBridge → Lambda → `/api/cron/match-digest` (shared-secret)
-- [ ] Find new matches since `last_sent_at`, email via SES
-- [ ] Respect existing `email_notifications_enabled`
-- [ ] Optional cadence per tier (weekly Access, daily Sovereign)
+### Phase 3 — Email deal alerts ✅
+Last gap on the Access tier feature list, now closed.
+- [x] `match_digest_state(user_id, last_sent_at)` migration 011
+- [x] `nextjs/scripts/digest.mjs` runner — finds opposite-role profiles
+  that completed onboarding since the user's `last_sent_at`, emails a
+  one-line digest via SES (`noreply@equitaselite.com`), stamps
+  `last_sent_at`. `DIGEST_DRY_RUN=1` for ad-hoc testing.
+- [x] Weekly EventBridge schedule (`cron(0 14 ? * MON *)`) →
+  `ecs:RunTask` with `node scripts/digest.mjs` command override against
+  the latest task definition (auto-resolves family ARN).
+- [x] Respects existing `email_notifications_enabled` column; excludes
+  concierges (they're staff, not investors).
+- [ ] **Future**: cadence per tier (weekly Access, daily Sovereign);
+  in-email match cards with score; HTML alongside text body.
 
 ### Phase 4 — Human-touch features made real
 Currently hardcoded mocks; need real DB-backed flows.

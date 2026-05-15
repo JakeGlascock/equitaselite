@@ -8,11 +8,12 @@ resource "aws_db_parameter_group" "postgres" {
   name   = "${var.app_name}-${var.environment}-pg17"
   family = "postgres17"
 
-  # rds.force_ssl is a static parameter — AWS only applies it on reboot. We
-  # set apply_method explicitly so `terraform plan` doesn't drift forever
-  # between Terraform's default ("immediate") and AWS's enforced value
-  # ("pending-reboot"). All four static log_* + pgaudit params get the
-  # same treatment to keep the parameter group's plan clean.
+  # rds.force_ssl is the only STATIC parameter here — AWS only applies it
+  # on reboot, so we pin apply_method to match what AWS actually reports
+  # back. The other four are DYNAMIC; AWS applies them immediately and
+  # ignores any apply_method we set, so leaving apply_method unset
+  # (Terraform default = "immediate") matches the live state and keeps
+  # `terraform plan` clean.
   parameter {
     name         = "rds.force_ssl"
     value        = "1"
@@ -20,27 +21,23 @@ resource "aws_db_parameter_group" "postgres" {
   }
 
   parameter {
-    name         = "log_connections"
-    value        = "1"
-    apply_method = "pending-reboot"
+    name  = "log_connections"
+    value = "1"
   }
 
   parameter {
-    name         = "log_disconnections"
-    value        = "1"
-    apply_method = "pending-reboot"
+    name  = "log_disconnections"
+    value = "1"
   }
 
   parameter {
-    name         = "log_statement"
-    value        = "ddl"
-    apply_method = "pending-reboot"
+    name  = "log_statement"
+    value = "ddl"
   }
 
   parameter {
-    name         = "pgaudit.log"
-    value        = "write,ddl"
-    apply_method = "pending-reboot"
+    name  = "pgaudit.log"
+    value = "write,ddl"
   }
 }
 
