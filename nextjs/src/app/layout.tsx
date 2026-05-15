@@ -49,13 +49,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           Glyphs currently bundled (regenerate the subset when this list
           changes — see globals.css comment for the workflow):
             account_balance, account_balance_wallet, arrow_back,
-            arrow_forward, bar_chart, check, close, dashboard, event,
-            expand_more, explore, fact_check, feedback, group, handshake,
-            help, hourglass_empty, insights, lock, logout, mail, menu,
-            more_horiz, notifications, notifications_off, person_raised_hand,
-            place, query_stats, reply, schedule, search, settings,
-            shield_person, support_agent, tune, verified, verified_user,
-            visibility
+            arrow_forward, bar_chart, chat_bubble_outline, check, close,
+            dashboard, event, expand_more, explore, fact_check, group,
+            handshake, help, hourglass_empty, insights, lock, logout,
+            mail, menu, more_horiz, notifications, notifications_off,
+            person_raised_hand, place, query_stats, reply, schedule,
+            search, settings, shield_person, support_agent, tune,
+            verified, verified_user, visibility
         */}
         <link
           rel="preload"

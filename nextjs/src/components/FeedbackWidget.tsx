@@ -111,7 +111,7 @@ export default function FeedbackWidget({ contextTags }: Props) {
         aria-label="Send feedback"
         className="p-2 hover:bg-ee-surface-mid rounded-lg transition-colors hidden sm:block"
       >
-        <span className="material-symbols-outlined text-ee-muted text-xl">feedback</span>
+        <span className="material-symbols-outlined text-ee-muted text-xl">chat_bubble_outline</span>
       </button>
 
       {mounted && open && createPortal(
