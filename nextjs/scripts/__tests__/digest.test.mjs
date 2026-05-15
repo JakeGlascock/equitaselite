@@ -5,10 +5,11 @@ const TOKEN = '11111111-2222-3333-4444-555555555555'
 
 function compose(over = {}) {
   return composeDigest({
-    firstName: 'Alex',
-    role: 'angel',
-    newCount: 2,
-    sampleNames: [],
+    firstName:        'Alex',
+    email:            'alex@example.com',
+    role:             'angel',
+    newCount:         2,
+    sampleNames:      [],
     unsubscribeToken: TOKEN,
     ...over,
   })
@@ -69,11 +70,64 @@ describe('composeDigest', () => {
     process.env.SITE_URL = 'https://staging.example.com'
     const fresh = await import('../digest.mjs?fresh=' + Date.now())
     const { text, unsubscribeUrl } = fresh.composeDigest({
-      firstName: 'Alex', role: 'angel', newCount: 1,
+      firstName: 'Alex', email: 'alex@example.com',
+      role: 'angel', newCount: 1,
       sampleNames: [], unsubscribeToken: TOKEN,
     })
     expect(text).toContain('https://staging.example.com/dashboard')
     expect(unsubscribeUrl.startsWith('https://staging.example.com/unsubscribe?t=')).toBe(true)
     delete process.env.SITE_URL
+  })
+
+  describe('compliance footer', () => {
+    it('includes the recipient email in both bodies (CAN-SPAM "you got this because")', () => {
+      const { text, html } = compose({ email: 'specific@example.com' })
+      expect(text).toContain('specific@example.com')
+      expect(html).toContain('specific@example.com')
+    })
+
+    it('includes the privacy + preferences + unsubscribe links in HTML', () => {
+      const { html } = compose()
+      expect(html).toContain('/unsubscribe?t=')
+      expect(html).toContain('/profile')
+      expect(html).toContain('/privacy')
+    })
+
+    it('renders the configured postal address', async () => {
+      process.env.SES_FOOTER_ADDRESS = 'Acme Corp · 123 Test St'
+      const fresh = await import('../digest.mjs?fresh=' + Date.now())
+      const { text, html } = fresh.composeDigest({
+        firstName: 'Alex', email: 'alex@example.com',
+        role: 'angel', newCount: 1,
+        sampleNames: [], unsubscribeToken: TOKEN,
+      })
+      expect(text).toContain('Acme Corp · 123 Test St')
+      expect(html).toContain('Acme Corp · 123 Test St')
+      delete process.env.SES_FOOTER_ADDRESS
+    })
+
+    it('includes the current year in the copyright', () => {
+      const year = new Date().getFullYear()
+      const { text, html } = compose()
+      expect(text).toContain(`© ${year}`)
+      expect(html).toContain(`© ${year}`)
+    })
+
+    it('escapes HTML in the recipient email + sample names', () => {
+      const { html } = compose({
+        email: 'foo<bar>@example.com',
+        sampleNames: ['Aria & Friends · <script>'],
+      })
+      expect(html).toContain('foo&lt;bar&gt;')
+      expect(html).toContain('Aria &amp; Friends')
+      expect(html).toContain('&lt;script&gt;')
+      expect(html).not.toContain('<script>')
+    })
+
+    it('returns an HTML body alongside text', () => {
+      const { html } = compose()
+      expect(html).toMatch(/<!DOCTYPE html>/i)
+      expect(html).toContain('Equitas Elite')
+    })
   })
 })

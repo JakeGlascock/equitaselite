@@ -13,7 +13,7 @@ const JWKS = ISSUER
   : null
 
 const PUBLIC_PREFIXES = ['/_next/', '/favicon.ico', '/logo.png']
-const PUBLIC_EXACT    = ['/', '/signin', '/pricing', '/request-access', '/unsubscribe']
+const PUBLIC_EXACT    = ['/', '/signin', '/pricing', '/request-access', '/unsubscribe', '/privacy']
 const PUBLIC_API      = ['/api/auth/', '/api/health', '/api/request-access', '/api/unsubscribe']
 
 // Exported so the auth-gate test suite can assert which paths are reachable

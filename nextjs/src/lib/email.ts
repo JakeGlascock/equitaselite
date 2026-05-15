@@ -2,8 +2,12 @@ import { SESv2Client, SendEmailCommand } from '@aws-sdk/client-sesv2'
 import { queryOne } from './db'
 
 const sesClient = new SESv2Client({ region: process.env.AWS_REGION ?? 'us-east-1' })
-const FROM_EMAIL   = process.env.SES_FROM_EMAIL   ?? 'Equitas Elite <noreply@equitaselite.com>'
-const APP_BASE_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://equitaselite.com'
+const FROM_EMAIL    = process.env.SES_FROM_EMAIL       ?? 'Equitas Elite <noreply@equitaselite.com>'
+const APP_BASE_URL  = process.env.NEXT_PUBLIC_APP_URL  ?? 'https://equitaselite.com'
+// CAN-SPAM: the sender's physical postal address must appear in every
+// commercial email. Override via env if/when EE incorporates somewhere
+// other than the default placeholder.
+const POSTAL_ADDR   = process.env.SES_FOOTER_ADDRESS   ?? 'Equitas Elite · 1209 N Orange St, Wilmington, DE 19801, USA'
 
 interface RecipientPref {
   email: string
@@ -42,12 +46,16 @@ interface BodyParts {
   ctaPath:  string
 }
 
-function renderHtml(parts: BodyParts, recipientName: string): string {
-  const firstName = recipientName.split(' ')[0]
+function renderHtml(parts: BodyParts, recipient: RecipientPref): string {
+  const firstName    = recipient.full_name.split(' ')[0]
+  const year         = new Date().getFullYear()
+  const unsubHref    = recipient.unsubscribe_token
+    ? `${APP_BASE_URL}/unsubscribe?t=${recipient.unsubscribe_token}`
+    : `${APP_BASE_URL}/profile`
   return `<!DOCTYPE html>
-<html><head><meta charset="utf-8"><title>${parts.subject}</title></head>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${escapeHtml(parts.subject)}</title></head>
 <body style="margin:0;padding:0;background:#031427;font-family:Inter,-apple-system,Segoe UI,Helvetica,Arial,sans-serif;color:#bec6e0;">
-  <div style="display:none;max-height:0;overflow:hidden;color:#031427;">${parts.preview}</div>
+  <div style="display:none;max-height:0;overflow:hidden;color:#031427;">${escapeHtml(parts.preview)}</div>
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#031427;padding:32px 16px;">
     <tr><td align="center">
       <table role="presentation" width="100%" style="max-width:540px;background:rgba(16,32,52,0.8);border:1px solid rgba(69,70,77,0.5);border-radius:12px;">
@@ -56,19 +64,28 @@ function renderHtml(parts: BodyParts, recipientName: string): string {
         </td></tr>
         <tr><td style="padding:8px 32px 0 32px;">
           <h1 style="margin:0 0 16px 0;font-family:'Playfair Display',Georgia,serif;font-size:24px;font-weight:600;color:#e9c176;">${parts.heading}</h1>
-          <p style="margin:0 0 8px 0;color:#bec6e0;font-size:15px;">Hi ${firstName},</p>
+          <p style="margin:0 0 8px 0;color:#bec6e0;font-size:15px;">Hi ${escapeHtml(firstName)},</p>
           <div style="color:#bec6e0;font-size:15px;line-height:1.5;">${parts.bodyHtml}</div>
         </td></tr>
         <tr><td align="center" style="padding:24px 32px 32px 32px;">
           <a href="${APP_BASE_URL}${parts.ctaPath}"
              style="display:inline-block;background:#e9c176;color:#031427;text-decoration:none;font-weight:600;font-size:14px;padding:12px 24px;border-radius:8px;">
-            ${parts.ctaLabel}
+            ${escapeHtml(parts.ctaLabel)}
           </a>
         </td></tr>
         <tr><td style="padding:0 32px 24px 32px;border-top:1px solid rgba(69,70,77,0.4);">
-          <p style="margin:16px 0 0 0;font-size:11px;color:#8892a4;line-height:1.6;">
-            You can turn off these emails from <a style="color:#8892a4;" href="${APP_BASE_URL}/profile">your profile settings</a>.
-            Equitas Elite, transactional notice.
+          <p style="margin:16px 0 6px 0;font-size:11px;color:#8892a4;line-height:1.6;">
+            You received this transactional notice because you have an Equitas Elite account at <strong style="color:#bec6e0;">${escapeHtml(recipient.email)}</strong>.
+          </p>
+          <p style="margin:0 0 12px 0;font-size:11px;color:#8892a4;line-height:1.6;">
+            <a style="color:#bec6e0;text-decoration:underline;" href="${unsubHref}">Unsubscribe</a>
+            &nbsp;·&nbsp;
+            <a style="color:#8892a4;text-decoration:underline;" href="${APP_BASE_URL}/profile">Email preferences</a>
+            &nbsp;·&nbsp;
+            <a style="color:#8892a4;text-decoration:underline;" href="${APP_BASE_URL}/privacy">Privacy</a>
+          </p>
+          <p style="margin:0;font-size:10px;color:#5a6378;line-height:1.6;">
+            © ${year} Equitas Elite. ${escapeHtml(POSTAL_ADDR)}
           </p>
         </td></tr>
       </table>
@@ -77,8 +94,12 @@ function renderHtml(parts: BodyParts, recipientName: string): string {
 </body></html>`
 }
 
-function renderText(parts: BodyParts, recipientName: string): string {
-  const firstName = recipientName.split(' ')[0]
+function renderText(parts: BodyParts, recipient: RecipientPref): string {
+  const firstName    = recipient.full_name.split(' ')[0]
+  const year         = new Date().getFullYear()
+  const unsubHref    = recipient.unsubscribe_token
+    ? `${APP_BASE_URL}/unsubscribe?t=${recipient.unsubscribe_token}`
+    : `${APP_BASE_URL}/profile`
   return `Hi ${firstName},
 
 ${parts.heading}
@@ -89,7 +110,16 @@ ${parts.ctaLabel}: ${APP_BASE_URL}${parts.ctaPath}
 
 — Equitas Elite
 
-You can turn off these emails from your profile settings at ${APP_BASE_URL}/profile.`
+—
+
+You received this transactional notice because you have an Equitas Elite
+account at ${recipient.email}.
+
+Unsubscribe:    ${unsubHref}
+Preferences:    ${APP_BASE_URL}/profile
+Privacy policy: ${APP_BASE_URL}/privacy
+
+© ${year} Equitas Elite. ${POSTAL_ADDR}`
 }
 
 async function send(recipient: RecipientPref, parts: BodyParts): Promise<void> {
@@ -111,8 +141,8 @@ async function send(recipient: RecipientPref, parts: BodyParts): Promise<void> {
       Simple: {
         Subject: { Data: parts.subject, Charset: 'UTF-8' },
         Body: {
-          Html: { Data: renderHtml(parts, recipient.full_name), Charset: 'UTF-8' },
-          Text: { Data: renderText(parts, recipient.full_name), Charset: 'UTF-8' },
+          Html: { Data: renderHtml(parts, recipient), Charset: 'UTF-8' },
+          Text: { Data: renderText(parts, recipient), Charset: 'UTF-8' },
         },
         Headers: headers,
       },
