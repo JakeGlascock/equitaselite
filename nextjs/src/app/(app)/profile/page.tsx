@@ -2,6 +2,7 @@ import { headers } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { queryOne } from '@/lib/db'
 import OnboardingForm from '@/app/onboarding/OnboardingForm'
+import EmailPrefToggle from './EmailPrefToggle'
 
 interface DbProfile {
   id: string
@@ -40,14 +41,19 @@ export default async function ProfilePage() {
 
   return (
     <div className="px-5 md:px-8 py-8">
-      <div className="max-w-xl mx-auto">
-        <div className="mb-8">
+      <div className="max-w-xl mx-auto space-y-6">
+        <div>
           <p className="font-data text-[10px] tracking-[0.12em] text-ee-muted uppercase">Settings</p>
           <h1 className="font-display text-3xl text-ee-gold mt-1">Edit profile</h1>
           <p className="text-ee-muted text-sm mt-1">
             Changes update your match scores immediately.
           </p>
         </div>
+
+        {/* Top-level email opt-out, separate from the wizard form so it's
+            never more than one click away. */}
+        <EmailPrefToggle initial={profile.email_notifications_enabled ?? true} />
+
         <OnboardingForm
           email={profile.email}
           mode="edit"

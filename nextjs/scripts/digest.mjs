@@ -44,13 +44,15 @@ function plural(n, singular, plural) {
 // ─── Pure helpers (testable in isolation) ────────────────────────────────
 
 // Compose the email body. Pure function — no SES, no DB. Returns
-// { subject, text, html } given the recipient's role + the list of new
-// counterparty rows.
-export function composeDigest({ firstName, role, newCount, sampleNames }) {
+// { subject, text, unsubscribeUrl } given the recipient's role + the list
+// of new counterparty rows + their unsubscribe token.
+export function composeDigest({ firstName, role, newCount, sampleNames, unsubscribeToken }) {
   const counterRole = roleLabel(role === 'angel' ? 'family_office' : 'angel')
   const subject = newCount === 1
     ? `A new ${counterRole.slice(0, -1)} joined Equitas Elite`
     : `${newCount} new ${counterRole} on Equitas Elite this week`
+
+  const unsubscribeUrl = `${SITE_URL}/unsubscribe?t=${encodeURIComponent(unsubscribeToken)}`
 
   const lines = [
     `Hi ${firstName},`,
@@ -66,10 +68,12 @@ export function composeDigest({ firstName, role, newCount, sampleNames }) {
   lines.push('')
   lines.push(`Review them on your dashboard: ${SITE_URL}/dashboard`)
   lines.push('')
-  lines.push(`To stop receiving these alerts, turn off email notifications in your profile settings.`)
   lines.push(`— Equitas Elite`)
+  lines.push('')
+  lines.push(`Don't want these? Unsubscribe instantly: ${unsubscribeUrl}`)
+  lines.push(`You can also toggle email notifications from your profile at ${SITE_URL}/profile.`)
 
-  return { subject, text: lines.join('\n') }
+  return { subject, text: lines.join('\n'), unsubscribeUrl }
 }
 
 // ─── Runner ──────────────────────────────────────────────────────────────
@@ -104,7 +108,7 @@ async function main() {
     // Recipients: onboarded users with email_notifications_enabled=TRUE.
     // Exclude concierges (they're staff, not investors).
     const recipientsSql = `
-      SELECT p.id, p.email, p.full_name, p.role,
+      SELECT p.id, p.email, p.full_name, p.role, p.unsubscribe_token,
              COALESCE(s.last_sent_at, p.created_at) AS since
       FROM profiles p
       LEFT JOIN match_digest_state s ON s.user_id = p.id
@@ -138,15 +142,16 @@ async function main() {
       }
 
       const sampleNames = newMatches.slice(0, 3).map(m => `${m.full_name} · ${m.firm_name}`)
-      const { subject, text } = composeDigest({
-        firstName:   (r.full_name ?? r.email).split(' ')[0],
-        role:        r.role,
-        newCount:    newMatches.length,
+      const { subject, text, unsubscribeUrl } = composeDigest({
+        firstName:        (r.full_name ?? r.email).split(' ')[0],
+        role:             r.role,
+        newCount:         newMatches.length,
         sampleNames,
+        unsubscribeToken: r.unsubscribe_token,
       })
 
       if (dryRun) {
-        console.log(`[digest] DRY-RUN → ${r.email} :: "${subject}" (${newMatches.length} new)`)
+        console.log(`[digest] DRY-RUN → ${r.email} :: "${subject}" (${newMatches.length} new) · ${unsubscribeUrl}`)
         sent++
         continue
       }
@@ -159,6 +164,12 @@ async function main() {
             Simple: {
               Subject: { Data: subject, Charset: 'UTF-8' },
               Body:    { Text: { Data: text,    Charset: 'UTF-8' } },
+              // RFC 2369 + RFC 8058 — Gmail / Apple Mail render a
+              // one-click "Unsubscribe" link at the top of the email.
+              Headers: [
+                { Name: 'List-Unsubscribe',      Value: `<${unsubscribeUrl}>` },
+                { Name: 'List-Unsubscribe-Post', Value: 'List-Unsubscribe=One-Click' },
+              ],
             },
           },
         }))

@@ -13,8 +13,8 @@ const JWKS = ISSUER
   : null
 
 const PUBLIC_PREFIXES = ['/_next/', '/favicon.ico', '/logo.png']
-const PUBLIC_EXACT    = ['/', '/signin', '/pricing', '/request-access']
-const PUBLIC_API      = ['/api/auth/', '/api/health', '/api/request-access']
+const PUBLIC_EXACT    = ['/', '/signin', '/pricing', '/request-access', '/unsubscribe']
+const PUBLIC_API      = ['/api/auth/', '/api/health', '/api/request-access', '/api/unsubscribe']
 
 // Exported so the auth-gate test suite can assert which paths are reachable
 // without a Cognito session. If you add a new public route, add it to the

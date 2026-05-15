@@ -9,15 +9,27 @@ interface RecipientPref {
   email: string
   full_name: string
   email_notifications_enabled: boolean
+  unsubscribe_token: string | null
 }
 
-// Pulls the recipient's email + opt-in state in a single query
+// Pulls the recipient's email + opt-in state + unsubscribe token in
+// a single query. unsubscribe_token may be NULL pre-migration-012.
 async function getRecipient(userId: string): Promise<RecipientPref | null> {
-  return queryOne<RecipientPref>(
-    `SELECT email, full_name, email_notifications_enabled
-     FROM profiles WHERE id = $1`,
-    [userId]
-  )
+  try {
+    return await queryOne<RecipientPref>(
+      `SELECT email, full_name, email_notifications_enabled, unsubscribe_token
+       FROM profiles WHERE id = $1`,
+      [userId]
+    )
+  } catch {
+    // Fallback for environments where migration 012 hasn't run yet
+    const r = await queryOne<Omit<RecipientPref, 'unsubscribe_token'>>(
+      `SELECT email, full_name, email_notifications_enabled
+       FROM profiles WHERE id = $1`,
+      [userId]
+    )
+    return r ? { ...r, unsubscribe_token: null } : null
+  }
 }
 
 interface BodyParts {
@@ -81,6 +93,17 @@ You can turn off these emails from your profile settings at ${APP_BASE_URL}/prof
 }
 
 async function send(recipient: RecipientPref, parts: BodyParts): Promise<void> {
+  // List-Unsubscribe headers (RFC 2369 + RFC 8058) make Gmail / Apple Mail
+  // render a one-click "Unsubscribe" link at the top of the email.
+  // Skipped silently if the unsubscribe_token column hasn't been migrated
+  // (the existing in-app /profile toggle still works).
+  const headers = recipient.unsubscribe_token
+    ? [
+        { Name: 'List-Unsubscribe',      Value: `<${APP_BASE_URL}/unsubscribe?t=${recipient.unsubscribe_token}>` },
+        { Name: 'List-Unsubscribe-Post', Value: 'List-Unsubscribe=One-Click' },
+      ]
+    : undefined
+
   await sesClient.send(new SendEmailCommand({
     FromEmailAddress: FROM_EMAIL,
     Destination:      { ToAddresses: [recipient.email] },
@@ -91,6 +114,7 @@ async function send(recipient: RecipientPref, parts: BodyParts): Promise<void> {
           Html: { Data: renderHtml(parts, recipient.full_name), Charset: 'UTF-8' },
           Text: { Data: renderText(parts, recipient.full_name), Charset: 'UTF-8' },
         },
+        Headers: headers,
       },
     },
   }))

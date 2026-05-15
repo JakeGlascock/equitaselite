@@ -12,6 +12,7 @@ describe('middleware: isPublic', () => {
       '/signin',
       '/pricing',
       '/request-access',
+      '/unsubscribe',
     ])('treats %s as public', (path) => {
       expect(isPublic(path)).toBe(true)
     })
@@ -36,6 +37,7 @@ describe('middleware: isPublic', () => {
       '/api/auth/session',
       '/api/health',
       '/api/request-access',
+      '/api/unsubscribe',
     ])('treats %s as public', (path) => {
       expect(isPublic(path)).toBe(true)
     })
