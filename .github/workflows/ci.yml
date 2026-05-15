@@ -110,7 +110,7 @@ jobs:
           trivyignores: .trivyignore
 
       - name: Upload Trivy SARIF to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         if: always()
         with:
           sarif_file: trivy-results.sarif
@@ -153,7 +153,7 @@ jobs:
           skip_check: CKV2_AWS_62,CKV_AWS_144,CKV2_AWS_57,CKV2_AWS_71,CKV2_AWS_28,CKV_AWS_26,CKV_AWS_290,CKV_AWS_355,CKV2_AWS_38,CKV2_AWS_39,CKV2_AWS_76
 
       - name: Upload Checkov SARIF to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         if: always()
         with:
           sarif_file: checkov-results.sarif
