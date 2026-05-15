@@ -114,8 +114,8 @@ export async function listCognitoUsers(): Promise<CognitoUserRow[]> {
   return out
 }
 
-export async function inviteUser(email: string): Promise<void> {
-  await cognitoClient.send(new AdminCreateUserCommand({
+export async function inviteUser(email: string): Promise<{ sub: string }> {
+  const res = await cognitoClient.send(new AdminCreateUserCommand({
     UserPoolId: process.env.COGNITO_USER_POOL_ID!,
     Username: email,
     UserAttributes: [
@@ -124,6 +124,15 @@ export async function inviteUser(email: string): Promise<void> {
     ],
     DesiredDeliveryMediums: ['EMAIL'],
   }))
+  // Cognito returns the sub as the "sub" attribute on the new user. The
+  // sub is what every authenticated request later carries in x-user-id
+  // (via the middleware JWT decode), so it's the right primary key for
+  // the placeholder profile row.
+  const sub = res.User?.Attributes?.find(a => a.Name === 'sub')?.Value
+  if (!sub) {
+    throw new Error('Cognito AdminCreateUser response did not include sub')
+  }
+  return { sub }
 }
 
 export async function respondToNewPassword(
