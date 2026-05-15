@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import ErrorReportForm from '@/components/ErrorReportForm'
 
 // Catches uncaught errors at the root of the app (including failures
@@ -91,7 +92,7 @@ export default function GlobalError({
             >
               Try again
             </button>
-            <a
+            <Link
               href="/"
               style={{
                 color:           '#bec6e0',
@@ -103,7 +104,7 @@ export default function GlobalError({
               }}
             >
               Go home
-            </a>
+            </Link>
           </div>
           <ErrorReportForm digest={error.digest} />
         </div>

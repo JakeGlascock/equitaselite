@@ -28,7 +28,7 @@ vi.mock('@/lib/membership', async () => {
 import { POST, DELETE } from '../route'
 
 const EVENT_ID = '11111111-2222-3333-4444-555555555555'
-const ctx = { params: Promise.resolve({ id: EVENT_ID }) }
+const buildParams = () => Promise.resolve({ id: EVENT_ID })
 
 function postReq(): NextRequest {
   return new NextRequest(`http://localhost/api/events/${EVENT_ID}/rsvp`, { method: 'POST' })
@@ -50,14 +50,14 @@ const PAST   = new Date('2024-01-01T12:00:00Z')
 describe('POST /api/events/[id]/rsvp', () => {
   it('returns 401 when there is no authenticated user', async () => {
     mockGetEffectiveUserId.mockResolvedValueOnce(null)
-    const res = await POST(postReq(), { params: Promise.resolve({ id: EVENT_ID }) })
+    const res = await POST(postReq(), { params: buildParams() })
     expect(res.status).toBe(401)
   })
 
   it('returns 404 when the event does not exist', async () => {
     mockGetEffectiveUserId.mockResolvedValueOnce('user-1')
     mockQueryOne.mockResolvedValueOnce(null)
-    const res = await POST(postReq(), { params: Promise.resolve({ id: EVENT_ID }) })
+    const res = await POST(postReq(), { params: buildParams() })
     expect(res.status).toBe(404)
     expect(await res.json()).toEqual({ error: 'Event not found' })
   })
@@ -65,7 +65,7 @@ describe('POST /api/events/[id]/rsvp', () => {
   it('returns 400 when the event has already passed', async () => {
     mockGetEffectiveUserId.mockResolvedValueOnce('user-1')
     mockQueryOne.mockResolvedValueOnce({ id: EVENT_ID, min_tier: 'access', capacity: 100, date: PAST })
-    const res = await POST(postReq(), { params: Promise.resolve({ id: EVENT_ID }) })
+    const res = await POST(postReq(), { params: buildParams() })
     expect(res.status).toBe(400)
     expect(await res.json()).toEqual({ error: 'Event has already passed' })
   })
@@ -74,7 +74,7 @@ describe('POST /api/events/[id]/rsvp', () => {
     mockGetEffectiveUserId.mockResolvedValueOnce('user-1')
     mockQueryOne.mockResolvedValueOnce({ id: EVENT_ID, min_tier: 'sovereign', capacity: 100, date: FUTURE })
     mockGetTier.mockResolvedValueOnce('access')
-    const res = await POST(postReq(), { params: Promise.resolve({ id: EVENT_ID }) })
+    const res = await POST(postReq(), { params: buildParams() })
     expect(res.status).toBe(402)
     const body = await res.json()
     expect(body.upgradeRequired).toBe('sovereign')
@@ -87,7 +87,7 @@ describe('POST /api/events/[id]/rsvp', () => {
       .mockResolvedValueOnce({ count: '5' })  // capacity check
     mockGetTier.mockResolvedValueOnce('select')
     mockQuery.mockResolvedValueOnce([])
-    const res = await POST(postReq(), { params: Promise.resolve({ id: EVENT_ID }) })
+    const res = await POST(postReq(), { params: buildParams() })
     expect(res.status).toBe(200)
   })
 
@@ -98,7 +98,7 @@ describe('POST /api/events/[id]/rsvp', () => {
       .mockResolvedValueOnce({ count: '0' })
     mockGetTier.mockResolvedValueOnce('sovereign')
     mockQuery.mockResolvedValueOnce([])
-    const res = await POST(postReq(), { params: Promise.resolve({ id: EVENT_ID }) })
+    const res = await POST(postReq(), { params: buildParams() })
     expect(res.status).toBe(200)
   })
 
@@ -108,7 +108,7 @@ describe('POST /api/events/[id]/rsvp', () => {
       .mockResolvedValueOnce({ id: EVENT_ID, min_tier: 'access', capacity: 10, date: FUTURE })
       .mockResolvedValueOnce({ count: '10' })
     mockGetTier.mockResolvedValueOnce('access')
-    const res = await POST(postReq(), { params: Promise.resolve({ id: EVENT_ID }) })
+    const res = await POST(postReq(), { params: buildParams() })
     expect(res.status).toBe(409)
     expect(await res.json()).toEqual({ error: 'Event is at capacity' })
   })
@@ -120,7 +120,7 @@ describe('POST /api/events/[id]/rsvp', () => {
       .mockResolvedValueOnce({ count: '0' })
     mockGetTier.mockResolvedValueOnce('access')
     mockQuery.mockResolvedValueOnce([])
-    await POST(postReq(), { params: Promise.resolve({ id: EVENT_ID }) })
+    await POST(postReq(), { params: buildParams() })
     expect(mockQuery).toHaveBeenCalledTimes(1)
     const [sql, params] = mockQuery.mock.calls[0]
     expect(sql).toContain('INSERT INTO event_rsvps')
@@ -135,7 +135,7 @@ describe('POST /api/events/[id]/rsvp', () => {
       .mockResolvedValueOnce({ count: '0' })
     mockGetTier.mockResolvedValueOnce('access')
     mockQuery.mockRejectedValueOnce(new Error('FK violation'))
-    const res = await POST(postReq(), { params: Promise.resolve({ id: EVENT_ID }) })
+    const res = await POST(postReq(), { params: buildParams() })
     expect(res.status).toBe(500)
   })
 })
@@ -143,14 +143,14 @@ describe('POST /api/events/[id]/rsvp', () => {
 describe('DELETE /api/events/[id]/rsvp', () => {
   it('returns 401 when there is no authenticated user', async () => {
     mockGetEffectiveUserId.mockResolvedValueOnce(null)
-    const res = await DELETE(deleteReq(), { params: Promise.resolve({ id: EVENT_ID }) })
+    const res = await DELETE(deleteReq(), { params: buildParams() })
     expect(res.status).toBe(401)
   })
 
   it('runs DELETE FROM event_rsvps scoped to (event_id, user_id)', async () => {
     mockGetEffectiveUserId.mockResolvedValueOnce('user-1')
     mockQuery.mockResolvedValueOnce([])
-    const res = await DELETE(deleteReq(), { params: Promise.resolve({ id: EVENT_ID }) })
+    const res = await DELETE(deleteReq(), { params: buildParams() })
     expect(res.status).toBe(200)
     const [sql, params] = mockQuery.mock.calls[0]
     expect(sql).toContain('DELETE FROM event_rsvps')
