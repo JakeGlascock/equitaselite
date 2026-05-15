@@ -1,5 +1,6 @@
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
+import Link from 'next/link'
 import { query, queryOne } from '@/lib/db'
 import { validateTokenRow, PREVIEW_COOKIE_NAME, PREVIEW_COOKIE_MAX_AGE } from '@/lib/preview'
 
@@ -86,9 +87,9 @@ function Denied({ reason }: { reason: string }) {
         <h1 className="font-display text-2xl text-ee-primary">{title}</h1>
         <p className="text-sm text-ee-muted leading-relaxed">{body}</p>
         <p className="pt-4">
-          <a href="/" className="font-data text-[11px] tracking-widest uppercase text-ee-gold hover:underline">
+          <Link href="/" className="font-data text-[11px] tracking-widest uppercase text-ee-gold hover:underline">
             Back to home
-          </a>
+          </Link>
         </p>
       </div>
     </main>

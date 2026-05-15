@@ -1,5 +1,3 @@
-import { randomBytes } from 'crypto'
-
 // Cookie name set by /preview/[token] after a valid token is accepted.
 // Middleware reads this to thread an x-user-id header through to the
 // (app) layout without a Cognito session. Value is the demo profile id
@@ -13,7 +11,12 @@ export const PREVIEW_COOKIE_NAME = 'ee_preview'
 export const PREVIEW_COOKIE_MAX_AGE = 60 * 60
 
 export function generateToken(): string {
-  return randomBytes(32).toString('hex')
+  // Web Crypto's getRandomValues is available in both Edge runtime (where
+  // middleware imports this module) and Node — unlike node:crypto, which
+  // is not allowed in Edge. 32 bytes → 64 hex chars, URL-safe.
+  const bytes = new Uint8Array(32)
+  crypto.getRandomValues(bytes)
+  return Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('')
 }
 
 export interface ValidationResult {

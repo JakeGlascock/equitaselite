@@ -66,7 +66,10 @@ export default function WalkthroughMobile(props: Props) {
     }
   }
 
-  function next() { isLast ? void complete() : setStep(s => s + 1) }
+  function next() {
+    if (isLast) void complete()
+    else        setStep(s => s + 1)
+  }
   function back() { setStep(s => Math.max(0, s - 1)) }
 
   return (
