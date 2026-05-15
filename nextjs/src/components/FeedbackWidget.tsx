@@ -112,10 +112,13 @@ export default function FeedbackWidget({ contextTags }: Props) {
           role="dialog"
           aria-modal="true"
           aria-labelledby="ee-feedback-title"
-          className="fixed inset-0 z-[100] flex items-start justify-center pt-24 px-5 bg-black/60 backdrop-blur-sm"
+          className="fixed inset-0 z-[100] flex items-start justify-center pt-24 px-5 bg-black/80 backdrop-blur-md"
           onClick={e => { if (e.target === e.currentTarget) setOpen(false) }}
         >
-          <div className="w-full max-w-md glass-panel border-ee-gold/30 p-6 space-y-4">
+          <div
+            className="w-full max-w-md p-6 space-y-4 rounded-xl border border-ee-gold/30 shadow-2xl"
+            style={{ background: '#0a1f37' }}
+          >
             <div className="flex items-start justify-between gap-4">
               <div>
                 <p className="font-data text-[10px] tracking-[0.2em] uppercase text-ee-gold">Send feedback</p>

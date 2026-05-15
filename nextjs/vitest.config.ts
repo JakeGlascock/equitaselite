@@ -26,6 +26,8 @@ export default defineConfig({
         'src/lib/email.ts',
         // Admin check helper — requires live DB
         'src/lib/admin.ts',
+        // Session helper — calls jose JWKS over the network; integration-tested
+        'src/lib/session.ts',
         // Thin Cognito proxy routes — call signIn/signOut/refreshTokens from lib/auth
         'src/app/api/auth/signin/**',
         'src/app/api/auth/signout/**',
