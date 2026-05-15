@@ -84,6 +84,7 @@ export async function refreshTokens(refreshToken: string): Promise<AuthTokens> {
 
 export interface CognitoUserRow {
   email:      string
+  sub:        string | null  // Cognito sub from UserAttributes (null if unreadable)
   status:     string  // FORCE_CHANGE_PASSWORD | CONFIRMED | ARCHIVED | ...
   enabled:    boolean
   createdAt:  string  // ISO
@@ -102,8 +103,10 @@ export async function listCognitoUsers(): Promise<CognitoUserRow[]> {
       const email = u.Attributes?.find(a => a.Name === 'email')?.Value
                  ?? u.Username
                  ?? ''
+      const sub   = u.Attributes?.find(a => a.Name === 'sub')?.Value ?? null
       out.push({
         email:     email.toLowerCase(),
+        sub,
         status:    u.UserStatus ?? 'UNKNOWN',
         enabled:   u.Enabled ?? true,
         createdAt: u.UserCreateDate?.toISOString() ?? '',

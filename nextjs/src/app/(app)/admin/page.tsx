@@ -5,6 +5,7 @@ import { listCognitoUsers } from '@/lib/auth'
 import { isUserAdmin } from '@/lib/admin'
 import InviteForm from './InviteForm'
 import SeedDemoButton from './SeedDemoButton'
+import BackfillPlaceholdersButton from './BackfillPlaceholdersButton'
 import ManagedAccountAssignment from './ManagedAccountAssignment'
 import MembersTable, { type MemberRow } from './MembersTable'
 import CreateEventForm from './CreateEventForm'
@@ -210,18 +211,21 @@ export default async function AdminPage() {
       membership:   p?.membership ?? null,
       relationshipManagerId: p?.relationship_manager_id ?? null,
       togglable,
-      toggleReason: !p ? 'Profile not created yet' : status === 'Disabled' ? 'User is disabled' : undefined,
+      staffTogglable:    togglable,  // same gate for real users — admin can flip A/C/RM on any non-Disabled real user
+      toggleReason:      !p ? 'Run "Backfill placeholder profiles" in Setup to activate toggles' : status === 'Disabled' ? 'User is disabled' : undefined,
+      staffToggleReason: !p ? 'Run "Backfill placeholder profiles" in Setup to activate toggles' : status === 'Disabled' ? 'User is disabled' : undefined,
     })
   }
 
   for (const p of profiles) {
     if (!p.id.startsWith('demo_') && !p.id.startsWith('managed_')) continue
+    const isDemo = p.id.startsWith('demo_')
     merged.push({
       email:        p.email,
       name:         p.full_name,
       firm:         p.firm_name,
       role:         p.role,
-      status:       p.id.startsWith('demo_') ? 'Demo' : (p.onboarding_completed ? 'Active' : 'Onboarding'),
+      status:       isDemo ? 'Demo' : (p.onboarding_completed ? 'Active' : 'Onboarding'),
       joined:       toIso(p.created_at),
       userId:       p.id,
       isAdmin:      p.is_admin ?? false,
@@ -229,8 +233,10 @@ export default async function AdminPage() {
       managedBy:    p.managed_by ?? null,
       membership:   p.membership ?? null,
       relationshipManagerId: p.relationship_manager_id ?? null,
-      togglable:    !p.id.startsWith('demo_'),
-      toggleReason: p.id.startsWith('demo_') ? 'Demo accounts cannot be made admin or concierge' : undefined,
+      togglable:         true,    // demo rows: tier IS editable so you can preview each tier's UI
+      staffTogglable:    !isDemo, // but admin/concierge/RM aren't meaningful on demo fixtures
+      toggleReason:      undefined,
+      staffToggleReason: isDemo ? 'Admin / Concierge / RM don\'t apply to demo accounts' : undefined,
     })
   }
 
@@ -286,6 +292,7 @@ export default async function AdminPage() {
           </summary>
           <div className="px-6 pb-6 pt-2 space-y-3 border-t border-ee-border">
             <SeedDemoButton />
+            <BackfillPlaceholdersButton />
           </div>
         </details>
 

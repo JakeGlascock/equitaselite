@@ -24,7 +24,13 @@ export interface MemberRow {
   membership:  Membership | null
   relationshipManagerId: string | null
   togglable:   boolean
-  toggleReason?: string
+  // Whether Admin / Concierge / RM toggles are clickable for this row.
+  // Demo accounts can have their tier changed (so you can preview each
+  // tier's UI) but not their admin/concierge/RM flags — those make no
+  // sense for fixtures.
+  staffTogglable: boolean
+  toggleReason?:      string
+  staffToggleReason?: string
 }
 
 export interface ConciergeOption {
@@ -212,8 +218,8 @@ export default function MembersTable({
                       userId={m.userId}
                       initial={m.isAdmin}
                       selfUserId={selfUserId}
-                      disabled={!m.togglable}
-                      disabledReason={m.toggleReason}
+                      disabled={!m.staffTogglable}
+                      disabledReason={m.staffToggleReason}
                     />
                   ) : (
                     <span className="text-xs text-ee-muted/50 italic" title="Profile not created yet">—</span>
@@ -224,8 +230,8 @@ export default function MembersTable({
                     <ConciergeToggle
                       userId={m.userId}
                       initial={m.isConcierge}
-                      disabled={!m.togglable}
-                      disabledReason={m.toggleReason}
+                      disabled={!m.staffTogglable}
+                      disabledReason={m.staffToggleReason}
                     />
                   ) : (
                     <span className="text-xs text-ee-muted/50 italic" title="Profile not created yet">—</span>
@@ -251,8 +257,8 @@ export default function MembersTable({
                       userId={m.userId}
                       current={m.relationshipManagerId}
                       concierges={concierges}
-                      disabled={!m.togglable}
-                      disabledReason={m.toggleReason}
+                      disabled={!m.staffTogglable}
+                      disabledReason={m.staffToggleReason}
                     />
                   ) : (
                     <span className="text-xs text-ee-muted/50 italic"
