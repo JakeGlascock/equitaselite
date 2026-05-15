@@ -1,61 +1,19 @@
 import { headers } from 'next/headers'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { query } from '@/lib/db'
-import { getTier, type Tier } from '@/lib/membership'
-import InsightsClient, { type InsightItem } from './InsightsClient'
-
-interface DbRow {
-  id:           string
-  title:        string
-  summary:      string | null
-  link:         string
-  source_label: string
-  sector_tag:   string
-  min_tier:     Tier
-  published_at: Date | string | null
-  fetched_at:   Date | string
-}
-
-function toIso(d: Date | string | null): string | null {
-  if (!d)               return null
-  if (d instanceof Date) return d.toISOString()
-  return d
-}
+import { getTier } from '@/lib/membership'
+import { fetchSurfaceItems } from '@/lib/rss-surface'
+import SurfaceFeed from '@/components/SurfaceFeed'
 
 export default async function InsightsPage() {
   const h = await headers()
   const userId = h.get('x-user-id')
   if (!userId) redirect('/signin')
-  const tier = await getTier(userId)
 
-  // Pull the most recent ~50 items across all 'insights' feeds. Empty
-  // result is fine — page renders a "check back soon" empty state.
-  // Catches a missing-table error so pre-migration-014 environments
-  // don't blow up.
-  let items: InsightItem[] = []
-  try {
-    const rows = await query<DbRow>(
-      `SELECT i.id, i.title, i.summary, i.link,
-              f.source_label, f.sector_tag, f.min_tier,
-              i.published_at, i.fetched_at
-       FROM rss_items i
-       JOIN rss_feeds f ON f.id = i.feed_id
-       WHERE f.surface = 'insights' AND f.active = TRUE
-       ORDER BY COALESCE(i.published_at, i.fetched_at) DESC
-       LIMIT 50`
-    )
-    items = rows.map(r => ({
-      id:           r.id,
-      title:        r.title,
-      summary:      r.summary ?? '',
-      link:         r.link,
-      source:       r.source_label,
-      sector:       r.sector_tag,
-      minTier:      r.min_tier,
-      publishedAt:  toIso(r.published_at) ?? toIso(r.fetched_at) ?? new Date().toISOString(),
-    }))
-  } catch { /* rss tables not yet migrated */ }
+  const [tier, items] = await Promise.all([
+    getTier(userId),
+    fetchSurfaceItems('insights'),
+  ])
 
   return (
     <div className="px-5 md:px-8 py-8">
@@ -75,7 +33,13 @@ export default async function InsightsPage() {
           )}
         </div>
 
-        <InsightsClient currentTier={tier} items={items} />
+        <SurfaceFeed
+          currentTier={tier}
+          items={items}
+          featuredIcon="insights"
+          emptyTitle="No items yet."
+          emptyHint="Our first poll of these feeds runs within six hours."
+        />
       </div>
     </div>
   )

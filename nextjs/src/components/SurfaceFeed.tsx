@@ -4,13 +4,14 @@ import Link from 'next/link'
 import { useMemo, useState } from 'react'
 
 type Tier = 'access' | 'select' | 'sovereign'
-const TIER_RANK: Record<Tier, number> = { access: 0, select: 1, sovereign: 2 }
+const TIER_RANK:  Record<Tier, number> = { access: 0, select: 1, sovereign: 2 }
+const TIER_LABEL: Record<Tier, string> = { access: 'Access', select: 'Select', sovereign: 'Sovereign' }
+
 function meets(userTier: Tier, requires: Tier): boolean {
   return TIER_RANK[userTier] >= TIER_RANK[requires]
 }
-const TIER_LABEL: Record<Tier, string> = { access: 'Access', select: 'Select', sovereign: 'Sovereign' }
 
-export interface InsightItem {
+export interface FeedItem {
   id:          string
   title:       string
   summary:     string
@@ -25,7 +26,7 @@ function formatDate(s: string): string {
   return new Date(s).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
-function ItemCard({ item, currentTier }: { item: InsightItem; currentTier: Tier }) {
+function ItemCard({ item, currentTier }: { item: FeedItem; currentTier: Tier }) {
   const unlocked = meets(currentTier, item.minTier)
   return (
     <article className={`glass-panel p-6 flex flex-col gap-3 transition-colors ${
@@ -67,7 +68,17 @@ function ItemCard({ item, currentTier }: { item: InsightItem; currentTier: Tier 
   )
 }
 
-export default function InsightsClient({ currentTier, items }: { currentTier: Tier; items: InsightItem[] }) {
+export interface SurfaceFeedProps {
+  currentTier:    Tier
+  items:          FeedItem[]
+  featuredIcon:   string        // Material Symbols icon name for the featured-card visual
+  emptyTitle:     string        // copy for the "no items yet" empty state
+  emptyHint:      string
+}
+
+export default function SurfaceFeed({
+  currentTier, items, featuredIcon, emptyTitle, emptyHint,
+}: SurfaceFeedProps) {
   const sectors = useMemo(() => {
     const set = new Set<string>(['All'])
     for (const it of items) set.add(it.sector)
@@ -87,10 +98,8 @@ export default function InsightsClient({ currentTier, items }: { currentTier: Ti
   if (items.length === 0) {
     return (
       <div className="glass-panel p-12 text-center space-y-2">
-        <p className="text-ee-primary text-sm">No items yet.</p>
-        <p className="text-xs text-ee-muted">
-          The first poll of our curated feeds runs within six hours. Check back shortly.
-        </p>
+        <p className="text-ee-primary text-sm">{emptyTitle}</p>
+        <p className="text-xs text-ee-muted">{emptyHint}</p>
       </div>
     )
   }
@@ -136,7 +145,7 @@ export default function InsightsClient({ currentTier, items }: { currentTier: Ti
                 className="material-symbols-outlined text-ee-gold/40 text-[120px]"
                 style={{ fontVariationSettings: "'FILL' 0, 'wght' 200, 'GRAD' 0, 'opsz' 48", fontSize: '120px' }}
               >
-                insights
+                {featuredIcon}
               </span>
             </div>
             <div className="absolute bottom-4 left-4 right-4">
@@ -148,22 +157,24 @@ export default function InsightsClient({ currentTier, items }: { currentTier: Ti
       )}
 
       {/* Filter chips */}
-      <div className="flex flex-wrap gap-2">
-        {sectors.map(s => (
-          <button
-            key={s}
-            type="button"
-            onClick={() => setFilter(s)}
-            className={`px-3 py-1 rounded-full text-xs font-medium border transition-all ${
-              filter === s
-                ? 'bg-ee-gold text-ee-bg border-ee-gold'
-                : 'border-ee-border text-ee-primary hover:border-ee-gold/50 hover:text-ee-gold'
-            }`}
-          >
-            {s}
-          </button>
-        ))}
-      </div>
+      {sectors.length > 2 && (
+        <div className="flex flex-wrap gap-2">
+          {sectors.map(s => (
+            <button
+              key={s}
+              type="button"
+              onClick={() => setFilter(s)}
+              className={`px-3 py-1 rounded-full text-xs font-medium border transition-all ${
+                filter === s
+                  ? 'bg-ee-gold text-ee-bg border-ee-gold'
+                  : 'border-ee-border text-ee-primary hover:border-ee-gold/50 hover:text-ee-gold'
+              }`}
+            >
+              {s}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Grid */}
       {rest.length === 0 ? (
