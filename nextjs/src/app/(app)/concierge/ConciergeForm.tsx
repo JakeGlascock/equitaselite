@@ -19,15 +19,25 @@ export default function ConciergeForm() {
   const [details,   setDetails]   = useState('')
   const [submitted, setSubmitted] = useState(false)
   const [loading,   setLoading]   = useState(false)
+  const [error,     setError]     = useState('')
 
   async function submit(e: React.FormEvent) {
     e.preventDefault()
-    setLoading(true)
-    // Mock submission — in production this would POST to /api/concierge/requests
-    setTimeout(() => {
+    setError(''); setLoading(true)
+    try {
+      const res = await fetch('/api/concierge/requests', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ category, urgency, details }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? 'Request failed')
       setSubmitted(true)
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Request failed')
+    } finally {
       setLoading(false)
-    }, 700)
+    }
   }
 
   if (submitted) {
@@ -117,11 +127,15 @@ export default function ConciergeForm() {
 
       <button
         type="submit"
-        disabled={loading || !details.trim()}
+        disabled={loading || details.trim().length < 10}
         className="btn-gold w-full justify-center disabled:opacity-40 disabled:cursor-not-allowed"
       >
         {loading ? 'Sending…' : 'Submit request'}
       </button>
+
+      {error && (
+        <p className="text-xs text-red-400 text-center">{error}</p>
+      )}
 
       <p className="text-[11px] text-ee-muted text-center leading-relaxed">
         Concierge service is included for Select and Sovereign memberships.
