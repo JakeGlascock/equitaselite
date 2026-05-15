@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { usePathname } from 'next/navigation'
 
 type FeedbackType = 'bug' | 'idea' | 'other'
@@ -30,7 +31,13 @@ export default function FeedbackWidget({ contextTags }: Props) {
   const [busy, setBusy]         = useState(false)
   const [sent, setSent]         = useState(false)
   const [error, setError]       = useState('')
+  const [mounted, setMounted]   = useState(false)
   const textareaRef             = useRef<HTMLTextAreaElement | null>(null)
+
+  // The modal portals to document.body to escape the fixed-positioned
+  // header (and its backdrop-blur) where this widget is mounted. body
+  // is only available after hydration — guard so SSR markup matches.
+  useEffect(() => { setMounted(true) }, [])
 
   // Cmd+/ (or Ctrl+/) anywhere in the app opens the widget. Same idiom
   // Linear, Vercel, and Notion use for "help/feedback/command palette."
@@ -107,12 +114,17 @@ export default function FeedbackWidget({ contextTags }: Props) {
         <span className="material-symbols-outlined text-ee-muted text-xl">feedback</span>
       </button>
 
-      {open && (
+      {mounted && open && createPortal(
         <div
           role="dialog"
           aria-modal="true"
           aria-labelledby="ee-feedback-title"
-          className="fixed inset-0 z-[100] flex items-center justify-center px-5 bg-ee-bg/50 backdrop-blur-md"
+          className="fixed inset-0 z-[200] flex items-center justify-center px-5"
+          style={{
+            background:           'rgba(3, 20, 39, 0.55)',
+            backdropFilter:       'blur(14px)',
+            WebkitBackdropFilter: 'blur(14px)',
+          }}
           onClick={e => { if (e.target === e.currentTarget) setOpen(false) }}
         >
           <div
@@ -203,7 +215,8 @@ export default function FeedbackWidget({ contextTags }: Props) {
               </>
             )}
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   )
