@@ -77,9 +77,18 @@ export default async function ConciergePage() {
     // Onboarding queue: Select+ / Sovereign signups not yet welcomed.
     // Excludes managed accounts (those are created BY a concierge, so
     // they're already in good hands).
+    interface QueueDbRow {
+      id:         string
+      email:      string
+      full_name:  string
+      firm_name:  string
+      role:       'angel' | 'family_office'
+      membership: 'select' | 'sovereign'
+      created_at: Date | string
+    }
     let queue: QueueRow[] = []
     try {
-      queue = (await query<QueueRow & { created_at: Date | string }>(
+      const rows = await query<QueueDbRow>(
         `SELECT id, email, full_name, firm_name, role, membership,
                 created_at
          FROM profiles
@@ -90,7 +99,8 @@ export default async function ConciergePage() {
            AND (is_concierge IS NULL OR is_concierge = FALSE)
          ORDER BY created_at DESC
          LIMIT 50`
-      )).map(r => ({
+      )
+      queue = rows.map(r => ({
         ...r,
         created_at: r.created_at instanceof Date ? r.created_at.toISOString() : r.created_at,
       }))
