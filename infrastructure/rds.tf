@@ -8,29 +8,39 @@ resource "aws_db_parameter_group" "postgres" {
   name   = "${var.app_name}-${var.environment}-pg17"
   family = "postgres17"
 
+  # rds.force_ssl is a static parameter — AWS only applies it on reboot. We
+  # set apply_method explicitly so `terraform plan` doesn't drift forever
+  # between Terraform's default ("immediate") and AWS's enforced value
+  # ("pending-reboot"). All four static log_* + pgaudit params get the
+  # same treatment to keep the parameter group's plan clean.
   parameter {
-    name  = "rds.force_ssl"
-    value = "1"
+    name         = "rds.force_ssl"
+    value        = "1"
+    apply_method = "pending-reboot"
   }
 
   parameter {
-    name  = "log_connections"
-    value = "1"
+    name         = "log_connections"
+    value        = "1"
+    apply_method = "pending-reboot"
   }
 
   parameter {
-    name  = "log_disconnections"
-    value = "1"
+    name         = "log_disconnections"
+    value        = "1"
+    apply_method = "pending-reboot"
   }
 
   parameter {
-    name  = "log_statement"
-    value = "ddl"
+    name         = "log_statement"
+    value        = "ddl"
+    apply_method = "pending-reboot"
   }
 
   parameter {
-    name  = "pgaudit.log"
-    value = "write,ddl"
+    name         = "pgaudit.log"
+    value        = "write,ddl"
+    apply_method = "pending-reboot"
   }
 }
 
@@ -43,6 +53,11 @@ resource "aws_db_instance" "main" {
   storage_type      = "gp3"
   storage_encrypted = true
   kms_key_id        = aws_kms_key.rds.arn
+
+  # Auto-scale storage up to 500 GB if usage approaches the allocated cap.
+  # AWS does not allow shrinking — this is a one-way ceiling. 500 GB is
+  # generous for a profile-table app; revisit if growth runs against it.
+  max_allocated_storage = 500
 
   db_name  = var.db_name
   username = var.db_username
