@@ -23,6 +23,39 @@ const CHECKS = [
   { name: 'gate-admin',     path: '/admin',         status: [302, 307, 308], redirectContains: '/signin', followRedirect: false },
   { name: 'gate-match',     path: '/match/anything',status: [302, 307, 308], redirectContains: '/signin', followRedirect: false },
   { name: 'gate-profile',   path: '/profile',       status: [302, 307, 308], redirectContains: '/signin', followRedirect: false },
+
+  // Investor-preview route: a malformed (non-hex) token must render the
+  // "Link not found" denial screen, not 404 or 500. The route is public
+  // so unauthenticated visitors reach it directly.
+  { name: 'preview-bad-shape', path: '/preview/notatoken',                                                          status: 200, contains: 'Link not found' },
+  // A well-formed but unknown 64-char hex token follows the same denial
+  // path (DB lookup returns null → validateTokenRow → not_found).
+  { name: 'preview-unknown',   path: '/preview/0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef', status: 200, contains: 'Link not found' },
+
+  // SECURITY: preview-mode mutation block. A request carrying an
+  // ee_preview cookie (gated to demo_* ids — middleware enforces the
+  // prefix without a DB lookup) must NOT be allowed to POST against
+  // any authenticated endpoint. If this ever flips to 200/201, a
+  // leaked preview link becomes a mutation surface.
+  {
+    name:     'preview-blocks-mutations',
+    path:     '/api/walkthrough',
+    method:   'POST',
+    headers:  { 'Content-Type': 'application/json', 'Cookie': 'ee_preview=demo_angel_sarah_chen' },
+    body:     '{"action":"complete"}',
+    status:   403,
+    contains: 'Preview mode',
+  },
+
+  // The exit-preview endpoint stays public + reachable. A leak here
+  // would prevent investors from cleanly exiting their session.
+  {
+    name:     'preview-clear',
+    path:     '/api/preview/clear',
+    method:   'POST',
+    status:   200,
+    contains: '"ok":true',
+  },
 ]
 
 async function fetchWithTimeout(url, opts) {
@@ -47,8 +80,10 @@ for (const c of CHECKS) {
   const start = Date.now()
   try {
     const res = await fetchWithTimeout(url, {
+      method:   c.method ?? 'GET',
       redirect: c.followRedirect === false ? 'manual' : 'follow',
-      headers:  { 'User-Agent': 'equitaselite-smoke/1.0' },
+      headers:  { 'User-Agent': 'equitaselite-smoke/1.0', ...(c.headers ?? {}) },
+      body:     c.body,
     })
     const ms = Date.now() - start
     const statusOk = checkStatus(res.status, c.status)
