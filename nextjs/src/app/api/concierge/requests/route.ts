@@ -5,7 +5,7 @@ import { query, queryOne } from '@/lib/db'
 import { renderStaffEmailHtml, renderStaffEmailText, escapeHtml } from '@/lib/email-staff'
 
 const sesClient = new SESv2Client({ region: process.env.AWS_REGION ?? 'us-east-1' })
-const FROM_EMAIL  = process.env.SES_FROM_EMAIL          ?? 'Equitas Elite <noreply@equitaselite.com>'
+const FROM_EMAIL  = process.env.SES_FROM_EMAIL          ?? 'Equitas Elite <system@equitaselite.com>'
 const CONCIERGE_INBOX = process.env.DEFAULT_CONCIERGE_EMAIL ?? 'chelsea@equitaselite.com'
 
 // Schema mirrors the values defined in ConciergeForm.tsx. CATEGORIES are

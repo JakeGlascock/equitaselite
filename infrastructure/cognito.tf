@@ -96,7 +96,7 @@ resource "aws_cognito_user_pool" "main" {
   email_configuration {
     email_sending_account = "DEVELOPER"
     source_arn            = aws_ses_domain_identity.main.arn
-    from_email_address    = "Equitas Elite <noreply@${var.domain_name}>"
+    from_email_address    = "Equitas Elite <system@${var.domain_name}>"
   }
 
   user_attribute_update_settings {

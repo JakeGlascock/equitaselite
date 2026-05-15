@@ -6,7 +6,7 @@ import { renderStaffEmailHtml, renderStaffEmailText, escapeHtml } from '@/lib/em
 import { PREVIEW_COOKIE_NAME, isDemoProfileId } from '@/lib/preview'
 
 const sesClient = new SESv2Client({ region: process.env.AWS_REGION ?? 'us-east-1' })
-const FROM_EMAIL = process.env.SES_FROM_EMAIL ?? 'Equitas Elite <noreply@equitaselite.com>'
+const FROM_EMAIL = process.env.SES_FROM_EMAIL ?? 'Equitas Elite <system@equitaselite.com>'
 const INBOX      = process.env.FEEDBACK_INBOX ?? process.env.ACCESS_INBOX ?? 'access@equitaselite.com'
 
 const Schema = z.object({

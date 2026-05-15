@@ -2,7 +2,7 @@ import { SESv2Client, SendEmailCommand } from '@aws-sdk/client-sesv2'
 import { queryOne } from './db'
 
 const sesClient = new SESv2Client({ region: process.env.AWS_REGION ?? 'us-east-1' })
-const FROM_EMAIL    = process.env.SES_FROM_EMAIL       ?? 'Equitas Elite <noreply@equitaselite.com>'
+const FROM_EMAIL    = process.env.SES_FROM_EMAIL       ?? 'Equitas Elite <system@equitaselite.com>'
 const APP_BASE_URL  = process.env.NEXT_PUBLIC_APP_URL  ?? 'https://equitaselite.com'
 // CAN-SPAM: the sender's physical postal address must appear in every
 // commercial email. Override via env if/when EE incorporates somewhere

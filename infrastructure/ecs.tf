@@ -50,6 +50,11 @@ resource "aws_ecs_task_definition" "app" {
       { name = "SES_FOOTER_ADDRESS",   value = "Equitas Elite · 600 Guadalupe St, Austin, TX 78701, USA" },
       { name = "PRIVACY_CONTROLLER",   value = "Equitas Elite · 600 Guadalupe St, Austin, TX 78701, USA" },
       { name = "PRIVACY_CONTACT",      value = "privacy@equitaselite.com" },
+      # Outbound SES from-address. system@equitaselite.com is a Workspace
+      # alias that routes incoming replies back to the operator inbox.
+      # Domain-level DKIM/SPF/DMARC verification covers any address on
+      # equitaselite.com, so no SES identity work is needed when changing this.
+      { name = "SES_FROM_EMAIL",       value = "Equitas Elite <system@equitaselite.com>" },
       # Default concierge contact for /concierge upsell + "request" CTAs.
       # Must match an existing profiles.email with is_concierge=TRUE for
       # the personalised label to render; otherwise the page falls back

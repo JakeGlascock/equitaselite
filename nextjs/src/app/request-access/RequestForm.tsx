@@ -50,7 +50,7 @@ export default function RequestForm() {
         <h2 className="font-display text-2xl text-ee-gold">Request received</h2>
         <p className="text-ee-muted text-sm max-w-md mx-auto leading-relaxed">
           Thanks, {fullName.split(' ')[0]}. We&apos;ll review your request and respond within
-          two business days. Look out for an email from <span className="text-ee-primary">noreply@equitaselite.com</span>.
+          two business days. Look out for an email from <span className="text-ee-primary">system@equitaselite.com</span>.
         </p>
         <Link href="/" className="inline-block btn-ghost mt-2">Back to home</Link>
       </div>

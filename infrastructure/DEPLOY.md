@@ -146,7 +146,7 @@ aws sesv2 get-email-identity --email-identity equitaselite.com \
 # Should print "true"
 ```
 
-Outbound mail from `noreply@equitaselite.com` (Cognito invites, intro
+Outbound mail from `system@equitaselite.com` (Cognito invites, intro
 notifications, smoke alerts) starts working as soon as that flips. The
 inbound alias `access@equitaselite.com` lives in Google Workspace (separate
 MX records — see `infrastructure/google-workspace.tf`).
@@ -270,7 +270,7 @@ aws cognito-idp admin-create-user \
   --desired-delivery-mediums EMAIL
 ```
 
-Cognito emails a temp password from `noreply@equitaselite.com`. Sign in at
+Cognito emails a temp password from `system@equitaselite.com`. Sign in at
 `https://equitaselite.com/signin`, complete the new-password + MFA-setup
 flow (one TOTP entry — the deploy logic skips the duplicate prompt), then
 complete onboarding. The Admin link appears in the header because your
@@ -369,7 +369,7 @@ Recovery procedures (PITR, snapshot restore, ECS rollback) live in
   `www`. ACM validation CNAME mirrored into the zone so the cert auto-renews.
 - ✅ **Automated migration runner** — see §7. Replaced the bastion-and-init-button
   dance.
-- ✅ **Branded SES sender** — `noreply@equitaselite.com` with DKIM + SPF + DMARC
+- ✅ **Branded SES sender** — `system@equitaselite.com` with DKIM + SPF + DMARC
   `p=quarantine; pct=25`. Cognito invites and intro notifications both use it.
 - ✅ **Smoke tests + alerts** — see §9.
 - ✅ **GitHub Actions on Node 24** — `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24=true`

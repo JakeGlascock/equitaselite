@@ -79,7 +79,7 @@ export default function PrivacyPage() {
             'PostgreSQL on AWS RDS (us-east-1), encrypted at rest with a customer-managed KMS key. Multi-AZ. 35-day point-in-time recovery.',
             'AWS Cognito user pool (us-east-1) for authentication.',
             'AWS S3 for any documents you upload, encrypted at rest with a customer-managed KMS key, accessed only via short-lived signed URLs.',
-            'AWS SES (us-east-1) sends outbound mail from noreply@equitaselite.com. DKIM-signed, SPF aligned, DMARC p=quarantine.',
+            'AWS SES (us-east-1) sends outbound mail from system@equitaselite.com. DKIM-signed, SPF aligned, DMARC p=reject.',
           ]} />
           <p>
             All inbound and outbound traffic uses TLS. The database is in a
