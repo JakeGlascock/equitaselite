@@ -31,6 +31,8 @@ export default defineConfig({
         // Reports lib — thin pg query wrappers + a small pure helper;
         // integration-tested via the admin CMS + /reports flow
         'src/lib/reports.ts',
+        // Portfolio-reports (bespoke briefings) — same pattern
+        'src/lib/portfolio-reports.ts',
         // Thin Cognito proxy routes — call signIn/signOut/refreshTokens from lib/auth
         'src/app/api/auth/signin/**',
         'src/app/api/auth/signout/**',

@@ -47,6 +47,7 @@ const CHECKS = [
   { name: 'gate-connections',  path: '/connections',        status: [302, 307, 308], redirectContains: '/signin', followRedirect: false },
   { name: 'gate-concierge',    path: '/concierge',          status: [302, 307, 308], redirectContains: '/signin', followRedirect: false },
   { name: 'gate-help',         path: '/help',               status: [302, 307, 308], redirectContains: '/signin', followRedirect: false },
+  { name: 'gate-briefings',    path: '/briefings/00000000-0000-0000-0000-000000000000', status: [302, 307, 308], redirectContains: '/signin', followRedirect: false },
 
   // ───── Investor preview ─────
   // Malformed token → "Link not found" via the /preview-denied page.

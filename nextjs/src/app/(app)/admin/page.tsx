@@ -12,6 +12,7 @@ import CreateEventForm from './CreateEventForm'
 import PreviewTokensPanel from './PreviewTokensPanel'
 import DeckTokensPanel from './DeckTokensPanel'
 import ReportsPanel from './ReportsPanel'
+import PortfolioReportsPanel from './PortfolioReportsPanel'
 
 interface ProfileRow {
   id: string
@@ -181,6 +182,17 @@ export default async function AdminPage() {
     ).then(rows => rows.map(r => ({ ...r, membership: null })))
      .catch(() => [])
   }
+
+  // Sovereign-tier members eligible to receive bespoke briefings.
+  interface SovereignProfile { id: string; full_name: string; firm_name: string }
+  const sovereignProfiles: SovereignProfile[] = await query<SovereignProfile>(
+    `SELECT id, full_name, firm_name
+       FROM profiles
+      WHERE membership = 'sovereign'
+        AND onboarding_completed = TRUE
+        AND id NOT LIKE 'demo\\_%' ESCAPE '\\'
+      ORDER BY full_name`,
+  ).catch(() => [] as SovereignProfile[])
 
   const cognitoUsers = await listCognitoUsers().catch(err => {
     console.error('listCognitoUsers failed:', err)
@@ -375,6 +387,23 @@ export default async function AdminPage() {
           </summary>
           <div className="px-6 pb-6 pt-2 border-t border-ee-border">
             <ReportsPanel />
+          </div>
+        </details>
+
+        <details className="glass-panel group">
+          <summary className="px-6 py-4 cursor-pointer list-none flex items-center justify-between gap-4 select-none">
+            <div>
+              <h2 className="font-display text-base text-ee-primary">Bespoke briefings</h2>
+              <p className="text-xs text-ee-muted mt-0.5">
+                Per-recipient weekly memos for Sovereign-tier members — surfaces on their /concierge page and at /briefings/[id] in detail.
+              </p>
+            </div>
+            <span className="material-symbols-outlined text-ee-muted transition-transform group-open:rotate-180">
+              expand_more
+            </span>
+          </summary>
+          <div className="px-6 pb-6 pt-2 border-t border-ee-border">
+            <PortfolioReportsPanel sovereigns={sovereignProfiles} />
           </div>
         </details>
 

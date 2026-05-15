@@ -2,9 +2,15 @@ import Link from 'next/link'
 import { headers } from 'next/headers'
 import { queryOne, query } from '@/lib/db'
 import { getTier } from '@/lib/membership'
+import { listBriefingsForRecipient } from '@/lib/portfolio-reports'
 import ConciergeForm from './ConciergeForm'
 import OperateAsButton from './OperateAsButton'
 import OnboardingQueue, { type QueueRow } from './OnboardingQueue'
+
+function fmtDate(s: string | null): string {
+  if (!s) return ''
+  return new Date(s).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+}
 
 interface ManagedRow {
   id: string
@@ -258,6 +264,14 @@ export default async function ConciergePage() {
 
   const tier = userId ? await getTier(userId) : 'access'
 
+  // Sovereigns also get a personal briefings stream above the services
+  // grid. Non-Sovereigns see nothing extra (an empty briefings list
+  // returns [] from the lib, so the section renders only when there's
+  // real content to display).
+  const briefings = userId && tier === 'sovereign'
+    ? await listBriefingsForRecipient(userId)
+    : []
+
   return (
     <div className="px-5 md:px-8 py-8">
       <div className="max-w-4xl mx-auto space-y-8">
@@ -285,6 +299,28 @@ export default async function ConciergePage() {
         ) : (
           // 4. Access / no tier — upsell only
           <AccessUpsellCard />
+        )}
+
+        {briefings.length > 0 && (
+          <section>
+            <h2 className="font-display text-xl text-ee-primary mb-4">Your briefings</h2>
+            <div className="space-y-3">
+              {briefings.map(b => (
+                <Link
+                  key={b.id}
+                  href={`/briefings/${b.id}`}
+                  className="block glass-panel p-5 hover:border-ee-gold/40 transition-colors"
+                >
+                  <p className="font-data text-[10px] tracking-widest uppercase text-ee-muted mb-1.5">
+                    {fmtDate(b.published_at)}
+                  </p>
+                  <h3 className="font-display text-lg text-ee-primary mb-2">{b.title}</h3>
+                  <p className="text-sm text-ee-muted leading-relaxed">{b.summary}</p>
+                  <p className="text-[11px] font-data uppercase tracking-widest text-ee-gold mt-3">Read briefing →</p>
+                </Link>
+              ))}
+            </div>
+          </section>
         )}
 
         <section>
