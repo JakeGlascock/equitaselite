@@ -39,30 +39,30 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           icon family). display=block hides the <span> text until the font
           loads so we never flash "dashboard" / "event" labels as raw text.
         */}
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         {/*
-          Preload the actual Material Symbols woff2 file the CSS @font-face
-          will request. Without this, the browser waits until it has parsed
-          the stylesheet (next link below) before it knows the font URL,
-          which leaves every top-bar icon as an empty box for ~200-500ms
-          on first paint — the visible "flicker" on hard refresh.
-          With the preload, the woff2 download starts during HTML parsing,
-          so by the time the CSS resolves it the file is already cached.
-          The hash in the URL changes when Google reissues the font (~once
-          a year). If that happens, the preload becomes a no-op (no harm)
-          and we re-pin to the new version.
+          Self-hosted Material Symbols subset — only the 38 glyphs the app
+          actually uses, ~48KB instead of the 3.8MB full variable font.
+          @font-face lives in globals.css. Preload here so the woff2 starts
+          downloading during initial HTML parse rather than after CSS parse,
+          which is what eliminates the top-bar icon flicker on hard refresh.
+
+          Glyphs currently bundled (regenerate the subset when this list
+          changes — see globals.css comment for the workflow):
+            account_balance, account_balance_wallet, arrow_back,
+            arrow_forward, bar_chart, check, close, dashboard, event,
+            expand_more, explore, fact_check, feedback, group, handshake,
+            help, hourglass_empty, insights, lock, logout, mail, menu,
+            more_horiz, notifications, notifications_off, person_raised_hand,
+            place, query_stats, reply, schedule, search, settings,
+            shield_person, support_agent, tune, verified, verified_user,
+            visibility
         */}
         <link
           rel="preload"
           as="font"
           type="font/woff2"
           crossOrigin="anonymous"
-          href="https://fonts.gstatic.com/s/materialsymbolsoutlined/v338/kJEhBvYX7BgnkSrUwT8OhrdQw4oELdPIeeII9v6oFsLjBuVY.woff2"
-        />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=block"
-          rel="stylesheet"
+          href="/fonts/material-symbols-outlined.woff2"
         />
       </head>
       <body className="bg-ee-bg text-ee-primary font-body antialiased">

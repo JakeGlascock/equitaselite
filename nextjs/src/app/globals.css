@@ -2,6 +2,24 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Self-hosted Material Symbols subset. Generated via Google Fonts'
+   icon_names CSS endpoint with the 38 glyphs the app actually uses
+   (see scripts in commit history for the list). ~48KB vs ~3.8MB
+   for the full variable font. Preloaded in app/layout.tsx so the
+   download starts during initial HTML parse, eliminating the top-bar
+   icon flicker on hard refresh.
+
+   When new icons are added: update the list in layout.tsx's comment,
+   regenerate the subset, and replace public/fonts/material-symbols-outlined.woff2.
+*/
+@font-face {
+  font-family: 'Material Symbols Outlined';
+  font-style: normal;
+  font-weight: 100 700;
+  font-display: block;
+  src: url('/fonts/material-symbols-outlined.woff2') format('woff2');
+}
+
 @layer base {
   :root {
     --ee-bg:      #031427;
