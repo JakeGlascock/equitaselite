@@ -54,12 +54,6 @@
     letter-spacing: normal;
     text-transform: none;
     display: inline-block;
-    /* Constrain box to icon-sized regardless of underlying text — prevents
-       layout shift if the icon name briefly renders as text before the
-       Material Symbols font finishes loading. */
-    width: 1em;
-    height: 1em;
-    overflow: hidden;
     white-space: nowrap;
     word-wrap: normal;
     direction: ltr;
@@ -68,6 +62,13 @@
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
     font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24;
+    /* No width/height/overflow constraint here. The original intent was
+       to prevent layout shift if the icon name briefly rendered as raw
+       text before the font loaded — but with font-display: block + the
+       preload in app/layout.tsx, the subset font is always available
+       before any icon paints. Adding overflow: hidden was clipping the
+       bottom of glyphs whose typographic descender extends below the
+       em-box (some Material Symbols glyphs do this slightly). */
   }
 
   .glass-panel {
