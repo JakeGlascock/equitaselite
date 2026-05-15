@@ -44,6 +44,12 @@ resource "aws_ecs_task_definition" "app" {
       { name = "DB_NAME",              value = var.db_name },
       { name = "DB_USER",              value = var.db_username },
       { name = "ADMIN_EMAILS",         value = var.admin_emails },
+      # CAN-SPAM postal address — appears in every outbound email footer
+      # AND on the /privacy page. Update via terraform if the entity
+      # relocates or incorporates somewhere else.
+      { name = "SES_FOOTER_ADDRESS",   value = "Equitas Elite · 600 Guadalupe St, Austin, TX 78701, USA" },
+      { name = "PRIVACY_CONTROLLER",   value = "Equitas Elite · 600 Guadalupe St, Austin, TX 78701, USA" },
+      { name = "PRIVACY_CONTACT",      value = "privacy@equitaselite.com" },
     ]
 
     secrets = [
