@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { query, queryOne } from '@/lib/db'
 import { validateTokenRow, PREVIEW_COOKIE_NAME, PREVIEW_COOKIE_MAX_AGE } from '@/lib/preview'
+import { publicUrl } from '@/lib/public-url'
 
 interface TokenRow {
   token:            string
@@ -27,8 +28,10 @@ interface TokenRow {
 // renders a styled error panel.
 export async function GET(req: NextRequest, ctx: { params: Promise<{ token: string }> }) {
   const { token } = await ctx.params
+  // Behind an ALB, req.url's host is the internal Fargate IP. Use the
+  // x-forwarded-* headers via publicUrl so Location points to equitaselite.com.
   const deniedUrl = (reason: string) =>
-    new URL(`/preview-denied?reason=${reason}`, req.url)
+    publicUrl(req, `/preview-denied?reason=${reason}`)
 
   // Cheap regex pre-check so DB doesn't get hit for obviously-bad inputs.
   if (!/^[0-9a-f]{64}$/.test(token)) {
@@ -67,7 +70,7 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ token: stri
     [token],
   ).catch(err => console.error('preview view_count bump failed:', err))
 
-  const res = NextResponse.redirect(new URL('/dashboard', req.url))
+  const res = NextResponse.redirect(publicUrl(req, '/dashboard'))
   res.cookies.set(PREVIEW_COOKIE_NAME, v.demoProfileId!, {
     httpOnly: true,
     secure:   process.env.NODE_ENV === 'production',
