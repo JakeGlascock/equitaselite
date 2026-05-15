@@ -42,6 +42,7 @@ export default defineConfig({
         'src/app/api/notifications/**',
         'src/app/api/request-access/**',
         'src/app/api/concierge/**',
+        'src/app/api/walkthrough/**',
         // Admin route calls Cognito Admin API; tested via integration tests
         'src/app/api/admin/**',
         // DB-backed event RSVP + unsubscribe routes; tested via integration tests

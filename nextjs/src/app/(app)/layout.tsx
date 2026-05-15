@@ -11,6 +11,7 @@ interface ShellProfile {
   role:      'angel' | 'family_office'
   onboarding_completed: boolean
   is_concierge?: boolean
+  walkthrough_seen_at?: Date | string | null
 }
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
@@ -19,17 +20,26 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const userEmail = h.get('x-user-email')
   if (!userId) redirect('/signin')
 
+  // Try the fullest SELECT first; fall back twice for environments where
+  // migration 007 (is_concierge) or 016 (walkthrough_seen_at) hasn't run yet.
   let profile: ShellProfile | null = null
   try {
     profile = await queryOne<ShellProfile>(
-      'SELECT full_name, role, onboarding_completed, is_concierge FROM profiles WHERE id = $1',
+      'SELECT full_name, role, onboarding_completed, is_concierge, walkthrough_seen_at FROM profiles WHERE id = $1',
       [userId]
     )
   } catch {
-    profile = await queryOne<ShellProfile>(
-      'SELECT full_name, role, onboarding_completed FROM profiles WHERE id = $1',
-      [userId]
-    )
+    try {
+      profile = await queryOne<ShellProfile>(
+        'SELECT full_name, role, onboarding_completed, is_concierge FROM profiles WHERE id = $1',
+        [userId]
+      )
+    } catch {
+      profile = await queryOne<ShellProfile>(
+        'SELECT full_name, role, onboarding_completed FROM profiles WHERE id = $1',
+        [userId]
+      )
+    }
   }
 
   if (!profile || !profile.onboarding_completed) redirect('/onboarding')
@@ -44,10 +54,18 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const tierUserId = actingAs?.managedProfile?.id ?? userId
   const tier       = await getTier(tierUserId)
 
+  // Walkthrough is pending if the user has completed onboarding but the
+  // column is still NULL (or undefined on pre-migration environments —
+  // treat undefined as "already seen" to avoid surprising existing users).
+  const walkthroughPending =
+    profile.walkthrough_seen_at === null &&
+    profile.onboarding_completed
+
   return (
     <AppShell
       user={{ fullName: profile.full_name, role: profile.role, isAdmin, isConcierge, tier }}
       actingAs={managedAs}
+      walkthroughPending={walkthroughPending}
     >
       {children}
     </AppShell>

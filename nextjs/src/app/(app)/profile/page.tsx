@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import { queryOne } from '@/lib/db'
 import OnboardingForm from '@/app/onboarding/OnboardingForm'
 import EmailPrefToggle from './EmailPrefToggle'
+import WalkthroughReplay from './WalkthroughReplay'
 
 interface DbProfile {
   id: string
@@ -53,6 +54,8 @@ export default async function ProfilePage() {
         {/* Top-level email opt-out, separate from the wizard form so it's
             never more than one click away. */}
         <EmailPrefToggle initial={profile.email_notifications_enabled ?? true} />
+
+        <WalkthroughReplay />
 
         <OnboardingForm
           email={profile.email}

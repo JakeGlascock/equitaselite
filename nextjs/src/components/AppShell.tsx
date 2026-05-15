@@ -85,6 +85,10 @@ export default function AppShell({
 }: {
   user: ShellUser
   actingAs?: ActingAsLite | null
+  // Reserved for the first-login walkthrough driver (Phase B). When true,
+  // the tour for this user's role/tier should fire on /dashboard. The
+  // layout already passes this through; Phase B will start consuming it.
+  walkthroughPending?: boolean
   children: React.ReactNode
 }) {
   const pathname = usePathname()
