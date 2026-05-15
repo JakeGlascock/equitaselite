@@ -37,6 +37,11 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/scripts            ./scripts
 COPY --from=builder --chown=nextjs:nodejs /app/db/migrations      ./db/migrations
 
+# Pitch deck HTML rendered from pitch.md by Marp — served by the
+# /deck/[token] route handler. NOT in /public/ on purpose: the deck
+# is only reachable through a token-validated route.
+COPY --from=builder --chown=nextjs:nodejs /app/decks               ./decks
+
 USER nextjs
 EXPOSE 3000
 ENV PORT=3000 HOSTNAME="0.0.0.0"

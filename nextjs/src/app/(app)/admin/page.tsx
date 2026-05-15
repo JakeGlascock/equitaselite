@@ -10,6 +10,7 @@ import ManagedAccountAssignment from './ManagedAccountAssignment'
 import MembersTable, { type MemberRow } from './MembersTable'
 import CreateEventForm from './CreateEventForm'
 import PreviewTokensPanel from './PreviewTokensPanel'
+import DeckTokensPanel from './DeckTokensPanel'
 
 interface ProfileRow {
   id: string
@@ -333,6 +334,23 @@ export default async function AdminPage() {
             ) : (
               <PreviewTokensPanel demoProfiles={demoProfiles} />
             )}
+          </div>
+        </details>
+
+        <details className="glass-panel group">
+          <summary className="px-6 py-4 cursor-pointer list-none flex items-center justify-between gap-4 select-none">
+            <div>
+              <h2 className="font-display text-base text-ee-primary">Pitch deck links</h2>
+              <p className="text-xs text-ee-muted mt-0.5">
+                Per-recipient links to the rendered pitch deck on this domain. Audit + revoke + expire — same mechanics as investor preview links.
+              </p>
+            </div>
+            <span className="material-symbols-outlined text-ee-muted transition-transform group-open:rotate-180">
+              expand_more
+            </span>
+          </summary>
+          <div className="px-6 pb-6 pt-2 border-t border-ee-border">
+            <DeckTokensPanel />
           </div>
         </details>
 

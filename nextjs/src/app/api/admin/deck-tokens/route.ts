@@ -1,17 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { isUserAdmin } from '@/lib/admin'
-import { query, queryOne } from '@/lib/db'
+import { query } from '@/lib/db'
 import { generateToken } from '@/lib/preview'
 
 const DEFAULT_TTL_DAYS  = 14
 const DEFAULT_MAX_VIEWS = 25
 
 const CreateSchema = z.object({
-  label:           z.string().trim().min(2).max(120),
-  demo_profile_id: z.string().regex(/^demo_[a-z0-9_]+$/i).max(120),
-  ttl_days:        z.number().int().min(1).max(90).optional(),
-  max_views:       z.number().int().min(1).max(500).optional(),
+  label:     z.string().trim().min(2).max(120),
+  ttl_days:  z.number().int().min(1).max(90).optional(),
+  max_views: z.number().int().min(1).max(500).optional(),
 })
 
 const RevokeSchema = z.object({
@@ -19,21 +18,20 @@ const RevokeSchema = z.object({
 })
 
 interface TokenSummary {
-  token:            string
-  label:            string
-  demo_profile_id:  string
-  expires_at:       string
-  max_views:        number
-  view_count:       number
-  last_viewed_at:   string | null
-  revoked_at:       string | null
-  created_at:       string
+  token:          string
+  label:          string
+  expires_at:     string
+  max_views:      number
+  view_count:     number
+  last_viewed_at: string | null
+  revoked_at:     string | null
+  created_at:     string
 }
 
-// POST /api/admin/preview-tokens — mint a new token. Returns the full
-// token in the response so the admin can copy the URL once; subsequent
-// GETs only echo metadata + token (which is already in the admin's
-// possession via clipboard from the create response).
+// POST /api/admin/deck-tokens — mint a new pitch-deck link. Same audit
+// model as /api/admin/preview-tokens: kind='deck' on the shared
+// preview_tokens table. demo_profile_id stays NULL — deck tokens
+// don't reference a demo profile.
 export async function POST(req: NextRequest) {
   const adminId    = req.headers.get('x-user-id')
   const adminEmail = req.headers.get('x-user-email')
@@ -45,17 +43,7 @@ export async function POST(req: NextRequest) {
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.issues[0]?.message ?? 'Invalid' }, { status: 400 })
   }
-  const { label, demo_profile_id, ttl_days, max_views } = parsed.data
-
-  // Confirm the target demo profile exists. Otherwise the visitor would
-  // hit a 404 inside the preview entry page — better to fail at mint time.
-  const profile = await queryOne<{ id: string }>(
-    'SELECT id FROM profiles WHERE id = $1',
-    [demo_profile_id],
-  ).catch(() => null)
-  if (!profile) {
-    return NextResponse.json({ error: 'Demo profile not found' }, { status: 400 })
-  }
+  const { label, ttl_days, max_views } = parsed.data
 
   const token = generateToken()
   const ttl   = ttl_days  ?? DEFAULT_TTL_DAYS
@@ -64,19 +52,18 @@ export async function POST(req: NextRequest) {
   try {
     await query(
       `INSERT INTO preview_tokens
-         (token, label, kind, demo_profile_id, expires_at, max_views, created_by)
-       VALUES ($1, $2, 'preview', $3, NOW() + ($4 || ' days')::interval, $5, $6)`,
-      [token, label, demo_profile_id, String(ttl), cap, adminId],
+         (token, label, kind, expires_at, max_views, created_by)
+       VALUES ($1, $2, 'deck', NOW() + ($3 || ' days')::interval, $4, $5)`,
+      [token, label, String(ttl), cap, adminId],
     )
   } catch (err: unknown) {
-    console.error('preview-token mint failed:', err)
+    console.error('deck-token mint failed:', err)
     return NextResponse.json({ error: 'Could not create token' }, { status: 500 })
   }
 
   return NextResponse.json({ ok: true, token, ttl_days: ttl, max_views: cap }, { status: 201 })
 }
 
-// GET /api/admin/preview-tokens — list recent tokens with audit data.
 export async function GET(req: NextRequest) {
   const adminId    = req.headers.get('x-user-id')
   const adminEmail = req.headers.get('x-user-email')
@@ -85,10 +72,10 @@ export async function GET(req: NextRequest) {
   }
 
   const rows = await query<TokenSummary>(
-    `SELECT token, label, demo_profile_id, expires_at, max_views, view_count,
+    `SELECT token, label, expires_at, max_views, view_count,
             last_viewed_at, revoked_at, created_at
      FROM preview_tokens
-     WHERE kind = 'preview'
+     WHERE kind = 'deck'
      ORDER BY created_at DESC
      LIMIT 100`,
   ).catch(() => [] as TokenSummary[])
@@ -96,7 +83,6 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({ tokens: rows })
 }
 
-// PATCH /api/admin/preview-tokens — revoke a token by stamping revoked_at.
 export async function PATCH(req: NextRequest) {
   const adminId    = req.headers.get('x-user-id')
   const adminEmail = req.headers.get('x-user-email')
@@ -112,7 +98,7 @@ export async function PATCH(req: NextRequest) {
   await query(
     `UPDATE preview_tokens
         SET revoked_at = NOW()
-      WHERE token = $1 AND kind = 'preview' AND revoked_at IS NULL`,
+      WHERE token = $1 AND kind = 'deck' AND revoked_at IS NULL`,
     [parsed.data.token],
   )
   return NextResponse.json({ ok: true })

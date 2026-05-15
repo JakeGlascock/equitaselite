@@ -15,6 +15,7 @@ describe('middleware: isPublic', () => {
       '/unsubscribe',
       '/privacy',
       '/preview-denied',
+      '/deck-denied',
     ])('treats %s as public', (path) => {
       expect(isPublic(path)).toBe(true)
     })
@@ -52,6 +53,15 @@ describe('middleware: isPublic', () => {
       '/preview/abc123',
       '/preview/0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
     ])('treats %s as public (token gate runs in the page itself)', (path) => {
+      expect(isPublic(path)).toBe(true)
+    })
+  })
+
+  describe('deck-token entry paths', () => {
+    it.each([
+      '/deck/abc123',
+      '/deck/0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
+    ])('treats %s as public (token gate runs in the route handler)', (path) => {
       expect(isPublic(path)).toBe(true)
     })
   })

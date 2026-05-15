@@ -89,6 +89,17 @@ const CHECKS = [
   // would prevent investors from cleanly exiting their session.
   { name: 'preview-clear', path: '/api/preview/clear', method: 'POST', status: 200, contains: '"ok":true' },
 
+  // ───── Pitch deck (token-gated HTML) ─────
+  // Same shape as preview entry: malformed tokens redirect to /deck-denied,
+  // which we follow and assert on the resulting page.
+  { name: 'deck-bad-shape', path: '/deck/notatoken',                                                          status: 200, contains: 'Deck link not found' },
+  { name: 'deck-unknown',   path: '/deck/0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef', status: 200, contains: 'Deck link not found' },
+  // Direct hits to the denial page cover each branch in its reason-copy map.
+  { name: 'deck-denied-default',   path: '/deck-denied',                  status: 200, contains: 'Deck link not found' },
+  { name: 'deck-denied-revoked',   path: '/deck-denied?reason=revoked',   status: 200, contains: 'Deck link revoked' },
+  { name: 'deck-denied-expired',   path: '/deck-denied?reason=expired',   status: 200, contains: 'Deck link expired' },
+  { name: 'deck-denied-exhausted', path: '/deck-denied?reason=exhausted', status: 200, contains: 'View limit reached' },
+
   // ───── Error feedback ─────
   // User-report endpoint must be reachable (not blocked by middleware)
   // and must validate input. Empty body → 400. We deliberately do NOT

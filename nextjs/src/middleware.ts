@@ -13,8 +13,8 @@ const JWKS = ISSUER
   ? createRemoteJWKSet(new URL(`${ISSUER}/.well-known/jwks.json`))
   : null
 
-const PUBLIC_PREFIXES = ['/_next/', '/favicon.ico', '/logo.png', '/preview/']
-const PUBLIC_EXACT    = ['/', '/signin', '/pricing', '/request-access', '/unsubscribe', '/privacy', '/preview-denied']
+const PUBLIC_PREFIXES = ['/_next/', '/favicon.ico', '/logo.png', '/preview/', '/deck/']
+const PUBLIC_EXACT    = ['/', '/signin', '/pricing', '/request-access', '/unsubscribe', '/privacy', '/preview-denied', '/deck-denied']
 const PUBLIC_API      = ['/api/auth/', '/api/health', '/api/request-access', '/api/unsubscribe', '/api/preview/', '/api/feedback/']
 
 // Exported so the auth-gate test suite can assert which paths are reachable
