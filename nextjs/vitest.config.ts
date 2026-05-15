@@ -45,6 +45,8 @@ export default defineConfig({
         'src/app/api/admin/**',
         // Investor-preview cookie clear; trivial DB-less wrapper
         'src/app/api/preview/**',
+        // User-feedback report — DB-backed + SES; integration-tested only
+        'src/app/api/feedback/**',
       ],
       // Ratcheted up from 80/75 — current measured coverage on the included
       // scope (src/lib/** + src/app/api/**, minus the AWS/DB-backed excludes)

@@ -88,6 +88,20 @@ const CHECKS = [
   // The exit-preview endpoint stays public + reachable. A regression here
   // would prevent investors from cleanly exiting their session.
   { name: 'preview-clear', path: '/api/preview/clear', method: 'POST', status: 200, contains: '"ok":true' },
+
+  // ───── Error feedback ─────
+  // User-report endpoint must be reachable (not blocked by middleware)
+  // and must validate input. Empty body → 400. We deliberately do NOT
+  // smoke a successful POST: that would create a real user_reports row
+  // and email the staff inbox on every deploy.
+  {
+    name:     'feedback-validates',
+    path:     '/api/feedback/report',
+    method:   'POST',
+    headers:  { 'Content-Type': 'application/json' },
+    body:     '{}',
+    status:   400,
+  },
 ]
 
 async function fetchWithTimeout(url, opts) {
