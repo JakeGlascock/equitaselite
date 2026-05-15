@@ -12,9 +12,8 @@ interface TokenRow {
   max_views:    number
   view_count:   number
   revoked_at:   Date | string | null
-  // these aren't used by deck validation but the existing validateTokenRow
-  // requires the shape — left here for type compatibility.
   demo_profile_id: string | null
+  paired_token: string | null
 }
 
 // GET /deck/[token] — token-gated access to the pitch deck.
@@ -39,7 +38,7 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ token: stri
   }
 
   const row = await queryOne<TokenRow>(
-    `SELECT token, kind, expires_at, max_views, view_count, revoked_at, demo_profile_id
+    `SELECT token, kind, expires_at, max_views, view_count, revoked_at, demo_profile_id, paired_token
      FROM preview_tokens
      WHERE token = $1 AND kind = 'deck'`,
     [token],
@@ -71,14 +70,17 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ token: stri
     return NextResponse.redirect(deniedUrl('not_found'))
   }
 
-  // Substitute the __PREVIEW_URL__ placeholder. pitch.md / pitch.html
-  // must NEVER contain a real preview URL — that leaks the token into
-  // git history permanently. The placeholder is replaced here per
-  // request with a CTA appropriate to the audience. If paired-token
-  // infrastructure lands later, this substitution can become a real
-  // per-recipient preview URL based on the deck token.
-  const previewCta = 'Reply to the email this came with — happy to send a personal preview link'
-  html = html.replaceAll('__PREVIEW_URL__', previewCta)
+  // Substitute __PREVIEW_URL__ with the per-deck-recipient preview URL.
+  // The paired preview token was minted alongside this deck token at
+  // admin/deck-tokens POST time (migration 024). Both share the same
+  // expiry / max_views, and revoking the deck cascades to revoking the
+  // pair — so the URL behaves consistently with the deck itself.
+  // Fallback for legacy decks (minted before pairing landed) is a
+  // static CTA.
+  const previewUrl = row!.paired_token
+    ? publicUrl(req, `/preview/${row!.paired_token}`).href
+    : 'Reply to the email this came with — happy to send a personal preview link'
+  html = html.replaceAll('__PREVIEW_URL__', previewUrl)
 
   return new Response(html, {
     status: 200,

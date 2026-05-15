@@ -350,7 +350,13 @@ export default async function AdminPage() {
             </span>
           </summary>
           <div className="px-6 pb-6 pt-2 border-t border-ee-border">
-            <DeckTokensPanel />
+            {demoProfiles.length === 0 ? (
+              <p className="text-xs text-ee-muted">
+                No demo profiles yet — run <strong>Seed demo data</strong> above first. Each deck mint requires a demo profile to power the paired preview link.
+              </p>
+            ) : (
+              <DeckTokensPanel demoProfiles={demoProfiles} />
+            )}
           </div>
         </details>
 
