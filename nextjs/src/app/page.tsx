@@ -42,11 +42,11 @@ function Hero() {
           Invitation only
         </p>
         <h1 className="font-display text-4xl sm:text-5xl md:text-6xl text-ee-primary leading-[1.1] max-w-3xl mx-auto">
-          Where institutional capital meets <span className="text-ee-gold">verified mandate</span>.
+          Where angel investors and family offices find each other{' '}
+          <span className="text-ee-gold">on purpose, not by accident</span>.
         </h1>
         <p className="mt-6 text-ee-muted text-base sm:text-lg max-w-2xl mx-auto leading-relaxed">
-          A private platform connecting angel investors and family offices through mandate-matched
-          introductions to aligned counterparties.
+          A private, invitation-only platform that turns declared mandates into intentional introductions.
         </p>
         <div className="mt-10 flex flex-col sm:flex-row gap-3 justify-center">
           <Link
