@@ -71,6 +71,15 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ token: stri
     return NextResponse.redirect(deniedUrl('not_found'))
   }
 
+  // Substitute the __PREVIEW_URL__ placeholder. pitch.md / pitch.html
+  // must NEVER contain a real preview URL — that leaks the token into
+  // git history permanently. The placeholder is replaced here per
+  // request with a CTA appropriate to the audience. If paired-token
+  // infrastructure lands later, this substitution can become a real
+  // per-recipient preview URL based on the deck token.
+  const previewCta = 'Reply to the email this came with — happy to send a personal preview link'
+  html = html.replaceAll('__PREVIEW_URL__', previewCta)
+
   return new Response(html, {
     status: 200,
     headers: {
