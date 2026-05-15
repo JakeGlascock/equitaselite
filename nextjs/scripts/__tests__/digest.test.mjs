@@ -63,7 +63,7 @@ describe('composeDigest', () => {
 
   it('also tells the recipient about the in-app profile toggle', () => {
     expect(compose().text).toMatch(/equitaselite\.com\/profile/)
-    expect(compose().text).toMatch(/toggle email notifications/)
+    expect(compose().text).toMatch(/Preferences/)
   })
 
   it('uses the SITE_URL env var when set', async () => {
