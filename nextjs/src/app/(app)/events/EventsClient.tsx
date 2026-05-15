@@ -1,107 +1,30 @@
 'use client'
 
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 
 type Tier = 'access' | 'select' | 'sovereign'
-const TIER_RANK: Record<Tier, number> = { access: 0, select: 1, sovereign: 2 }
+const TIER_RANK:  Record<Tier, number> = { access: 0, select: 1, sovereign: 2 }
+const TIER_LABEL: Record<Tier, string> = { access: 'Access', select: 'Select', sovereign: 'Sovereign' }
 
-// Map the human-readable tier strings on each event to the minimum tier
-// the viewer needs to RSVP.
-function minTierFor(label: 'All members' | 'Select+' | 'Sovereign only'): Tier {
-  if (label === 'All members')    return 'access'
-  if (label === 'Select+')        return 'select'
-  return 'sovereign'
-}
 function meets(userTier: Tier, requires: Tier): boolean {
   return TIER_RANK[userTier] >= TIER_RANK[requires]
 }
-const TIER_LABEL: Record<Tier, string> = { access: 'Access', select: 'Select', sovereign: 'Sovereign' }
 
-interface EventItem {
+export interface EventItem {
   id:          string
   title:       string
-  type:        'Summit' | 'Roundtable' | 'Webinar' | 'Showcase'
   description: string
+  type:        'Summit' | 'Roundtable' | 'Webinar' | 'Showcase'
   date:        string  // ISO
   duration:    string
   location:    string
   capacity:    number
   registered:  number
-  tier:        'All members' | 'Select+' | 'Sovereign only'
+  minTier:     Tier
+  rsvped:      boolean
 }
-
-const UPCOMING: EventItem[] = [
-  {
-    id: 'e1',
-    title:       'Annual Equitas Summit',
-    type:        'Summit',
-    description: 'Three days at Aspen with 80 hand-picked principals. Closed-door talks on portfolio construction, mandate alignment, and deal flow trends. Sovereign-tier members only.',
-    date:        '2026-06-12',
-    duration:    'Jun 12-14 · 3 days',
-    location:    'Aspen, CO',
-    capacity:    80, registered: 67,
-    tier:        'Sovereign only',
-  },
-  {
-    id: 'e2',
-    title:       'FinTech Series A Roundtable',
-    type:        'Roundtable',
-    description: 'Eight angels and four family offices. Closed roundtable on Series-A FinTech valuations and current deployment posture. Chatham House rules.',
-    date:        '2026-05-22',
-    duration:    '90 min',
-    location:    'Virtual',
-    capacity:    12, registered: 9,
-    tier:        'Select+',
-  },
-  {
-    id: 'e3',
-    title:       'Climate Tech Deal Showcase',
-    type:        'Showcase',
-    description: 'Six founders from our member portfolios present Series-A and Series-B opportunities. Office hours for interested investors immediately after.',
-    date:        '2026-05-30',
-    duration:    '2 hours',
-    location:    'San Francisco, CA',
-    capacity:    40, registered: 24,
-    tier:        'All members',
-  },
-  {
-    id: 'e4',
-    title:       'Family Office Mandate Workshop',
-    type:        'Webinar',
-    description: 'Practical session on how to refine your platform mandate for higher-quality matches. Includes a live mandate review with a Sovereign-tier CIO.',
-    date:        '2026-05-15',
-    duration:    '60 min',
-    location:    'Virtual',
-    capacity:    100, registered: 41,
-    tier:        'All members',
-  },
-]
-
-const PAST: EventItem[] = [
-  {
-    id: 'p1',
-    title:       'AI/ML Investment Outlook 2026',
-    type:        'Webinar',
-    description: 'Recording available in your inbox.',
-    date:        '2026-03-18',
-    duration:    '75 min',
-    location:    'Virtual',
-    capacity:    100, registered: 87,
-    tier:        'All members',
-  },
-  {
-    id: 'p2',
-    title:       'Defense Tech Founders Showcase',
-    type:        'Showcase',
-    description: 'Five founders presented Series-A opportunities.',
-    date:        '2026-02-26',
-    duration:    '2 hours',
-    location:    'Arlington, VA',
-    capacity:    35, registered: 31,
-    tier:        'Select+',
-  },
-]
 
 const TYPE_COLOR: Record<EventItem['type'], string> = {
   Summit:     '#e9c176',
@@ -123,14 +46,33 @@ function DateBadge({ iso }: { iso: string }) {
 }
 
 function EventCard({ e, past = false, currentTier }: { e: EventItem; past?: boolean; currentTier: Tier }) {
-  const [rsvp, setRsvp] = useState<'idle' | 'pending' | 'done'>('idle')
+  const router = useRouter()
+  const [rsvped, setRsvped]   = useState(e.rsvped)
+  const [count, setCount]     = useState(e.registered)
+  const [loading, setLoading] = useState(false)
+  const [error, setError]     = useState('')
   const color = TYPE_COLOR[e.type]
-  const required = minTierFor(e.tier)
-  const unlocked = meets(currentTier, required)
+  const unlocked = meets(currentTier, e.minTier)
+  const full     = count >= e.capacity && !rsvped
 
-  async function handleRSVP() {
-    setRsvp('pending')
-    setTimeout(() => setRsvp('done'), 600)
+  async function toggleRsvp() {
+    setLoading(true); setError('')
+    const method  = rsvped ? 'DELETE' : 'POST'
+    const wasFull = full  // capture before optimistic update
+    try {
+      const res  = await fetch(`/api/events/${e.id}/rsvp`, { method })
+      const data = res.headers.get('content-type')?.includes('json') ? await res.json() : {}
+      if (!res.ok) throw new Error(data.error ?? 'Failed')
+      setRsvped(!rsvped)
+      setCount(c => c + (rsvped ? -1 : 1))
+      // refresh server components so other pages see the new state
+      router.refresh()
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed')
+      if (wasFull) { /* no-op */ }
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -145,7 +87,9 @@ function EventCard({ e, past = false, currentTier }: { e: EventItem; past?: bool
             >
               {e.type}
             </span>
-            <span className="font-data text-[10px] uppercase tracking-widest text-ee-muted">{e.tier}</span>
+            <span className="font-data text-[10px] uppercase tracking-widest text-ee-muted">
+              {TIER_LABEL[e.minTier]}+
+            </span>
           </div>
           <h3 className="font-display text-lg text-ee-primary leading-snug">{e.title}</h3>
           <p className="text-xs text-ee-muted leading-relaxed">{e.description}</p>
@@ -160,56 +104,86 @@ function EventCard({ e, past = false, currentTier }: { e: EventItem; past?: bool
             </span>
             <span className="flex items-center gap-1.5">
               <span className="material-symbols-outlined text-sm">group</span>
-              {e.registered} / {e.capacity}
+              {count} / {e.capacity}
             </span>
             {!past && (
               unlocked ? (
                 <button
                   type="button"
-                  onClick={handleRSVP}
-                  disabled={rsvp !== 'idle'}
+                  onClick={toggleRsvp}
+                  disabled={loading || (full && !rsvped)}
                   className={`ml-auto text-xs px-3 py-1.5 rounded-full font-data uppercase tracking-wider transition-all ${
-                    rsvp === 'done'
-                      ? 'bg-ee-emerald/15 border border-ee-emerald/40 text-ee-emerald'
-                      : 'bg-ee-gold text-ee-bg font-semibold hover:brightness-110 disabled:opacity-50'
+                    rsvped
+                      ? 'bg-ee-emerald/15 border border-ee-emerald/40 text-ee-emerald hover:bg-ee-emerald/25'
+                      : full
+                        ? 'bg-white/5 border border-ee-border text-ee-muted/60 cursor-not-allowed'
+                        : 'bg-ee-gold text-ee-bg font-semibold hover:brightness-110 disabled:opacity-50'
                   }`}
                 >
-                  {rsvp === 'done' ? 'Registered ✓' : rsvp === 'pending' ? 'Saving…' : 'RSVP'}
+                  {loading
+                    ? '…'
+                    : rsvped
+                      ? 'Registered ✓'
+                      : full
+                        ? 'At capacity'
+                        : 'RSVP'}
                 </button>
               ) : (
                 <Link
                   href="/pricing"
                   className="ml-auto text-xs px-3 py-1.5 rounded-full font-data uppercase tracking-wider inline-flex items-center gap-1.5 border border-ee-border text-ee-muted hover:text-ee-gold hover:border-ee-gold/40"
-                  title={`${TIER_LABEL[required]} membership required to RSVP`}
+                  title={`${TIER_LABEL[e.minTier]} membership required to RSVP`}
                 >
                   <span className="material-symbols-outlined text-sm">lock</span>
-                  Upgrade to {TIER_LABEL[required]}
+                  Upgrade to {TIER_LABEL[e.minTier]}
                 </Link>
               )
             )}
           </div>
+          {error && <p className="text-[11px] text-red-400">{error}</p>}
         </div>
       </div>
     </article>
   )
 }
 
-export default function EventsClient({ currentTier }: { currentTier: Tier }) {
+export default function EventsClient({
+  currentTier, upcoming, past,
+}: {
+  currentTier: Tier
+  upcoming:    EventItem[]
+  past:        EventItem[]
+}) {
+  if (upcoming.length === 0 && past.length === 0) {
+    return (
+      <div className="glass-panel p-10 text-center space-y-2">
+        <p className="text-ee-primary text-sm">No events scheduled.</p>
+        <p className="text-xs text-ee-muted">
+          Equitas Elite hosts summits, roundtables, and showcases for members. Check back soon.
+        </p>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-8">
-      <section>
-        <h2 className="font-display text-xl text-ee-primary mb-4">Upcoming</h2>
-        <div className="space-y-3">
-          {UPCOMING.map(e => <EventCard key={e.id} e={e} currentTier={currentTier} />)}
-        </div>
-      </section>
+      {upcoming.length > 0 && (
+        <section>
+          <h2 className="font-display text-xl text-ee-primary mb-4">Upcoming</h2>
+          <div className="space-y-3">
+            {upcoming.map(e => <EventCard key={e.id} e={e} currentTier={currentTier} />)}
+          </div>
+        </section>
+      )}
 
-      <section>
-        <h2 className="font-display text-xl text-ee-primary mb-4">Recently passed</h2>
-        <div className="space-y-3">
-          {PAST.map(e => <EventCard key={e.id} e={e} past currentTier={currentTier} />)}
-        </div>
-      </section>
+      {past.length > 0 && (
+        <section>
+          <h2 className="font-display text-xl text-ee-primary mb-4">Recently passed</h2>
+          <div className="space-y-3">
+            {past.map(e => <EventCard key={e.id} e={e} past currentTier={currentTier} />)}
+          </div>
+        </section>
+      )}
     </div>
   )
 }

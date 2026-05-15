@@ -7,6 +7,7 @@ import InviteForm from './InviteForm'
 import SeedDemoButton from './SeedDemoButton'
 import ManagedAccountAssignment from './ManagedAccountAssignment'
 import MembersTable, { type MemberRow } from './MembersTable'
+import CreateEventForm from './CreateEventForm'
 
 interface ProfileRow {
   id: string
@@ -116,6 +117,37 @@ export default async function AdminPage() {
     )
   } catch { /* concierge columns not yet initialized */ }
 
+  // Existing events (for the admin CreateEventForm's "existing" list). The
+  // table may not exist yet on first deploy with migration 010 pending —
+  // fall back to empty.
+  interface AdminEventRow {
+    id:          string
+    title:       string
+    type:        'Summit' | 'Roundtable' | 'Webinar' | 'Showcase'
+    date:        Date | string
+    duration:    string
+    location:    string
+    capacity:    number
+    registered:  number
+    min_tier:    'access' | 'select' | 'sovereign'
+  }
+  let existingEvents: AdminEventRow[] = []
+  try {
+    existingEvents = await query<AdminEventRow>(
+      `SELECT e.id, e.title, e.type, e.date, e.duration, e.location,
+              e.capacity, e.min_tier, COUNT(r.user_id)::int AS registered
+       FROM events e
+       LEFT JOIN event_rsvps r ON r.event_id = e.id
+       GROUP BY e.id
+       ORDER BY e.date DESC
+       LIMIT 25`
+    )
+  } catch { /* events table not yet migrated */ }
+  const existingEventsForClient = existingEvents.map(ev => ({
+    ...ev,
+    date: ev.date instanceof Date ? ev.date.toISOString() : ev.date,
+  }))
+
   const cognitoUsers = await listCognitoUsers().catch(err => {
     console.error('listCognitoUsers failed:', err)
     return [] as Awaited<ReturnType<typeof listCognitoUsers>>
@@ -223,6 +255,23 @@ export default async function AdminPage() {
           </summary>
           <div className="px-6 pb-6 pt-2 space-y-3 border-t border-ee-border">
             <SeedDemoButton />
+          </div>
+        </details>
+
+        <details className="glass-panel group">
+          <summary className="px-6 py-4 cursor-pointer list-none flex items-center justify-between gap-4 select-none">
+            <div>
+              <h2 className="font-display text-base text-ee-primary">Events</h2>
+              <p className="text-xs text-ee-muted mt-0.5">
+                Create summits, roundtables, webinars, and showcases. Tier-gate via the Minimum tier field.
+              </p>
+            </div>
+            <span className="material-symbols-outlined text-ee-muted transition-transform group-open:rotate-180">
+              expand_more
+            </span>
+          </summary>
+          <div className="px-6 pb-6 pt-2 border-t border-ee-border">
+            <CreateEventForm existing={existingEventsForClient} />
           </div>
         </details>
 
