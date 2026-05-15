@@ -43,6 +43,17 @@ export default function PreviewTokensPanel({ demoProfiles }: { demoProfiles: Dem
   const [ttl, setTtl]             = useState(14)
   const [maxViews, setMaxViews]   = useState(25)
   const [justMinted, setJustMinted] = useState<{ url: string; label: string } | null>(null)
+  const [copiedToken, setCopiedToken] = useState<string | null>(null)
+
+  function copyLink(token: string) {
+    const url = `${window.location.origin}/preview/${token}`
+    navigator.clipboard.writeText(url)
+      .then(() => {
+        setCopiedToken(token)
+        setTimeout(() => setCopiedToken(t => t === token ? null : t), 1500)
+      })
+      .catch(() => { /* clipboard blocked; user can re-mint or refresh */ })
+  }
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -224,15 +235,27 @@ export default function PreviewTokensPanel({ demoProfiles }: { demoProfiles: Dem
                       <td className="py-2 pr-3 text-ee-muted">{fmtDate(t.expires_at)}</td>
                       <td className={`py-2 pr-3 ${s.color}`}>{s.label}</td>
                       <td className="py-2">
-                        {!t.revoked_at && (
+                        <div className="flex items-center gap-3 justify-end">
                           <button
                             type="button"
-                            onClick={() => revoke(t.token)}
-                            className="text-[10px] font-data uppercase tracking-widest text-ee-muted hover:text-red-400"
+                            onClick={() => copyLink(t.token)}
+                            title={`${typeof window !== 'undefined' ? window.location.origin : ''}/preview/${t.token.slice(0, 8)}…`}
+                            className={`text-[10px] font-data uppercase tracking-widest transition-colors ${
+                              copiedToken === t.token ? 'text-ee-emerald' : 'text-ee-muted hover:text-ee-gold'
+                            }`}
                           >
-                            Revoke
+                            {copiedToken === t.token ? 'Copied' : 'Copy link'}
                           </button>
-                        )}
+                          {!t.revoked_at && (
+                            <button
+                              type="button"
+                              onClick={() => revoke(t.token)}
+                              className="text-[10px] font-data uppercase tracking-widest text-ee-muted hover:text-red-400"
+                            >
+                              Revoke
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   )
