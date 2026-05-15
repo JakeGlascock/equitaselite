@@ -112,7 +112,7 @@ export default function FeedbackWidget({ contextTags }: Props) {
           role="dialog"
           aria-modal="true"
           aria-labelledby="ee-feedback-title"
-          className="fixed inset-0 z-[100] flex items-start justify-center pt-24 px-5 bg-black/80 backdrop-blur-md"
+          className="fixed inset-0 z-[100] flex items-center justify-center px-5 bg-ee-bg/50 backdrop-blur-md"
           onClick={e => { if (e.target === e.currentTarget) setOpen(false) }}
         >
           <div
