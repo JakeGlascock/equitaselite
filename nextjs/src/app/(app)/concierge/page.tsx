@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { headers } from 'next/headers'
 import { queryOne, query } from '@/lib/db'
+import { getTier } from '@/lib/membership'
 import ConciergeForm from './ConciergeForm'
 import OperateAsButton from './OperateAsButton'
 import OnboardingQueue, { type QueueRow } from './OnboardingQueue'
@@ -217,9 +218,13 @@ export default async function ConciergePage() {
     )
   }
 
-  // Non-concierge: the existing white-glove service page.
-  // Look up the assigned RM if one exists; otherwise fall back to a
-  // hardcoded relationship-manager card so the page never looks empty.
+  // Non-concierge: the white-glove service page.
+  //
+  // Four states for the lead card, in priority order:
+  //   1. Caller has a relationship_manager_id set    → personalised RM card
+  //   2. Caller is Sovereign but unassigned          → "RM being assigned" + Request tool
+  //   3. Caller is Select                             → upsell to Sovereign + Request tool
+  //   4. Caller is Access / no tier                   → upsell only (no Request tool)
   let assignedRm: { full_name: string; email: string } | null = null
   if (userId) {
     try {
@@ -234,9 +239,24 @@ export default async function ConciergePage() {
     } catch { /* relationship_manager_id column not yet migrated */ }
   }
 
-  const rmName  = assignedRm?.full_name ?? 'Olivia Marchetti'
-  const rmEmail = assignedRm?.email     ?? 'olivia@equitaselite.com'
-  const rmKind  = assignedRm ? 'Your dedicated relationship manager' : 'Your relationship manager'
+  // Resolve the "default" concierge contact — env-var driven so it doesn't
+  // hardcode a specific person's name into the source. Falls back to a
+  // generic concierge-team label if the configured user doesn't exist
+  // yet (e.g. before they've been invited + flagged is_concierge).
+  const DEFAULT_EMAIL = process.env.DEFAULT_CONCIERGE_EMAIL ?? 'chelsea@equitaselite.com'
+  let defaultConcierge: { full_name: string; email: string } | null = null
+  try {
+    defaultConcierge = await queryOne<{ full_name: string; email: string }>(
+      `SELECT full_name, email FROM profiles
+       WHERE LOWER(email) = LOWER($1) AND is_concierge = TRUE
+       LIMIT 1`,
+      [DEFAULT_EMAIL]
+    )
+  } catch { /* is_concierge column missing */ }
+  const teamName  = defaultConcierge?.full_name ?? 'the Equitas Elite concierge team'
+  const teamEmail = defaultConcierge?.email     ?? DEFAULT_EMAIL
+
+  const tier = userId ? await getTier(userId) : 'access'
 
   return (
     <div className="px-5 md:px-8 py-8">
@@ -249,27 +269,23 @@ export default async function ConciergePage() {
           </p>
         </div>
 
-        <div className="glass-panel p-6 flex items-center gap-5 border-ee-gold/30">
-          <div className="w-14 h-14 rounded-full bg-ee-gold/20 border border-ee-gold/40 flex items-center justify-center shrink-0">
-            <span
-              className="material-symbols-outlined text-ee-gold text-2xl"
-              style={{ fontVariationSettings: "'FILL' 1, 'wght' 300, 'GRAD' 0, 'opsz' 32" }}
-            >
-              support_agent
-            </span>
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="font-data text-[10px] uppercase tracking-widest text-ee-gold mb-1">{rmKind}</p>
-            <p className="font-display text-lg text-ee-primary">{rmName}</p>
-            <p className="text-xs text-ee-muted">Available 9am–6pm ET · responds within 4 business hours</p>
-          </div>
-          <a
-            href={`mailto:${rmEmail}`}
-            className="hidden sm:inline btn-ghost whitespace-nowrap"
-          >
-            Email {rmName.split(' ')[0]}
-          </a>
-        </div>
+        {assignedRm ? (
+          // 1. Has a real RM
+          <RelationshipManagerCard
+            kind="Your dedicated relationship manager"
+            fullName={assignedRm.full_name}
+            email={assignedRm.email}
+          />
+        ) : tier === 'sovereign' ? (
+          // 2. Sovereign but unassigned — give them a real contact path
+          <UnassignedSovereignCard teamName={teamName} teamEmail={teamEmail} />
+        ) : tier === 'select' ? (
+          // 3. Select — upsell + request tool
+          <SelectUpsellCard teamName={teamName} teamEmail={teamEmail} />
+        ) : (
+          // 4. Access / no tier — upsell only
+          <AccessUpsellCard />
+        )}
 
         <section>
           <h2 className="font-display text-xl text-ee-primary mb-4">What we handle</h2>
@@ -292,6 +308,134 @@ export default async function ConciergePage() {
           <h2 className="font-display text-xl text-ee-primary mb-4">Submit a request</h2>
           <ConciergeForm />
         </section>
+      </div>
+    </div>
+  )
+}
+
+// ─── Lead-card variants ──────────────────────────────────────────────────
+
+function RelationshipManagerCard({
+  kind, fullName, email,
+}: { kind: string; fullName: string; email: string }) {
+  const firstName = fullName.split(' ')[0]
+  return (
+    <div className="glass-panel p-6 flex items-center gap-5 border-ee-gold/30">
+      <div className="w-14 h-14 rounded-full bg-ee-gold/20 border border-ee-gold/40 flex items-center justify-center shrink-0">
+        <span
+          className="material-symbols-outlined text-ee-gold text-2xl"
+          style={{ fontVariationSettings: "'FILL' 1, 'wght' 300, 'GRAD' 0, 'opsz' 32" }}
+        >
+          support_agent
+        </span>
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="font-data text-[10px] uppercase tracking-widest text-ee-gold mb-1">{kind}</p>
+        <p className="font-display text-lg text-ee-primary">{fullName}</p>
+        <p className="text-xs text-ee-muted">Available 9am–6pm ET · responds within 4 business hours</p>
+      </div>
+      <a
+        href={`mailto:${email}`}
+        className="hidden sm:inline btn-ghost whitespace-nowrap"
+      >
+        Email {firstName}
+      </a>
+    </div>
+  )
+}
+
+function UnassignedSovereignCard({ teamName, teamEmail }: { teamName: string; teamEmail: string }) {
+  return (
+    <div className="glass-panel p-6 flex items-center gap-5 border-ee-emerald/30">
+      <div className="w-14 h-14 rounded-full bg-ee-emerald/20 border border-ee-emerald/40 flex items-center justify-center shrink-0">
+        <span
+          className="material-symbols-outlined text-ee-emerald text-2xl"
+          style={{ fontVariationSettings: "'FILL' 1, 'wght' 300, 'GRAD' 0, 'opsz' 32" }}
+        >
+          schedule
+        </span>
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="font-data text-[10px] uppercase tracking-widest text-ee-emerald mb-1">Sovereign · onboarding</p>
+        <p className="font-display text-lg text-ee-primary">Your dedicated RM is being assigned</p>
+        <p className="text-xs text-ee-muted">
+          In the meantime, {teamName} is here for anything you need.
+        </p>
+      </div>
+      <a
+        href={`mailto:${teamEmail}?subject=${encodeURIComponent('Concierge request')}`}
+        className="hidden sm:inline btn-gold whitespace-nowrap text-xs"
+      >
+        Contact team
+      </a>
+    </div>
+  )
+}
+
+function SelectUpsellCard({ teamName, teamEmail }: { teamName: string; teamEmail: string }) {
+  return (
+    <div className="glass-panel p-6 md:p-7 border-ee-gold/30 space-y-4">
+      <div className="flex items-start gap-5">
+        <div className="w-14 h-14 rounded-full bg-ee-gold/15 border border-ee-gold/30 flex items-center justify-center shrink-0">
+          <span
+            className="material-symbols-outlined text-ee-gold text-2xl"
+            style={{ fontVariationSettings: "'FILL' 1, 'wght' 300, 'GRAD' 0, 'opsz' 32" }}
+          >
+            workspace_premium
+          </span>
+        </div>
+        <div className="flex-1 min-w-0 space-y-1">
+          <p className="font-data text-[10px] uppercase tracking-widest text-ee-gold">Select tier</p>
+          <p className="font-display text-lg text-ee-primary">A dedicated relationship manager is a Sovereign benefit</p>
+          <p className="text-sm text-ee-muted leading-relaxed">
+            On Sovereign you&apos;re paired with a specific RM who knows your mandate,
+            handles bespoke introductions, and coordinates due-diligence support.
+            Reach out to {teamName} below to explore the upgrade or request a one-off
+            engagement.
+          </p>
+        </div>
+      </div>
+      <div className="flex flex-wrap gap-2 justify-end">
+        <a
+          href={`mailto:${teamEmail}?subject=${encodeURIComponent('Concierge request — Select member')}`}
+          className="btn-ghost text-xs whitespace-nowrap"
+        >
+          Request concierge support
+        </a>
+        <Link href="/pricing" className="btn-gold text-xs whitespace-nowrap">
+          Upgrade to Sovereign →
+        </Link>
+      </div>
+    </div>
+  )
+}
+
+function AccessUpsellCard() {
+  return (
+    <div className="glass-panel p-6 md:p-7 border-ee-gold/30 space-y-4">
+      <div className="flex items-start gap-5">
+        <div className="w-14 h-14 rounded-full bg-ee-gold/15 border border-ee-gold/30 flex items-center justify-center shrink-0">
+          <span
+            className="material-symbols-outlined text-ee-gold text-2xl"
+            style={{ fontVariationSettings: "'FILL' 1, 'wght' 300, 'GRAD' 0, 'opsz' 32" }}
+          >
+            lock
+          </span>
+        </div>
+        <div className="flex-1 min-w-0 space-y-1">
+          <p className="font-data text-[10px] uppercase tracking-widest text-ee-gold">Sovereign benefit</p>
+          <p className="font-display text-lg text-ee-primary">Concierge service is included with Sovereign membership</p>
+          <p className="text-sm text-ee-muted leading-relaxed">
+            Sovereign members get a dedicated relationship manager, bespoke
+            introductions outside the platform&apos;s automated flow, and
+            curated deal-flow invitations. See below for what we handle.
+          </p>
+        </div>
+      </div>
+      <div className="flex justify-end">
+        <Link href="/pricing" className="btn-gold text-xs whitespace-nowrap">
+          Upgrade to Sovereign →
+        </Link>
       </div>
     </div>
   )

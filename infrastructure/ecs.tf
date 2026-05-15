@@ -50,6 +50,12 @@ resource "aws_ecs_task_definition" "app" {
       { name = "SES_FOOTER_ADDRESS",   value = "Equitas Elite · 600 Guadalupe St, Austin, TX 78701, USA" },
       { name = "PRIVACY_CONTROLLER",   value = "Equitas Elite · 600 Guadalupe St, Austin, TX 78701, USA" },
       { name = "PRIVACY_CONTACT",      value = "privacy@equitaselite.com" },
+      # Default concierge contact for /concierge upsell + "request" CTAs.
+      # Must match an existing profiles.email with is_concierge=TRUE for
+      # the personalised label to render; otherwise the page falls back
+      # to "the Equitas Elite concierge team" with this address as the
+      # mailto target.
+      { name = "DEFAULT_CONCIERGE_EMAIL", value = "chelsea@equitaselite.com" },
     ]
 
     secrets = [
