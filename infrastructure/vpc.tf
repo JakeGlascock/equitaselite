@@ -222,3 +222,17 @@ resource "aws_default_security_group" "default" {
   vpc_id = aws_vpc.main.id
   # No ingress or egress rules — forces all traffic through explicit security groups
 }
+
+# S3 Gateway VPC endpoint — Gateway-type endpoints are free, and they route
+# S3 traffic from the private app subnets over the AWS network instead of
+# through the NAT Gateway. Saves NAT data-processing costs on CloudTrail
+# writes, S3 access logs, document uploads/downloads, and image pulls from
+# ECR (which use S3 under the hood for layer storage).
+resource "aws_vpc_endpoint" "s3" {
+  vpc_id            = aws_vpc.main.id
+  service_name      = "com.amazonaws.${var.aws_region}.s3"
+  vpc_endpoint_type = "Gateway"
+  route_table_ids   = aws_route_table.private_app[*].id
+
+  tags = { Name = "${var.app_name}-s3-gateway" }
+}
