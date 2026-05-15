@@ -28,6 +28,9 @@ export default defineConfig({
         'src/lib/admin.ts',
         // Session helper — calls jose JWKS over the network; integration-tested
         'src/lib/session.ts',
+        // Reports lib — thin pg query wrappers + a small pure helper;
+        // integration-tested via the admin CMS + /reports flow
+        'src/lib/reports.ts',
         // Thin Cognito proxy routes — call signIn/signOut/refreshTokens from lib/auth
         'src/app/api/auth/signin/**',
         'src/app/api/auth/signout/**',

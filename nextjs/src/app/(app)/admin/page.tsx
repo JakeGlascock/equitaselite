@@ -11,6 +11,7 @@ import MembersTable, { type MemberRow } from './MembersTable'
 import CreateEventForm from './CreateEventForm'
 import PreviewTokensPanel from './PreviewTokensPanel'
 import DeckTokensPanel from './DeckTokensPanel'
+import ReportsPanel from './ReportsPanel'
 
 interface ProfileRow {
   id: string
@@ -357,6 +358,23 @@ export default async function AdminPage() {
             ) : (
               <DeckTokensPanel demoProfiles={demoProfiles} />
             )}
+          </div>
+        </details>
+
+        <details className="glass-panel group">
+          <summary className="px-6 py-4 cursor-pointer list-none flex items-center justify-between gap-4 select-none">
+            <div>
+              <h2 className="font-display text-base text-ee-primary">Sector reports</h2>
+              <p className="text-xs text-ee-muted mt-0.5">
+                Editorial long-form content for the /reports page. Tier-gated — Access sees titles with locks, Select+ unlocks the body.
+              </p>
+            </div>
+            <span className="material-symbols-outlined text-ee-muted transition-transform group-open:rotate-180">
+              expand_more
+            </span>
+          </summary>
+          <div className="px-6 pb-6 pt-2 border-t border-ee-border">
+            <ReportsPanel />
           </div>
         </details>
 
