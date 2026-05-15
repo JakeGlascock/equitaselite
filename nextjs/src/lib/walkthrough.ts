@@ -29,6 +29,35 @@ const TIER_COPY: Record<Tier, string> = {
   sovereign: 'You\'re on Sovereign — unlimited matches, unlimited intros, and a dedicated relationship manager.',
 }
 
+// Mobile-specific copy — same concepts as buildTour() but no element
+// anchors (mobile uses a bottom-sheet carousel, not a spotlight overlay)
+// and tighter wording for small screens. Staff-only steps are omitted on
+// mobile — admins/concierges typically use desktop for those flows.
+export function buildMobileTour(a: TourArgs): TourStep[] {
+  return [
+    {
+      title: 'Welcome to Equitas Elite',
+      body:  a.isManaged
+        ? 'Your concierge has prepared this workspace for you. Here\'s a quick orientation — you can replay it anytime from your profile.'
+        : 'A quick orientation. You can replay this anytime from your profile.',
+    },
+    {
+      title: 'Your matches',
+      body:  a.role === 'angel'
+        ? 'Family offices whose mandates align with your investing profile, ranked by alignment. Tap any card for the score breakdown and to request an introduction.'
+        : 'Angel investors whose profiles align with your mandate, ranked by alignment. Tap any card for the score breakdown and to request an introduction.',
+    },
+    {
+      title: 'Your tier',
+      body:  TIER_COPY[a.tier],
+    },
+    {
+      title: 'You\'re all set',
+      body:  'Tap the menu icon (top-left) to find Insights, Events, and Concierge. Replay this tour anytime from your profile.',
+    },
+  ]
+}
+
 export function buildTour(a: TourArgs): TourStep[] {
   const steps: TourStep[] = []
 

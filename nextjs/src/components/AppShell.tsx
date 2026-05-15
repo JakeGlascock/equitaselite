@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useState } from 'react'
 import NotificationsBell from './NotificationsBell'
 import WalkthroughDriver from './WalkthroughDriver'
+import WalkthroughMobile from './WalkthroughMobile'
 
 type Tier = 'access' | 'select' | 'sovereign'
 
@@ -303,6 +304,14 @@ export default function AppShell({
       </main>
 
       <WalkthroughDriver
+        pending={walkthroughPending ?? false}
+        role={user.role}
+        tier={user.tier}
+        isAdmin={user.isAdmin}
+        isConcierge={user.isConcierge}
+        isManaged={user.isManaged}
+      />
+      <WalkthroughMobile
         pending={walkthroughPending ?? false}
         role={user.role}
         tier={user.tier}

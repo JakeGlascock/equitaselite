@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { buildTour } from '@/lib/walkthrough'
+import { buildTour, buildMobileTour } from '@/lib/walkthrough'
 
 const BASE = {
   role:        'angel' as const,
@@ -88,6 +88,57 @@ describe('buildTour', () => {
     ]
     for (const args of cases) {
       for (const step of buildTour(args)) {
+        expect(step.title.length).toBeGreaterThan(0)
+        expect(step.body.length).toBeGreaterThan(0)
+      }
+    }
+  })
+})
+
+describe('buildMobileTour', () => {
+  it('always produces exactly 4 steps (no spotlight anchors)', () => {
+    const steps = buildMobileTour(BASE)
+    expect(steps).toHaveLength(4)
+    for (const s of steps) expect(s.element).toBeUndefined()
+  })
+
+  it('omits staff steps even when isAdmin and isConcierge are true', () => {
+    const steps = buildMobileTour({ ...BASE, isAdmin: true, isConcierge: true })
+    expect(steps).toHaveLength(4)
+    expect(steps.some(s => /admin/i.test(s.title))).toBe(false)
+    expect(steps.some(s => /concierge/i.test(s.title))).toBe(false)
+  })
+
+  it('opens with managed-Sovereign copy when isManaged=true', () => {
+    const steps = buildMobileTour({ ...BASE, isManaged: true })
+    expect(steps[0].body).toMatch(/your concierge has prepared/i)
+  })
+
+  it('uses role-specific copy on the matches step', () => {
+    const angel  = buildMobileTour({ ...BASE, role: 'angel' })
+    const family = buildMobileTour({ ...BASE, role: 'family_office' })
+    expect(angel[1].body).toMatch(/family offices/i)
+    expect(family[1].body).toMatch(/angel investors/i)
+  })
+
+  it.each([
+    ['access',    /upgrade to select/i],
+    ['select',    /capped at 5 intros/i],
+    ['sovereign', /dedicated relationship manager/i],
+  ] as const)('uses tier-specific copy on the tier step for %s', (tier, pattern) => {
+    const steps = buildMobileTour({ ...BASE, tier })
+    expect(steps[2].body).toMatch(pattern)
+  })
+
+  it('every step has non-empty title and body across permutations', () => {
+    const cases: Parameters<typeof buildMobileTour>[0][] = [
+      BASE,
+      { ...BASE, isManaged: true },
+      { ...BASE, role: 'family_office', tier: 'sovereign' },
+      { ...BASE, tier: 'select' },
+    ]
+    for (const args of cases) {
+      for (const step of buildMobileTour(args)) {
         expect(step.title.length).toBeGreaterThan(0)
         expect(step.body.length).toBeGreaterThan(0)
       }
