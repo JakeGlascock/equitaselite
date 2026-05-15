@@ -3,6 +3,7 @@ import { headers } from 'next/headers'
 import { queryOne, query } from '@/lib/db'
 import ConciergeForm from './ConciergeForm'
 import OperateAsButton from './OperateAsButton'
+import OnboardingQueue, { type QueueRow } from './OnboardingQueue'
 
 interface ManagedRow {
   id: string
@@ -73,12 +74,38 @@ export default async function ConciergePage() {
       )
     } catch { /* column not yet created */ }
 
+    // Onboarding queue: Select+ / Sovereign signups not yet welcomed.
+    // Excludes managed accounts (those are created BY a concierge, so
+    // they're already in good hands).
+    let queue: QueueRow[] = []
+    try {
+      queue = (await query<QueueRow & { created_at: Date | string }>(
+        `SELECT id, email, full_name, firm_name, role, membership,
+                created_at
+         FROM profiles
+         WHERE membership IN ('select','sovereign')
+           AND onboarding_completed = TRUE
+           AND welcomed_at IS NULL
+           AND managed_by IS NULL
+           AND (is_concierge IS NULL OR is_concierge = FALSE)
+         ORDER BY created_at DESC
+         LIMIT 50`
+      )).map(r => ({
+        ...r,
+        created_at: r.created_at instanceof Date ? r.created_at.toISOString() : r.created_at,
+      }))
+    } catch { /* welcomed_at column not yet migrated */ }
+
     const angels = managed.filter(m => m.role === 'angel').length
     const offices = managed.filter(m => m.role === 'family_office').length
 
     return (
       <div className="px-5 md:px-8 py-8">
         <div className="max-w-5xl mx-auto space-y-6">
+          {/* Welcome queue floats to the top — Select+/Sovereign signups
+              waiting for a personal welcome. */}
+          {queue.length > 0 && <OnboardingQueue rows={queue} />}
+
           <div className="flex items-end justify-between gap-4 flex-wrap">
             <div>
               <p className="font-data text-[10px] tracking-[0.12em] text-ee-muted uppercase">White-glove</p>
