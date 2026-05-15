@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { SESv2Client, SendEmailCommand } from '@aws-sdk/client-sesv2'
 import { query, queryOne } from '@/lib/db'
+import { renderStaffEmailHtml, renderStaffEmailText, escapeHtml } from '@/lib/email-staff'
 
 const sesClient = new SESv2Client({ region: process.env.AWS_REGION ?? 'us-east-1' })
 const FROM_EMAIL  = process.env.SES_FROM_EMAIL          ?? 'Equitas Elite <noreply@equitaselite.com>'
@@ -22,12 +23,6 @@ const CATEGORY_LABEL: Record<z.infer<typeof RequestSchema>['category'], string> 
   market:       'Market intelligence',
   mandate:      'Mandate review',
   other:        'Something else',
-}
-
-function escapeHtml(s: string): string {
-  return s
-    .replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;').replaceAll("'", '&#39;')
 }
 
 export async function POST(req: NextRequest) {
@@ -76,6 +71,32 @@ export async function POST(req: NextRequest) {
   const categoryLabel = CATEGORY_LABEL[category]
   const roleLabel     = requester.role === 'angel' ? 'Angel investor' : 'Family office'
   try {
+    const detailsHtml = `<blockquote style="margin:16px 0 0 0;padding:10px 14px;border-left:3px solid #e9c176;background:rgba(233,193,118,0.06);color:#bec6e0;font-style:italic;">${escapeHtml(details).replaceAll('\n','<br>')}</blockquote>`
+
+    const parts = {
+      eyebrow:  'Concierge request',
+      heading:  `${categoryLabel} — ${urgency}`,
+      bodyHtml: `
+        <p style="margin:0 0 12px 0;"><strong style="color:#e9c176;">${escapeHtml(requester.full_name)}</strong> from <strong style="color:#e9c176;">${escapeHtml(requester.firm_name)}</strong> has submitted a concierge request.</p>
+        <p style="margin:0;">
+          Category: <strong>${escapeHtml(categoryLabel)}</strong><br>
+          Urgency: <strong>${escapeHtml(urgency)}</strong><br>
+          Role: <strong>${escapeHtml(roleLabel)}</strong><br>
+          Email: <a href="mailto:${escapeHtml(requester.email)}" style="color:#e9c176;">${escapeHtml(requester.email)}</a>
+        </p>
+        ${detailsHtml}
+        <p style="margin:18px 0 0 0;font-size:12px;color:#8892a4;">Reply directly — Reply-To routes back to the requester.</p>
+      `,
+      bodyText:
+        `${requester.full_name} from ${requester.firm_name} has submitted a concierge request.\n\n` +
+        `Category: ${categoryLabel}\n` +
+        `Urgency:  ${urgency}\n` +
+        `Role:     ${roleLabel}\n` +
+        `Email:    ${requester.email}\n\n` +
+        `Details:\n${details}\n\n` +
+        `Reply directly to this email — it routes back to the requester.`,
+    }
+
     await sesClient.send(new SendEmailCommand({
       FromEmailAddress: FROM_EMAIL,
       Destination:      { ToAddresses: [CONCIERGE_INBOX] },
@@ -84,32 +105,8 @@ export async function POST(req: NextRequest) {
         Simple: {
           Subject: { Data: `[Concierge] ${categoryLabel} — ${urgency} (${requester.firm_name})`, Charset: 'UTF-8' },
           Body: {
-            Html: {
-              Data: `
-                <p><strong>${escapeHtml(requester.full_name)}</strong> from <strong>${escapeHtml(requester.firm_name)}</strong> has submitted a concierge request.</p>
-                <p>
-                  Category: <strong>${escapeHtml(categoryLabel)}</strong><br>
-                  Urgency:  <strong>${escapeHtml(urgency)}</strong><br>
-                  Role:     <strong>${escapeHtml(roleLabel)}</strong><br>
-                  Email:    <a href="mailto:${escapeHtml(requester.email)}">${escapeHtml(requester.email)}</a>
-                </p>
-                <p style="margin-top:16px;"><em>Details:</em></p>
-                <blockquote style="border-left:3px solid #e9c176;padding:8px 12px;margin:0;background:#f7f0dd;">${escapeHtml(details).replaceAll('\n','<br>')}</blockquote>
-                <p style="margin-top:24px;color:#666;font-size:12px;">Reply directly to this email — it routes back to the requester.</p>
-              `,
-              Charset: 'UTF-8',
-            },
-            Text: {
-              Data:
-                `${requester.full_name} from ${requester.firm_name} has submitted a concierge request.\n\n` +
-                `Category: ${categoryLabel}\n` +
-                `Urgency:  ${urgency}\n` +
-                `Role:     ${roleLabel}\n` +
-                `Email:    ${requester.email}\n\n` +
-                `Details:\n${details}\n\n` +
-                `Reply directly to this email — it routes back to the requester.`,
-              Charset: 'UTF-8',
-            },
+            Html: { Data: renderStaffEmailHtml(parts), Charset: 'UTF-8' },
+            Text: { Data: renderStaffEmailText(parts), Charset: 'UTF-8' },
           },
         },
       },
