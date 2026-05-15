@@ -4,6 +4,7 @@ import { usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { useState } from 'react'
 import NotificationsBell from './NotificationsBell'
+import WalkthroughDriver from './WalkthroughDriver'
 
 type Tier = 'access' | 'select' | 'sovereign'
 
@@ -12,6 +13,7 @@ interface ShellUser {
   role:        'angel' | 'family_office'
   isAdmin:     boolean
   isConcierge: boolean
+  isManaged:   boolean
   tier:        Tier
 }
 
@@ -81,13 +83,13 @@ async function exitActingAs() {
 }
 
 export default function AppShell({
-  user, actingAs, children,
+  user, actingAs, walkthroughPending, children,
 }: {
   user: ShellUser
   actingAs?: ActingAsLite | null
-  // Reserved for the first-login walkthrough driver (Phase B). When true,
-  // the tour for this user's role/tier should fire on /dashboard. The
-  // layout already passes this through; Phase B will start consuming it.
+  // True when the user has a pending first-login walkthrough. The driver
+  // is a no-op unless this is true AND the user is on /dashboard AND on
+  // a desktop-width viewport. See WalkthroughDriver.tsx for the full gate.
   walkthroughPending?: boolean
   children: React.ReactNode
 }) {
@@ -150,7 +152,7 @@ export default function AppShell({
           <Link href="/dashboard" className="flex items-center shrink-0">
             <img src="/logo.png" alt="Equitas Elite" className="h-9 w-auto rounded-md" />
           </Link>
-          <nav className="hidden lg:flex items-center gap-1">
+          <nav data-tour="top-nav" className="hidden lg:flex items-center gap-1">
             {TOP_NAV_ITEMS.map(item => {
               const active = pathname === item.href
               return (
@@ -171,6 +173,7 @@ export default function AppShell({
           {user.isAdmin && (
             <Link
               href="/admin"
+              data-tour="admin-link"
               className="hidden sm:flex h-8 px-3 items-center gap-1.5 bg-ee-gold/15 border border-ee-gold/30 text-ee-gold font-data text-[10px] font-bold tracking-widest uppercase rounded-lg hover:bg-ee-gold/25 transition-all"
             >
               <span className="material-symbols-outlined text-sm">shield_person</span>
@@ -179,6 +182,7 @@ export default function AppShell({
           )}
           <Link
             href="/pricing"
+            data-tour="tier-badge"
             title={`${TIER_LABEL[user.tier]} plan — click to manage`}
             className={`hidden sm:flex h-7 px-2.5 items-center font-data text-[10px] font-bold tracking-widest uppercase rounded-full border hover:brightness-110 transition-all ${TIER_STYLE[user.tier]}`}
           >
@@ -297,6 +301,15 @@ export default function AppShell({
       >
         {children}
       </main>
+
+      <WalkthroughDriver
+        pending={walkthroughPending ?? false}
+        role={user.role}
+        tier={user.tier}
+        isAdmin={user.isAdmin}
+        isConcierge={user.isConcierge}
+        isManaged={user.isManaged}
+      />
     </div>
   )
 }

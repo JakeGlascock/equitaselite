@@ -81,3 +81,73 @@
   .score-ring-possible { color: #f59e0b; }
   .score-ring-low     { color: #ef4444; }
 }
+
+/* driver.js overrides — match the brand. Variables documented at
+   https://driverjs.com/docs/configuration#popoverClass */
+.driver-popover.ee-tour {
+  background-color: rgba(16, 32, 52, 0.96);
+  color:            var(--ee-primary);
+  border:           1px solid rgba(233, 193, 118, 0.35);
+  border-radius:    12px;
+  padding:          18px 20px 14px;
+  backdrop-filter:  blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow:       0 12px 32px rgba(0, 0, 0, 0.4);
+  max-width:        360px;
+}
+.driver-popover.ee-tour .driver-popover-title {
+  color:       var(--ee-gold);
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size:   1.25rem;
+  font-weight: 500;
+  margin-bottom: 6px;
+}
+.driver-popover.ee-tour .driver-popover-description {
+  color:       var(--ee-primary);
+  font-size:   0.875rem;
+  line-height: 1.55;
+}
+.driver-popover.ee-tour .driver-popover-progress-text {
+  color:          var(--ee-muted);
+  font-size:      0.6875rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.driver-popover.ee-tour .driver-popover-footer {
+  margin-top: 14px;
+}
+.driver-popover.ee-tour .driver-popover-footer button {
+  background:    rgba(233, 193, 118, 0.12);
+  color:         var(--ee-gold);
+  border:        1px solid rgba(233, 193, 118, 0.4);
+  border-radius: 8px;
+  padding:       6px 14px;
+  font-size:     0.6875rem;
+  font-weight:   600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  text-shadow:   none;
+}
+.driver-popover.ee-tour .driver-popover-footer button:hover {
+  background: rgba(233, 193, 118, 0.22);
+}
+.driver-popover.ee-tour .driver-popover-prev-btn {
+  background: transparent !important;
+  color:      var(--ee-muted) !important;
+  border:     1px solid rgba(255, 255, 255, 0.12) !important;
+}
+.driver-popover.ee-tour .driver-popover-close-btn {
+  color: var(--ee-muted);
+}
+.driver-popover.ee-tour .driver-popover-arrow-side-top.driver-popover-arrow {
+  border-top-color: rgba(233, 193, 118, 0.35);
+}
+.driver-popover.ee-tour .driver-popover-arrow-side-bottom.driver-popover-arrow {
+  border-bottom-color: rgba(233, 193, 118, 0.35);
+}
+.driver-popover.ee-tour .driver-popover-arrow-side-left.driver-popover-arrow {
+  border-left-color: rgba(233, 193, 118, 0.35);
+}
+.driver-popover.ee-tour .driver-popover-arrow-side-right.driver-popover-arrow {
+  border-right-color: rgba(233, 193, 118, 0.35);
+}

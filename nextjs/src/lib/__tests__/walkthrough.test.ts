@@ -1,0 +1,96 @@
+import { describe, it, expect } from 'vitest'
+import { buildTour } from '@/lib/walkthrough'
+
+const BASE = {
+  role:        'angel' as const,
+  tier:        'access' as const,
+  isAdmin:     false,
+  isConcierge: false,
+  isManaged:   false,
+}
+
+describe('buildTour', () => {
+  it('produces 5 steps for a baseline investor (no staff roles)', () => {
+    const steps = buildTour(BASE)
+    expect(steps).toHaveLength(5)
+    expect(steps[0].element).toBeUndefined()   // centered welcome
+    expect(steps[steps.length - 1].element).toBeUndefined()  // centered done
+  })
+
+  it('matches anchors to expected selectors in order', () => {
+    const steps = buildTour(BASE)
+    expect(steps.map(s => s.element)).toEqual([
+      undefined,
+      '[data-tour="match-list"]',
+      '[data-tour="tier-badge"]',
+      '[data-tour="top-nav"]',
+      undefined,
+    ])
+  })
+
+  it('adds an admin step when isAdmin=true', () => {
+    const steps = buildTour({ ...BASE, isAdmin: true })
+    const adminStep = steps.find(s => s.element === '[data-tour="admin-link"]')
+    expect(adminStep).toBeDefined()
+    expect(adminStep!.title).toMatch(/admin/i)
+  })
+
+  it('adds a concierge step when isConcierge=true', () => {
+    const steps = buildTour({ ...BASE, isConcierge: true })
+    expect(steps.some(s => s.title === 'Concierge tools')).toBe(true)
+  })
+
+  it('adds both admin and concierge steps when the user is staff with both flags', () => {
+    const steps = buildTour({ ...BASE, isAdmin: true, isConcierge: true })
+    expect(steps).toHaveLength(7)
+    expect(steps.some(s => s.title === 'Admin tools')).toBe(true)
+    expect(steps.some(s => s.title === 'Concierge tools')).toBe(true)
+  })
+
+  it('opens with the managed-Sovereign welcome copy when isManaged=true', () => {
+    const steps = buildTour({ ...BASE, isManaged: true, tier: 'sovereign' })
+    expect(steps[0].body).toMatch(/your concierge has prepared/i)
+  })
+
+  it('opens with the default welcome copy when isManaged=false', () => {
+    const steps = buildTour(BASE)
+    expect(steps[0].body).toMatch(/30-second tour/i)
+    expect(steps[0].body).not.toMatch(/your concierge has prepared/i)
+  })
+
+  it('uses role-specific copy on the matches step', () => {
+    const angel = buildTour({ ...BASE, role: 'angel' })
+    const family = buildTour({ ...BASE, role: 'family_office' })
+    expect(angel.find(s => s.element === '[data-tour="match-list"]')!.body)
+      .toMatch(/family offices/i)
+    expect(family.find(s => s.element === '[data-tour="match-list"]')!.body)
+      .toMatch(/angel investors/i)
+  })
+
+  it.each([
+    ['access',    /upgrade to select/i],
+    ['select',    /capped at 5 intros/i],
+    ['sovereign', /dedicated relationship manager/i],
+  ] as const)('uses tier-specific copy on the tier step for %s', (tier, pattern) => {
+    const steps = buildTour({ ...BASE, tier })
+    const tierStep = steps.find(s => s.element === '[data-tour="tier-badge"]')!
+    expect(tierStep.body).toMatch(pattern)
+  })
+
+  it('every step has non-empty title and body', () => {
+    const cases: Parameters<typeof buildTour>[0][] = [
+      BASE,
+      { ...BASE, isAdmin: true },
+      { ...BASE, isConcierge: true },
+      { ...BASE, isAdmin: true, isConcierge: true },
+      { ...BASE, isManaged: true },
+      { ...BASE, role: 'family_office', tier: 'sovereign' },
+    ]
+    for (const args of cases) {
+      for (const step of buildTour(args)) {
+        expect(step.title.length).toBeGreaterThan(0)
+        expect(step.body.length).toBeGreaterThan(0)
+      }
+    }
+  })
+})

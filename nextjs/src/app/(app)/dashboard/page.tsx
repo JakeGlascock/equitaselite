@@ -91,13 +91,13 @@ export default async function DashboardPage() {
         )}
 
         {matches.length === 0 ? (
-          <div className="glass-panel p-10 text-center">
+          <div data-tour="match-list" className="glass-panel p-10 text-center">
             <p className="text-ee-muted text-sm">
               Check back soon — we&apos;re onboarding {roleLabel.toLowerCase()} now.
             </p>
           </div>
         ) : (
-          <div className="space-y-4">
+          <div data-tour="match-list" className="space-y-4">
             {matches.map(m => (
               <MatchCard key={m.id} match={m} canSendIntros={quota.ok} />
             ))}

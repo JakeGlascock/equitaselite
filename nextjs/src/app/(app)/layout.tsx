@@ -61,9 +61,14 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     profile.walkthrough_seen_at === null &&
     profile.onboarding_completed
 
+  // Managed Sovereigns get a different welcome step in the tour. Detect
+  // via the id prefix established by the concierge onboarding-on-behalf
+  // flow (see scripts that mint managed_* ids in /api/concierge/**).
+  const isManaged = userId.startsWith('managed_')
+
   return (
     <AppShell
-      user={{ fullName: profile.full_name, role: profile.role, isAdmin, isConcierge, tier }}
+      user={{ fullName: profile.full_name, role: profile.role, isAdmin, isConcierge, isManaged, tier }}
       actingAs={managedAs}
       walkthroughPending={walkthroughPending}
     >
