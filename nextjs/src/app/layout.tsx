@@ -41,6 +41,25 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        {/*
+          Preload the actual Material Symbols woff2 file the CSS @font-face
+          will request. Without this, the browser waits until it has parsed
+          the stylesheet (next link below) before it knows the font URL,
+          which leaves every top-bar icon as an empty box for ~200-500ms
+          on first paint — the visible "flicker" on hard refresh.
+          With the preload, the woff2 download starts during HTML parsing,
+          so by the time the CSS resolves it the file is already cached.
+          The hash in the URL changes when Google reissues the font (~once
+          a year). If that happens, the preload becomes a no-op (no harm)
+          and we re-pin to the new version.
+        */}
+        <link
+          rel="preload"
+          as="font"
+          type="font/woff2"
+          crossOrigin="anonymous"
+          href="https://fonts.gstatic.com/s/materialsymbolsoutlined/v338/kJEhBvYX7BgnkSrUwT8OhrdQw4oELdPIeeII9v6oFsLjBuVY.woff2"
+        />
         <link
           href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=block"
           rel="stylesheet"
