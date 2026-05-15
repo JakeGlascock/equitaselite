@@ -28,8 +28,13 @@ export interface ValidationResult {
 // Pure logic — given a candidate row (or null) and current time, decide
 // whether the token is usable. Kept separate from the DB call so the
 // branches are unit-testable without a Postgres instance.
+// demo_profile_id is required for preview tokens but null for deck tokens
+// (the DB CHECK constraint preserves the per-kind invariant). validateTokenRow
+// doesn't dereference it during validation — only callers that USE the result
+// for preview redirection care, and those see a non-null value because of
+// the CHECK on kind='preview' rows.
 export function validateTokenRow(
-  row: { demo_profile_id: string; expires_at: Date | string; max_views: number; view_count: number; revoked_at: Date | string | null } | null,
+  row: { demo_profile_id: string | null; expires_at: Date | string; max_views: number; view_count: number; revoked_at: Date | string | null } | null,
   now: Date = new Date(),
 ): ValidationResult {
   if (!row) return { ok: false, reason: 'not_found' }
@@ -37,7 +42,7 @@ export function validateTokenRow(
   const expires = row.expires_at instanceof Date ? row.expires_at : new Date(row.expires_at)
   if (expires.getTime() <= now.getTime()) return { ok: false, reason: 'expired' }
   if (row.view_count >= row.max_views)    return { ok: false, reason: 'exhausted' }
-  return { ok: true, demoProfileId: row.demo_profile_id }
+  return { ok: true, demoProfileId: row.demo_profile_id ?? undefined }
 }
 
 // Is the value attached to ee_preview a plausible demo profile id?
