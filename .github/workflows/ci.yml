@@ -95,8 +95,20 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - name: Build Docker image
-        run: docker build -t equitaselite:ci nextjs/
+      # Same buildx + GHA cache pattern as the Deploy workflow. Both jobs
+      # build the same image, so a shared cache cuts CI Trivy time from
+      # ~2 min to ~30s on most runs after the first cache fill.
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image (with GHA cache)
+        run: |
+          docker buildx build \
+            --cache-from type=gha \
+            --cache-to type=gha,mode=max \
+            --load \
+            -t equitaselite:ci \
+            nextjs/
 
       - name: Scan image for HIGH/CRITICAL CVEs
         uses: aquasecurity/trivy-action@master

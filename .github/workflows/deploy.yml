@@ -59,14 +59,27 @@ jobs:
           aws ecr get-login-password --region "$AWS_REGION" \
             | docker login --username AWS --password-stdin "$ECR_REGISTRY"
 
-      - name: Build image
+      # Buildx + GitHub Actions cache shave 60-90s off subsequent deploys.
+      # The base image, npm install layer (when package-lock.json hasn't
+      # changed), and unchanged source files all hit cache. First-deploy
+      # after this change is slow (no cache yet); every one after is fast.
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build image (with GHA cache)
         working-directory: nextjs
         env:
           IMAGE_TAG: ${{ github.sha }}
         run: |
           FULL_IMAGE="$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
           echo "Building $FULL_IMAGE"
-          docker build --platform linux/amd64 -t "$FULL_IMAGE" .
+          docker buildx build \
+            --platform linux/amd64 \
+            --cache-from type=gha \
+            --cache-to type=gha,mode=max \
+            --load \
+            -t "$FULL_IMAGE" \
+            .
           echo "FULL_IMAGE=$FULL_IMAGE" >> "$GITHUB_ENV"
 
       - name: Push image
