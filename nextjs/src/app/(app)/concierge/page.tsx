@@ -27,7 +27,7 @@ interface ManagedRow {
 const SERVICES = [
   {
     title: 'Bespoke introductions',
-    desc:  'When you need to reach a specific firm or principal outside the platform, we make warm introductions through our network.',
+    desc:  'Warm introductions made personally by your concierge to firms in her network — a relationship-driven path that runs alongside the platform’s match score, not a replacement for it.',
     icon:  'handshake',
   },
   {
@@ -443,12 +443,13 @@ function SelectUpsellCard({ teamName, teamEmail }: { teamName: string; teamEmail
         </div>
         <div className="flex-1 min-w-0 space-y-1">
           <p className="font-data text-[10px] uppercase tracking-widest text-ee-gold">Select tier</p>
-          <p className="font-display text-lg text-ee-primary">A dedicated relationship manager is a Sovereign benefit</p>
+          <p className="font-display text-lg text-ee-primary">A dedicated concierge is a Sovereign benefit</p>
           <p className="text-sm text-ee-muted leading-relaxed">
-            On Sovereign you&apos;re paired with a specific RM who knows your mandate,
-            handles bespoke introductions, and coordinates due-diligence support.
-            Reach out to {teamName} below to explore the upgrade or request a one-off
-            engagement.
+            On Sovereign you&apos;re paired with a dedicated concierge — your human
+            counterpart to the platform&apos;s match algorithm. Where the score tells
+            you whose mandate fits yours, the concierge tells you whom she&apos;s
+            personally worked with and brokers the warm intro. Reach out to {teamName} below
+            to explore the upgrade or request a one-off engagement.
           </p>
         </div>
       </div>
@@ -481,11 +482,12 @@ function AccessUpsellCard() {
         </div>
         <div className="flex-1 min-w-0 space-y-1">
           <p className="font-data text-[10px] uppercase tracking-widest text-ee-gold">Sovereign benefit</p>
-          <p className="font-display text-lg text-ee-primary">Concierge service is included with Sovereign membership</p>
+          <p className="font-display text-lg text-ee-primary">Sovereign adds a second trust signal</p>
           <p className="text-sm text-ee-muted leading-relaxed">
-            Sovereign members get a dedicated relationship manager, bespoke
-            introductions outside the platform&apos;s automated flow, and
-            curated deal-flow invitations. See below for what we handle.
+            Every member gets the platform&apos;s mandate-match algorithm. Sovereign adds
+            a dedicated concierge alongside it — a human relationship layer that runs
+            parallel to the match score, not on top of it. The algorithm tells you whose
+            mandate fits yours; the concierge tells you whom she&apos;d personally vouch for.
           </p>
         </div>
       </div>
