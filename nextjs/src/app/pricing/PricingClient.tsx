@@ -144,6 +144,31 @@ export default function PricingClient({ currentTier }: { currentTier: Tier | nul
           </div>
         </div>
 
+        {/* Two trust layers — parallel signals, not a stacked tier story */}
+        <div className="glass-panel p-6 md:p-8 max-w-4xl mx-auto">
+          <p className="font-data text-[10px] uppercase tracking-widest text-ee-gold text-center mb-5">
+            Two trust layers
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-10">
+            <div className="space-y-2">
+              <p className="font-data text-[10px] uppercase tracking-widest text-ee-muted">Layer 1 · Every member</p>
+              <h3 className="font-display text-xl text-ee-primary">Mandate-match algorithm</h3>
+              <p className="text-sm text-ee-muted leading-relaxed">
+                Score-driven, defensible, revisable. The algorithm tells you whose mandate fits
+                yours — sectors, stages, geography, check size, risk, horizon — and shows its work.
+              </p>
+            </div>
+            <div className="space-y-2 md:border-l md:border-ee-gold/20 md:pl-10">
+              <p className="font-data text-[10px] uppercase tracking-widest text-ee-muted">Layer 2 · Sovereign</p>
+              <h3 className="font-display text-xl text-ee-primary">Dedicated concierge</h3>
+              <p className="text-sm text-ee-muted leading-relaxed">
+                A human relationship layer alongside the score, not on top of it. The concierge
+                tells you whom she&apos;s personally worked with and brokers the warm intro herself.
+              </p>
+            </div>
+          </div>
+        </div>
+
         {/* Plan cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
           {PLANS.map(plan => {
