@@ -5,6 +5,7 @@ import {
   GetUserCommand,
   AdminCreateUserCommand,
   AdminDeleteUserCommand,
+  AdminResetUserPasswordCommand,
   AssociateSoftwareTokenCommand,
   VerifySoftwareTokenCommand,
   ListUsersCommand,
@@ -137,6 +138,28 @@ export async function inviteUser(email: string): Promise<{ sub: string }> {
     throw new Error('Cognito AdminCreateUser response did not include sub')
   }
   return { sub }
+}
+
+// Resend the Cognito invitation email for a user who hasn't yet completed
+// first-time sign-in (status FORCE_CHANGE_PASSWORD). Generates a fresh
+// temporary password and emails it to the user. Fails if the user is
+// already CONFIRMED — use resetUserPassword in that case.
+export async function resendInvite(email: string): Promise<void> {
+  await cognitoClient.send(new AdminCreateUserCommand({
+    UserPoolId:             process.env.COGNITO_USER_POOL_ID!,
+    Username:               email,
+    MessageAction:          'RESEND',
+    DesiredDeliveryMediums: ['EMAIL'],
+  }))
+}
+
+// Send a password-reset email for a CONFIRMED Cognito user. They receive a
+// code and use the standard "forgot password" flow to set a new one.
+export async function resetUserPassword(email: string): Promise<void> {
+  await cognitoClient.send(new AdminResetUserPasswordCommand({
+    UserPoolId: process.env.COGNITO_USER_POOL_ID!,
+    Username:   email,
+  }))
 }
 
 // Hard-delete a user from Cognito. Used by the admin "Delete user" action.

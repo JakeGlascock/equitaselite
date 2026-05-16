@@ -242,6 +242,8 @@ export default async function AdminPage() {
       staffToggleReason: !p ? 'Run "Backfill placeholder profiles" in Setup to activate toggles' : status === 'Disabled' ? 'User is disabled' : undefined,
       deletable,
       deleteReason,
+      resendable:   true,    // every Cognito-backed row can receive a login email
+      resendReason: undefined,
     })
   }
 
@@ -278,6 +280,10 @@ export default async function AdminPage() {
       staffToggleReason: isDemo ? 'Admin / Concierge / RM don\'t apply to demo accounts' : undefined,
       deletable,
       deleteReason,
+      // Demo and managed profiles never have Cognito sign-ins, so there's
+      // nothing to email.
+      resendable:   false,
+      resendReason: isDemo ? 'Demo profile has no Cognito sign-in' : 'Managed account has no Cognito sign-in',
     })
   }
 

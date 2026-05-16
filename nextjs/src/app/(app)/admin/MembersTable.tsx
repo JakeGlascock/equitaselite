@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react'
 import AdminToggle from './AdminToggle'
 import ConciergeToggle from './ConciergeToggle'
 import DeleteUserButton from './DeleteUserButton'
+import ResendLoginButton from './ResendLoginButton'
 import ManagedAccountAssignment from './ManagedAccountAssignment'
 import TierAssignment from './TierAssignment'
 import RmAssignment from './RmAssignment'
@@ -40,6 +41,10 @@ export interface MemberRow {
   // concierges, and demo profiles.
   deletable:      boolean
   deleteReason?:  string
+  // Whether the Resend-login button is enabled. Disabled for demo /
+  // managed profiles (no Cognito sign-in to trigger an email for).
+  resendable:     boolean
+  resendReason?:  string
 }
 
 export interface ConciergeOption {
@@ -191,6 +196,7 @@ export default function MembersTable({
                 <th className="text-left  px-2 py-2 font-normal">Managed by</th>
                 <th className="text-left  px-2 py-2 font-normal" title="Relationship manager">RM</th>
                 <th className="text-right px-3 py-2 font-normal">Joined</th>
+                <th className="text-right px-2 py-2 font-normal" title="Resend login email"></th>
                 <th className="text-right px-2 py-2 font-normal" title="Delete user"></th>
               </tr>
             </thead>
@@ -278,6 +284,18 @@ export default function MembersTable({
                   )}
                 </td>
                 <td className="px-3 py-2 text-right text-ee-muted text-xs whitespace-nowrap">{fmtDate(m.joined)}</td>
+                <td className="px-2 py-2 text-right">
+                  {m.deleteId ? (
+                    <ResendLoginButton
+                      userId={m.deleteId}
+                      email={m.email}
+                      disabled={!m.resendable}
+                      disabledReason={m.resendReason}
+                    />
+                  ) : (
+                    <span className="text-xs text-ee-muted/40 italic" title="No Cognito sign-in">—</span>
+                  )}
+                </td>
                 <td className="px-2 py-2 text-right">
                   {m.deleteId ? (
                     <DeleteUserButton
