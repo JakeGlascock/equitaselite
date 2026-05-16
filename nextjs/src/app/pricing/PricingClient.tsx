@@ -62,7 +62,7 @@ const PLANS: Plan[] = [
     id:          'sovereign',
     name:        'Sovereign',
     monthly:     9500,
-    description: 'White-glove service for principals who expect more.',
+    description: 'White-glove service for principals who expect more — paired with a credentialed family office practitioner.',
     cta:         'Request access',
     highlight:   false,
     features: [

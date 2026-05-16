@@ -250,17 +250,18 @@ export default async function ConciergePage() {
   // generic concierge-team label if the configured user doesn't exist
   // yet (e.g. before they've been invited + flagged is_concierge).
   const DEFAULT_EMAIL = process.env.DEFAULT_CONCIERGE_EMAIL ?? 'chelsea@equitaselite.com'
-  let defaultConcierge: { full_name: string; email: string } | null = null
+  let defaultConcierge: { full_name: string; email: string; bio: string | null } | null = null
   try {
-    defaultConcierge = await queryOne<{ full_name: string; email: string }>(
-      `SELECT full_name, email FROM profiles
+    defaultConcierge = await queryOne<{ full_name: string; email: string; bio: string | null }>(
+      `SELECT full_name, email, bio FROM profiles
        WHERE LOWER(email) = LOWER($1) AND is_concierge = TRUE
        LIMIT 1`,
       [DEFAULT_EMAIL]
     )
-  } catch { /* is_concierge column missing */ }
+  } catch { /* is_concierge or bio column missing */ }
   const teamName  = defaultConcierge?.full_name ?? 'the Equitas Elite concierge team'
   const teamEmail = defaultConcierge?.email     ?? DEFAULT_EMAIL
+  const teamBio   = defaultConcierge?.bio       ?? null
 
   const tier = userId ? await getTier(userId) : 'access'
 
@@ -299,6 +300,26 @@ export default async function ConciergePage() {
         ) : (
           // 4. Access / no tier — upsell only
           <AccessUpsellCard />
+        )}
+
+        {teamBio && (
+          <section>
+            <h2 className="font-display text-xl text-ee-primary mb-4">Meet your concierge</h2>
+            <div className="glass-panel p-6 md:p-7 flex flex-col sm:flex-row gap-5 sm:items-start">
+              <div className="w-14 h-14 rounded-full bg-ee-gold/15 border border-ee-gold/30 flex items-center justify-center shrink-0">
+                <span
+                  className="material-symbols-outlined text-ee-gold text-2xl"
+                  style={{ fontVariationSettings: "'FILL' 1, 'wght' 300, 'GRAD' 0, 'opsz' 32" }}
+                >
+                  account_circle
+                </span>
+              </div>
+              <div className="flex-1 min-w-0 space-y-2">
+                <p className="font-display text-lg text-ee-primary">{teamName}</p>
+                <p className="text-sm text-ee-muted leading-relaxed">{teamBio}</p>
+              </div>
+            </div>
+          </section>
         )}
 
         {briefings.length > 0 && (
