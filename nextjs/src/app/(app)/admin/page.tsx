@@ -211,6 +211,17 @@ export default async function AdminPage() {
     else                               status = 'Active'
 
     const togglable = !!p && status !== 'Disabled'
+
+    // Delete eligibility for Cognito-backed users. Self / admin / concierge
+    // are protected. Users without a profile (Invited / Disabled) are still
+    // deletable — the API handles Cognito-only cleanup.
+    const isSelf = !!p && p.id === userId
+    let deletable = true
+    let deleteReason: string | undefined
+    if (isSelf)               { deletable = false; deleteReason = 'You cannot delete your own account' }
+    else if (p?.is_admin)      { deletable = false; deleteReason = 'Revoke admin access first' }
+    else if (p?.is_concierge)  { deletable = false; deleteReason = 'Revoke concierge access first' }
+
     merged.push({
       email:        u.email,
       name:         p?.full_name ?? null,
@@ -219,6 +230,7 @@ export default async function AdminPage() {
       status,
       joined:       toIso(p?.created_at) || u.createdAt,
       userId:       p?.id ?? null,
+      deleteId:     p?.id ?? u.sub ?? null,
       isAdmin:      p?.is_admin ?? false,
       isConcierge:  p?.is_concierge ?? false,
       managedBy:    p?.managed_by ?? null,
@@ -228,12 +240,24 @@ export default async function AdminPage() {
       staffTogglable:    togglable,  // same gate for real users — admin can flip A/C/RM on any non-Disabled real user
       toggleReason:      !p ? 'Run "Backfill placeholder profiles" in Setup to activate toggles' : status === 'Disabled' ? 'User is disabled' : undefined,
       staffToggleReason: !p ? 'Run "Backfill placeholder profiles" in Setup to activate toggles' : status === 'Disabled' ? 'User is disabled' : undefined,
+      deletable,
+      deleteReason,
     })
   }
 
   for (const p of profiles) {
     if (!p.id.startsWith('demo_') && !p.id.startsWith('managed_')) continue
     const isDemo = p.id.startsWith('demo_')
+
+    // Demo profiles: never deletable via this UI (managed by seed tooling).
+    // Managed profiles: deletable unless they somehow ended up admin/concierge.
+    let deletable = !isDemo
+    let deleteReason: string | undefined
+    if (isDemo)                { deleteReason = 'Demo profiles are managed via Setup → Seed demo data' }
+    else if (p.is_admin)       { deletable = false; deleteReason = 'Revoke admin access first' }
+    else if (p.is_concierge)   { deletable = false; deleteReason = 'Revoke concierge access first' }
+    else if (p.id === userId)  { deletable = false; deleteReason = 'You cannot delete your own account' }
+
     merged.push({
       email:        p.email,
       name:         p.full_name,
@@ -242,6 +266,7 @@ export default async function AdminPage() {
       status:       isDemo ? 'Demo' : (p.onboarding_completed ? 'Active' : 'Onboarding'),
       joined:       toIso(p.created_at),
       userId:       p.id,
+      deleteId:     p.id,
       isAdmin:      p.is_admin ?? false,
       isConcierge:  p.is_concierge ?? false,
       managedBy:    p.managed_by ?? null,
@@ -251,6 +276,8 @@ export default async function AdminPage() {
       staffTogglable:    !isDemo, // but admin/concierge/RM aren't meaningful on demo fixtures
       toggleReason:      undefined,
       staffToggleReason: isDemo ? 'Admin / Concierge / RM don\'t apply to demo accounts' : undefined,
+      deletable,
+      deleteReason,
     })
   }
 

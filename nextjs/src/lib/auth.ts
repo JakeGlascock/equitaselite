@@ -4,6 +4,7 @@ import {
   GlobalSignOutCommand,
   GetUserCommand,
   AdminCreateUserCommand,
+  AdminDeleteUserCommand,
   AssociateSoftwareTokenCommand,
   VerifySoftwareTokenCommand,
   ListUsersCommand,
@@ -136,6 +137,17 @@ export async function inviteUser(email: string): Promise<{ sub: string }> {
     throw new Error('Cognito AdminCreateUser response did not include sub')
   }
   return { sub }
+}
+
+// Hard-delete a user from Cognito. Used by the admin "Delete user" action.
+// Username = email in our pool config (matches AdminCreateUserCommand above).
+// Throws if the user doesn't exist; callers should handle UserNotFoundException
+// when it's acceptable for the user to already be gone.
+export async function deleteCognitoUser(email: string): Promise<void> {
+  await cognitoClient.send(new AdminDeleteUserCommand({
+    UserPoolId: process.env.COGNITO_USER_POOL_ID!,
+    Username:   email,
+  }))
 }
 
 export async function respondToNewPassword(
