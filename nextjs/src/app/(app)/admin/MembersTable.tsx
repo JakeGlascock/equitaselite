@@ -33,6 +33,11 @@ export interface MemberRow {
   staffTogglable: boolean
   toggleReason?:      string
   staffToggleReason?: string
+  // Raw Cognito UserStatus (FORCE_CHANGE_PASSWORD, CONFIRMED, RESET_REQUIRED,
+  // ARCHIVED, etc.) shown alongside the derived Status badge so you can tell
+  // a brand-new Invited user apart from one who needs a password reset.
+  // Null for demo / managed profiles (no Cognito user).
+  cognitoStatus:  string | null
   // ID used by the Delete button. Equals the profile id when one exists,
   // else the Cognito sub (so Invited / Disabled users without a profile
   // can still be cleaned up). Null only when neither is available.
@@ -224,9 +229,19 @@ export default function MembersTable({
                   )}
                 </td>
                 <td className="px-2 py-2">
-                  <span className={`text-[11px] px-2 py-0.5 rounded-full border whitespace-nowrap ${STATUS_STYLES[m.status]}`}>
-                    {m.status}
-                  </span>
+                  <div className="flex flex-col gap-1 items-start">
+                    <span className={`text-[11px] px-2 py-0.5 rounded-full border whitespace-nowrap ${STATUS_STYLES[m.status]}`}>
+                      {m.status}
+                    </span>
+                    {m.cognitoStatus && (
+                      <span
+                        className="text-[9px] font-data uppercase tracking-widest text-ee-muted/70 whitespace-nowrap"
+                        title="Raw Cognito UserStatus"
+                      >
+                        {m.cognitoStatus}
+                      </span>
+                    )}
+                  </div>
                 </td>
                 <td className="px-2 py-2 text-center">
                   {m.userId ? (
