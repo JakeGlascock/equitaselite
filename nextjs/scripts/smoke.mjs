@@ -115,6 +115,22 @@ const CHECKS = [
     body: '{"email":"demo@x.com","role":"angel","full_name":"X","firm_name":"Y","sectors":["X"],"stages":["Seed"],"geography":["US"],"check_size_min":1,"check_size_max":2,"risk_tolerance":"Moderate"}',
     status: 403, contains: 'Preview mode',
   },
+  // Phase 7B concierge annotations — preview-mode mutation block must
+  // apply to the new write surfaces too. A demo profile is never a
+  // concierge anyway, so the route-level check would also fail, but
+  // we exercise the middleware gate explicitly.
+  {
+    name: 'preview-blocks-concierge-annotation-create',
+    path: '/api/concierge/annotations', method: 'POST', headers: PREVIEW_MUTATION_HEADERS,
+    body: '{"counterparty_id":"demo_fo_hartwell","note":"smoke"}',
+    status: 403, contains: 'Preview mode',
+  },
+  {
+    name: 'preview-blocks-concierge-annotation-delete',
+    path: '/api/concierge/annotations/00000000-0000-0000-0000-000000000000',
+    method: 'DELETE', headers: PREVIEW_MUTATION_HEADERS,
+    status: 403, contains: 'Preview mode',
+  },
 
   // The /dashboard matching explainer button is visible in the preview
   // walkthrough — verify the methodology copy renders so a regression in
