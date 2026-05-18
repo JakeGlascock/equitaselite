@@ -11,8 +11,18 @@ const TIMEOUT_MS = 15_000
 // exercised only at the redirect-to-/signin boundary — Cognito MFA can't be
 // completed from CI without a no-MFA test account.
 //
+// Field reference:
+//   status:           one number or array of acceptable status codes
+//   contains:         substring required in response body
+//   notContains:      substring that must NOT appear in response body
+//   bodyAssert:       (body) => { ok: boolean, reason?: string } for custom invariants
+//   redirectContains: substring required in Location header (with followRedirect: false)
+//   followRedirect:   set to false to inspect a 3xx without following it
+//
 // Add new checks here when a route ships, NOT in a follow-up PR — a route
-// without a smoke entry will silently regress.
+// without a smoke entry will silently regress. Security-shaped behaviors
+// (preview scoping, auth gates, mutation blocks) MUST have a smoke entry —
+// regressions on these surfaces leak real data or open mutation paths.
 const PREVIEW_COOKIE = 'ee_preview=demo_angel_sarah_chen'
 const PREVIEW_MUTATION_HEADERS = { 'Content-Type': 'application/json', 'Cookie': PREVIEW_COOKIE }
 
@@ -86,6 +96,56 @@ const CHECKS = [
     path: '/api/events/00000000-0000-0000-0000-000000000000/rsvp',
     method: 'POST', headers: PREVIEW_MUTATION_HEADERS, body: '', status: 403, contains: 'Preview mode',
   },
+  // Phase 6 endpoints — same mutation guard must apply.
+  {
+    name: 'preview-blocks-mandate-weights',
+    path: '/api/me/mandate-weights', method: 'PATCH', headers: PREVIEW_MUTATION_HEADERS,
+    body: '{"scope":40,"capital":25,"timeRisk":10,"governance":5,"counterparty":10,"values":10}',
+    status: 403, contains: 'Preview mode',
+  },
+  {
+    name: 'preview-blocks-mandate-pillars',
+    path: '/api/me/mandate-pillars', method: 'PATCH', headers: PREVIEW_MUTATION_HEADERS,
+    body: '{"anti_sectors":["Defense"]}',
+    status: 403, contains: 'Preview mode',
+  },
+  {
+    name: 'preview-blocks-onboarding',
+    path: '/api/onboarding', method: 'POST', headers: PREVIEW_MUTATION_HEADERS,
+    body: '{"email":"demo@x.com","role":"angel","full_name":"X","firm_name":"Y","sectors":["X"],"stages":["Seed"],"geography":["US"],"check_size_min":1,"check_size_max":2,"risk_tolerance":"Moderate"}',
+    status: 403, contains: 'Preview mode',
+  },
+
+  // SECURITY: demo-only data scoping on the investor walkthrough.
+  // A demo preview cookie must not surface ANY real-member data. The
+  // dashboard's match list is the highest-leverage surface — every link
+  // in the rendered HTML should point at a demo_* profile. A regression
+  // here re-leaks the real member directory to anyone with a preview link.
+  {
+    name: 'preview-dashboard-demo-only',
+    path: '/dashboard', headers: { Cookie: PREVIEW_COOKIE }, status: 200,
+    bodyAssert(body) {
+      const matchLinks = [...body.matchAll(/href="\/match\/([^"]+)"/g)].map(m => m[1])
+      if (matchLinks.length === 0) {
+        return { ok: false, reason: 'no /match links found — dashboard render may have changed' }
+      }
+      const leaked = matchLinks.filter(id => !id.startsWith('demo_'))
+      if (leaked.length > 0) {
+        return { ok: false, reason: `non-demo ids leaked: ${leaked.slice(0, 3).join(', ')}` }
+      }
+      return { ok: true }
+    },
+  },
+  // Same scope guard, page-level: a demo viewer trying to open a non-demo
+  // match-detail id must hit notFound() (404) — either because the id
+  // doesn't exist or because the scope check rejects it. Either outcome
+  // proves the data doesn't surface.
+  {
+    name: 'preview-match-non-demo-404',
+    path: '/match/some-real-user-id',
+    headers: { Cookie: PREVIEW_COOKIE },
+    status: 404,
+  },
 
   // The exit-preview endpoint stays public + reachable. A regression here
   // would prevent investors from cleanly exiting their session.
@@ -149,10 +209,24 @@ for (const c of CHECKS) {
 
     let bodyOk = true
     let reason = ''
-    if (c.contains) {
-      const body = await res.text()
-      bodyOk = body.includes(c.contains)
-      if (!bodyOk) reason = ` body missing "${c.contains}"`
+    // Read body once if any body-level assertion is configured — avoids
+    // double-reads (the response stream can only be consumed once).
+    const needsBody = !!(c.contains || c.notContains || c.bodyAssert)
+    const body = needsBody ? await res.text() : ''
+    if (c.contains && !body.includes(c.contains)) {
+      bodyOk = false
+      reason = ` body missing "${c.contains}"`
+    }
+    if (bodyOk && c.notContains && body.includes(c.notContains)) {
+      bodyOk = false
+      reason = ` body unexpectedly contained "${c.notContains}"`
+    }
+    if (bodyOk && c.bodyAssert) {
+      const assertion = c.bodyAssert(body)
+      if (!assertion.ok) {
+        bodyOk = false
+        reason = ` ${assertion.reason ?? 'bodyAssert returned false'}`
+      }
     }
     if (c.redirectContains) {
       const loc = res.headers.get('location') ?? ''
