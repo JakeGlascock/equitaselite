@@ -27,6 +27,10 @@ describe('middleware: isPublic', () => {
       '/_next/image?url=...',
       '/favicon.ico',
       '/logo.png',
+      // self-hosted Material Symbols subset — preload runs before any
+      // user has a session, so a 307 to /signin here makes the entire
+      // icon font silently fall back to ligature-text on first load.
+      '/fonts/material-symbols-outlined.woff2',
     ])('treats %s as public', (path) => {
       expect(isPublic(path)).toBe(true)
     })

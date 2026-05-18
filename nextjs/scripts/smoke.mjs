@@ -171,6 +171,24 @@ const CHECKS = [
   { name: 'deck-denied-expired',   path: '/deck-denied?reason=expired',   status: 200, contains: 'Deck link expired' },
   { name: 'deck-denied-exhausted', path: '/deck-denied?reason=exhausted', status: 200, contains: 'View limit reached' },
 
+  // ───── Static assets that MUST be public ─────
+  // Self-hosted Material Symbols subset — preload runs before any user
+  // has a session, so a 307 to /signin here makes the icon font silently
+  // fail to load for fresh users and every icon falls back to ligature-
+  // text ("lock", "settings", etc.). Status 200 + woff2 magic bytes in
+  // the body prove the file is actually served (not redirected).
+  {
+    name: 'fonts-material-symbols-public',
+    path: '/fonts/material-symbols-outlined.woff2',
+    status: 200,
+    bodyAssert(body) {
+      // woff2 magic = 0x77 0x4f 0x46 0x32 = ASCII "wOF2".
+      const ok = body.charCodeAt(0) === 0x77 && body.charCodeAt(1) === 0x4f
+              && body.charCodeAt(2) === 0x46 && body.charCodeAt(3) === 0x32
+      return ok ? { ok: true } : { ok: false, reason: `body did not start with wOF2 magic` }
+    },
+  },
+
   // ───── Error feedback ─────
   // User-report endpoint must be reachable (not blocked by middleware)
   // and must validate input. Empty body → 400. We deliberately do NOT

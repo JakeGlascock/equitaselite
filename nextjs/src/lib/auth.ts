@@ -241,6 +241,31 @@ export async function verifyMfaSetup(
   return { session: Session! }
 }
 
+// Finish the original auth flow after a successful VerifySoftwareToken.
+// Cognito expects RespondToAuthChallenge with ChallengeName='MFA_SETUP'
+// and just a USERNAME in the responses — the verification state is carried
+// in the session from VerifySoftwareToken. No TOTP code re-entry needed.
+//
+// The previous implementation re-sent the TOTP code under
+// ChallengeName='SOFTWARE_TOKEN_MFA', which Cognito frequently rejected
+// (one-time-use enforcement on the code that was just consumed by
+// VerifySoftwareToken, plus clock-skew edge cases) — triggering the
+// "second 2FA prompt" fallback path.
+export async function completeMfaSetup(
+  username: string,
+  session: string,
+): Promise<AuthTokens> {
+  const { AuthenticationResult } = await cognitoClient.send(
+    new RespondToAuthChallengeCommand({
+      ClientId:           CLIENT_ID,
+      ChallengeName:      'MFA_SETUP',
+      Session:            session,
+      ChallengeResponses: { USERNAME: username },
+    })
+  )
+  return toTokens(AuthenticationResult!)
+}
+
 function toTokens(result: AuthenticationResultType): AuthTokens {
   return {
     accessToken:  result.AccessToken!,

@@ -5,6 +5,7 @@ import {
   respondToNewPassword,
   getMfaSetupSecret,
   verifyMfaSetup,
+  completeMfaSetup,
   type AuthTokens,
 } from '@/lib/auth'
 
@@ -35,16 +36,18 @@ export async function POST(req: NextRequest) {
     }
 
     // MFA-setup verification step: { step, session, code, username }
-    // After the authenticator is paired (VerifySoftwareToken), Cognito still
-    // wants a SOFTWARE_TOKEN_MFA challenge response to finish the original
-    // sign-in. We chain that call here using the same TOTP code (still valid
-    // in its 30s window) so the user isn't prompted a second time. If the
-    // chain fails (clock skew, code at edge of window, etc.), fall back to
-    // the normal MFA prompt.
+    // After the authenticator is paired (VerifySoftwareToken), call
+    // RespondToAuthChallenge with ChallengeName='MFA_SETUP' (NOT
+    // SOFTWARE_TOKEN_MFA) to finish the original sign-in. The verification
+    // state is carried by the session from VerifySoftwareToken — no new
+    // TOTP code needed. The previous implementation re-sent the just-used
+    // code under SOFTWARE_TOKEN_MFA, which Cognito frequently rejected,
+    // triggering the second-prompt fallback. We still keep that fallback
+    // as a defensive backstop.
     if (body.step === 'mfa_setup_verify') {
       const { session: nextSession } = await verifyMfaSetup(body.session, body.code)
       try {
-        const tokens = await respondToMfaChallenge(body.username, body.code, nextSession)
+        const tokens = await completeMfaSetup(body.username, nextSession)
         return tokenResponse(tokens)
       } catch {
         return NextResponse.json({ challenge: 'mfa', session: nextSession })
