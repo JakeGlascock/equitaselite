@@ -161,11 +161,17 @@ export async function getMe(userId: string): Promise<DbProfile | null> {
 
 export async function getCandidates(me: DbProfile): Promise<DbProfile[]> {
   const oppositeRole = me.role === 'angel' ? 'family_office' : 'angel'
+  // Demo viewers (investor preview walkthroughs) only see other demo
+  // profiles — never real members. This is the read-side guard: middleware
+  // already blocks mutations in preview mode; this stops the directory
+  // and match list from exposing real-member names, firms, or mandates.
+  const demoOnly = me.id.startsWith('demo_')
   return query<DbProfile>(
     `SELECT ${PROFILE_COLUMNS}
      FROM profiles
      WHERE role = $1 AND onboarding_completed = TRUE AND id != $2
-       AND (is_concierge IS NULL OR is_concierge = FALSE)`,
+       AND (is_concierge IS NULL OR is_concierge = FALSE)
+       ${demoOnly ? `AND id LIKE 'demo_%'` : ''}`,
     [oppositeRole, me.id]
   )
 }

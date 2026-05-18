@@ -195,6 +195,20 @@ describe('getCandidates', () => {
     expect(sql).toContain('min_counterparty_tier')
     expect(sql).toContain('esg_required')
   })
+
+  it('scopes to demo profiles only when the viewer is a demo (investor preview walkthrough)', async () => {
+    mockQuery.mockResolvedValueOnce([])
+    await getCandidates(makeProfile({ id: 'demo_fo_hartwell', role: 'family_office' }))
+    const [sql] = mockQuery.mock.calls[0]
+    expect(sql).toContain(`AND id LIKE 'demo_%'`)
+  })
+
+  it('does NOT scope to demo for real (Cognito-sub) viewers', async () => {
+    mockQuery.mockResolvedValueOnce([])
+    await getCandidates(makeProfile({ id: 'aaaa-1111-bbbb-2222', role: 'angel' }))
+    const [sql] = mockQuery.mock.calls[0]
+    expect(sql).not.toContain(`AND id LIKE 'demo_%'`)
+  })
 })
 
 describe('filterByKnockouts', () => {

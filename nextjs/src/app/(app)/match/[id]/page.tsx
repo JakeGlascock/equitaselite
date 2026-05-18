@@ -104,6 +104,10 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
   // Privacy: you can only inspect counterparties on the opposite side of the
   // market. No browsing fellow-investor profiles or fellow-family-office profiles.
   if (candidate.role === me.role || candidate.id === me.id) notFound()
+  // Demo viewers (investor preview walkthroughs) can only inspect demo
+  // profiles. Mirrors the getCandidates() scope so a demo viewer who
+  // guesses or pastes a real-user id still gets a 404.
+  if (me.id.startsWith('demo_') && !candidate.id.startsWith('demo_')) notFound()
 
   const score = computeMatchScore(toScoring(me), toScoring(candidate))
   const color = LABEL_COLOR[score.label]
