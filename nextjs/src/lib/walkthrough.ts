@@ -44,7 +44,7 @@ export function buildPreviewTour(): TourStep[] {
     {
       element: '[data-tour="match-list"]',
       title:   'The core unit of value',
-      body:    'Mandate-matched introductions. Every match is scored against the user\'s declared mandate — sector, stage, geography, check size, risk tolerance. Higher score = tighter alignment.',
+      body:    'Mandate-matched introductions, scored across six pillars — strategic scope, capital mechanics, time & risk, governance, counterparty profile, values — each weighted by the viewer\'s own mandate. Hard filters (anti-sectors, ESG, tier floors) hide counterparties entirely. The "?" at the top opens the full methodology.',
     },
     {
       element: '[data-tour="tier-badge"]',
@@ -78,8 +78,8 @@ export function buildMobileTour(a: TourArgs): TourStep[] {
     {
       title: 'Your matches',
       body:  a.role === 'angel'
-        ? 'Family offices whose mandates align with your investing profile, ranked by alignment. Tap any card for the score breakdown and to request an introduction.'
-        : 'Angel investors whose profiles align with your mandate, ranked by alignment. Tap any card for the score breakdown and to request an introduction.',
+        ? 'Family offices whose mandates align with your investing profile, ranked across six pillars (scope, capital, time/risk, governance, counterparty, values). Tap any card for the breakdown and to request an introduction.'
+        : 'Angel investors whose profiles align with your mandate, ranked across six pillars (scope, capital, time/risk, governance, counterparty, values). Tap any card for the breakdown and to request an introduction.',
     },
     {
       title: 'Your tier',
@@ -87,7 +87,7 @@ export function buildMobileTour(a: TourArgs): TourStep[] {
     },
     {
       title: 'You\'re all set',
-      body:  'Tap the menu icon (top-left) to find Insights, Events, and Concierge. Replay this tour anytime from your profile.',
+      body:  'Tap the menu icon (top-left) to find Insights, Events, and Concierge. Visit your profile to tune mandate weights and pillars — or replay this tour from there.',
     },
   ]
 }
@@ -108,11 +108,19 @@ export function buildTour(a: TourArgs): TourStep[] {
     element: '[data-tour="match-list"]',
     title:   'Your matches',
     body:    a.role === 'angel'
-      ? 'Family offices whose mandates align with your investing profile, ranked by alignment. Click any card to see the score breakdown and request an introduction.'
-      : 'Angel investors whose profiles align with your mandate, ranked by alignment. Click any card to see the score breakdown and request an introduction.',
+      ? 'Family offices whose mandates align with your investing profile, ranked across six pillars (scope, capital, time/risk, governance, counterparty, values). Click any card to see the breakdown and request an introduction.'
+      : 'Angel investors whose profiles align with your mandate, ranked across six pillars (scope, capital, time/risk, governance, counterparty, values). Click any card to see the breakdown and request an introduction.',
   })
 
-  // 3. Tier badge — tier-conditional copy.
+  // 3. Tune your mandate — pointer to /profile so new members find the
+  // pillar/weight customization. Centered (no anchor) — copy nudges
+  // toward Profile rather than spotlighting a specific element.
+  steps.push({
+    title: 'Tune your mandate',
+    body:  'Your match scores reflect a mandate you can customize from your profile — pick a preset (Diversified, Sector specialist, Mission-first, Capital preservation) or fine-tune the six pillar weights. Anti-sectors, tier floors, and ESG requirements live there too; those are hard filters that hide counterparties from your view.',
+  })
+
+  // 4. Tier badge — tier-conditional copy.
   steps.push({
     element: '[data-tour="tier-badge"]',
     title:   'Your tier',

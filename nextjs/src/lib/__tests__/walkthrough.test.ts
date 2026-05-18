@@ -10,9 +10,9 @@ const BASE = {
 }
 
 describe('buildTour', () => {
-  it('produces 5 steps for a baseline investor (no staff roles)', () => {
+  it('produces 6 steps for a baseline investor (no staff roles)', () => {
     const steps = buildTour(BASE)
-    expect(steps).toHaveLength(5)
+    expect(steps).toHaveLength(6)
     expect(steps[0].element).toBeUndefined()   // centered welcome
     expect(steps[steps.length - 1].element).toBeUndefined()  // centered done
   })
@@ -20,12 +20,20 @@ describe('buildTour', () => {
   it('matches anchors to expected selectors in order', () => {
     const steps = buildTour(BASE)
     expect(steps.map(s => s.element)).toEqual([
-      undefined,
-      '[data-tour="match-list"]',
-      '[data-tour="tier-badge"]',
-      '[data-tour="top-nav"]',
-      undefined,
+      undefined,                       // welcome
+      '[data-tour="match-list"]',      // matches
+      undefined,                       // tune your mandate (centered)
+      '[data-tour="tier-badge"]',      // tier
+      '[data-tour="top-nav"]',         // explore further
+      undefined,                       // done
     ])
+  })
+
+  it('includes a "Tune your mandate" step pointing at /profile customization', () => {
+    const steps = buildTour(BASE)
+    const tune = steps.find(s => s.title === 'Tune your mandate')
+    expect(tune).toBeDefined()
+    expect(tune!.body).toMatch(/preset|pillar|profile/i)
   })
 
   it('adds an admin step when isAdmin=true', () => {
@@ -42,7 +50,7 @@ describe('buildTour', () => {
 
   it('adds both admin and concierge steps when the user is staff with both flags', () => {
     const steps = buildTour({ ...BASE, isAdmin: true, isConcierge: true })
-    expect(steps).toHaveLength(7)
+    expect(steps).toHaveLength(8)
     expect(steps.some(s => s.title === 'Admin tools')).toBe(true)
     expect(steps.some(s => s.title === 'Concierge tools')).toBe(true)
   })
