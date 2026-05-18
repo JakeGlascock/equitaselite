@@ -27,7 +27,7 @@ const PLANS: Plan[] = [
     highlight:   false,
     features: [
       { label: 'Up to 10 curated matches / month',     included: true },
-      { label: 'Match score breakdown',                included: true },
+      { label: 'Six-pillar mandate matching · personal weights', included: true },
       { label: 'Standard profile placement',           included: true },
       { label: 'Email deal alerts',                    included: true },
       { label: 'Direct introduction requests',         included: false },
@@ -151,11 +151,12 @@ export default function PricingClient({ currentTier }: { currentTier: Tier | nul
           </p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-10">
             <div className="space-y-2">
-              <p className="font-data text-[10px] uppercase tracking-widest text-ee-muted">Layer 1 · Every member</p>
+              <p className="font-data text-[10px] uppercase tracking-widest text-ee-muted">Layer 1 · Every tier</p>
               <h3 className="font-display text-xl text-ee-primary">Mandate-match algorithm</h3>
               <p className="text-sm text-ee-muted leading-relaxed">
-                Score-driven, defensible, revisable. The algorithm tells you whose mandate fits
-                yours — sectors, stages, geography, check size, risk, horizon — and shows its work.
+                Six pillars — scope, capital, time and risk, governance, counterparty,
+                values — weighted by your personal mandate. Every tier gets the full
+                algorithm; tiers differ in volume and concierge access, never match quality.
               </p>
             </div>
             <div className="space-y-2 md:border-l md:border-ee-gold/20 md:pl-10">
