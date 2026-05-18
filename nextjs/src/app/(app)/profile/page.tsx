@@ -4,6 +4,7 @@ import { queryOne } from '@/lib/db'
 import OnboardingForm from '@/app/onboarding/OnboardingForm'
 import EmailPrefToggle from './EmailPrefToggle'
 import WalkthroughReplay from './WalkthroughReplay'
+import MandatePillarsForm from './MandatePillarsForm'
 
 interface DbProfile {
   id: string
@@ -26,6 +27,21 @@ interface DbProfile {
   concentration: string | null
   email_notifications_enabled: boolean | null
   onboarding_completed: boolean
+  // Phase 6 mandate pillar fields — all nullable, all defaulted via
+  // migration 028 so a SELECT * always returns them on a profile that
+  // hasn't customized yet.
+  sub_sectors:    string[] | null
+  anti_sectors:   string[] | null
+  thematic_focus: string[] | null
+  lead_capacity:  'lead' | 'follow' | 'either' | null
+  holding_period_target_years: string | number | null
+  loss_appetite:  'low' | 'moderate' | 'high' | null
+  engagement_style: 'board' | 'observer' | 'advisory' | 'passive' | null
+  diligence_depth:  'light' | 'standard' | 'deep' | null
+  min_counterparty_tier: 'access' | 'select' | 'sovereign' | null
+  esg_required:     boolean | null
+  impact_themes:    string[] | null
+  values_exclusions: string[] | null
 }
 
 export default async function ProfilePage() {
@@ -78,6 +94,25 @@ export default async function ProfilePage() {
             mandate_type:    profile.mandate_type    ?? '',
             concentration:   profile.concentration   ?? '',
             email_notifications_enabled: profile.email_notifications_enabled ?? true,
+          }}
+        />
+
+        <MandatePillarsForm
+          initial={{
+            sub_sectors:    profile.sub_sectors    ?? [],
+            anti_sectors:   profile.anti_sectors   ?? [],
+            thematic_focus: profile.thematic_focus ?? [],
+            lead_capacity:  profile.lead_capacity ?? null,
+            holding_period_target_years: profile.holding_period_target_years != null
+              ? Number(profile.holding_period_target_years)
+              : null,
+            loss_appetite:        profile.loss_appetite ?? null,
+            engagement_style:     profile.engagement_style ?? null,
+            diligence_depth:      profile.diligence_depth  ?? null,
+            min_counterparty_tier: profile.min_counterparty_tier ?? null,
+            esg_required:      profile.esg_required ?? false,
+            impact_themes:     profile.impact_themes    ?? [],
+            values_exclusions: profile.values_exclusions ?? [],
           }}
         />
       </div>
