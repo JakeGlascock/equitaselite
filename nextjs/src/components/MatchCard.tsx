@@ -71,7 +71,7 @@ function ScoreRing({ score, label }: { score: number; label: MatchScore['label']
 function SubScore({ label, value }: { label: string; value: number }) {
   return (
     <div className="flex items-center gap-1.5">
-      <span className="text-xs text-ee-muted w-16 shrink-0">{label}</span>
+      <span className="text-xs text-ee-muted w-20 shrink-0">{label}</span>
       <div className="flex-1 h-1 rounded-full bg-white/10">
         <div
           className="h-1 rounded-full bg-ee-gold/60 transition-all duration-500"
@@ -82,6 +82,18 @@ function SubScore({ label, value }: { label: string; value: number }) {
     </div>
   )
 }
+
+// Pillar labels for the breakdown. Order chosen so the highest-weight
+// default pillars surface first — keeps the visual roughly aligned with
+// what's driving the score for the typical "diversified" mandate.
+const PILLAR_LABELS: ReadonlyArray<{ key: keyof NonNullable<MatchScore['pillars']>; label: string }> = [
+  { key: 'scope',        label: 'Scope'        },
+  { key: 'capital',      label: 'Capital'      },
+  { key: 'counterparty', label: 'Counterparty' },
+  { key: 'values',       label: 'Values'       },
+  { key: 'timeRisk',     label: 'Time / risk'  },
+  { key: 'governance',   label: 'Governance'   },
+]
 
 function checkDisplay(min: number, max: number): string {
   const fmt = (v: number) => v >= 1 ? `$${v}M` : `$${v * 1000}K`
@@ -272,12 +284,30 @@ export default function MatchCard({ match, canSendIntros = true }: { match: Matc
           )}
         </div>
 
-        {/* Score breakdown */}
+        {/* Score breakdown — Phase 6G shows the six mandate pillars.
+            Falls back to the legacy 4-row breakdown if `pillars` isn't
+            populated (defensive — every Phase B+ score has it). */}
         <div className="space-y-1.5 pt-1">
-          <SubScore label="Sectors"   value={score.sector} />
-          <SubScore label="Stages"    value={score.stage} />
-          <SubScore label="Check sz." value={score.checkSize} />
-          <SubScore label="Geography" value={score.geography} />
+          {score.pillars ? (
+            <>
+              <div className="flex items-center justify-between text-[10px] text-ee-muted/80 font-data uppercase tracking-widest mb-1">
+                <span>Pillars · your view</span>
+                <span title="Same counterparty can score differently for each side because each user weights pillars to their own mandate.">
+                  weighted by your mandate
+                </span>
+              </div>
+              {PILLAR_LABELS.map(({ key, label }) => (
+                <SubScore key={key} label={label} value={score.pillars![key]} />
+              ))}
+            </>
+          ) : (
+            <>
+              <SubScore label="Sectors"   value={score.sector} />
+              <SubScore label="Stages"    value={score.stage} />
+              <SubScore label="Check sz." value={score.checkSize} />
+              <SubScore label="Geography" value={score.geography} />
+            </>
+          )}
         </div>
 
         {/* Introduction action */}
