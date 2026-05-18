@@ -1,10 +1,9 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import React, { useMemo, useState } from 'react'
 import AdminToggle from './AdminToggle'
 import ConciergeToggle from './ConciergeToggle'
-import DeleteUserButton from './DeleteUserButton'
-import ResendLoginButton from './ResendLoginButton'
+import RowActionsMenu from './RowActionsMenu'
 import ManagedAccountAssignment from './ManagedAccountAssignment'
 import TierAssignment from './TierAssignment'
 import RmAssignment from './RmAssignment'
@@ -92,6 +91,19 @@ export default function MembersTable({
   const [status, setStatus] = useState<typeof STATUS_FILTERS[number]['key']>('all')
   const [tier,   setTier]   = useState<'all' | Membership | 'none'>('all')
   const [page,   setPage]   = useState(1)
+  // Per-row expand for the staff-control panel (Admin, Concierge,
+  // Managed by, RM). Empty by default — those fields are progressive
+  // disclosure since most rows never need them touched.
+  const [expanded, setExpanded] = useState<Set<string>>(new Set())
+
+  function toggleExpand(email: string) {
+    setExpanded(prev => {
+      const next = new Set(prev)
+      if (next.has(email)) next.delete(email)
+      else next.add(email)
+      return next
+    })
+  }
 
   const filtered = useMemo(() => {
     let out = rows
@@ -189,144 +201,149 @@ export default function MembersTable({
         </p>
       ) : (
         <div className="overflow-x-auto">
-          <table className="w-full text-sm table-auto min-w-[820px]">
+          <table className="w-full text-sm table-auto min-w-[640px]">
             <thead>
               <tr className="text-xs text-ee-muted uppercase tracking-wider font-data">
+                <th className="px-1 py-2 font-normal w-6"></th>
                 <th className="text-left  px-3 py-2 font-normal">Member</th>
                 <th className="text-left  px-2 py-2 font-normal">Role</th>
                 <th className="text-left  px-2 py-2 font-normal">Tier</th>
                 <th className="text-left  px-2 py-2 font-normal">Status</th>
-                <th className="text-center px-2 py-2 font-normal" title="Admin">A</th>
-                <th className="text-center px-2 py-2 font-normal" title="Concierge">C</th>
-                <th className="text-left  px-2 py-2 font-normal">Managed by</th>
-                <th className="text-left  px-2 py-2 font-normal" title="Relationship manager">RM</th>
                 <th className="text-right px-3 py-2 font-normal">Joined</th>
-                <th className="text-right px-2 py-2 font-normal" title="Resend login email"></th>
-                <th className="text-right px-2 py-2 font-normal" title="Delete user"></th>
+                <th className="text-right px-2 py-2 font-normal w-10"></th>
               </tr>
             </thead>
             <tbody>
-              {pageRows.map(m => (
-                <tr key={m.email} className="border-t border-ee-border/60 align-middle">
-                  <td className="px-3 py-2 max-w-[14rem]">
-                    <p className="text-ee-primary truncate text-[13px]">{m.name ?? m.email.split('@')[0]}</p>
-                    <p className="text-[11px] text-ee-muted truncate">{m.email}</p>
-                    {m.firm && <p className="text-[10px] text-ee-muted/70 truncate">{m.firm}</p>}
-                  </td>
-                  <td className="px-2 py-2 text-ee-muted whitespace-nowrap text-xs">
-                    {m.role === 'angel' ? 'Angel' : m.role === 'family_office' ? 'FO' : '—'}
-                  </td>
-                <td className="px-2 py-2">
-                  {m.userId ? (
-                    <TierAssignment
-                      userId={m.userId}
-                      current={m.membership}
-                      disabled={!m.togglable}
-                      disabledReason={m.toggleReason}
-                    />
-                  ) : (
-                    <span className="text-xs text-ee-muted/50 italic" title="Profile not created yet">—</span>
-                  )}
-                </td>
-                <td className="px-2 py-2">
-                  <div className="flex flex-col gap-1 items-start">
-                    <span className={`text-[11px] px-2 py-0.5 rounded-full border whitespace-nowrap ${STATUS_STYLES[m.status]}`}>
-                      {m.status}
-                    </span>
-                    {m.cognitoStatus && (
-                      <span
-                        className="text-[9px] font-data uppercase tracking-widest text-ee-muted/70 whitespace-nowrap"
-                        title="Raw Cognito UserStatus"
-                      >
-                        {m.cognitoStatus}
-                      </span>
+              {pageRows.map(m => {
+                const isOpen = expanded.has(m.email)
+                // Status tooltip merges the Cognito tag in as hover-only,
+                // so the visible badge stays single-line.
+                const statusTitle = m.cognitoStatus
+                  ? `Cognito UserStatus: ${m.cognitoStatus}`
+                  : undefined
+                return (
+                  <React.Fragment key={m.email}>
+                    <tr className="border-t border-ee-border/60 align-middle">
+                      <td className="px-1 py-2 text-center">
+                        <button
+                          type="button"
+                          onClick={() => toggleExpand(m.email)}
+                          aria-label={isOpen ? 'Collapse row' : 'Expand row'}
+                          aria-expanded={isOpen}
+                          className="text-ee-muted/60 hover:text-ee-primary inline-flex items-center justify-center"
+                        >
+                          <span
+                            className="material-symbols-outlined text-base leading-none transition-transform"
+                            style={{ transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}
+                          >
+                            expand_more
+                          </span>
+                        </button>
+                      </td>
+                      <td className="px-3 py-2 max-w-[14rem]">
+                        <p className="text-ee-primary truncate text-[13px]">{m.name ?? m.email.split('@')[0]}</p>
+                        <p className="text-[11px] text-ee-muted truncate">{m.email}</p>
+                        {m.firm && <p className="text-[10px] text-ee-muted/70 truncate">{m.firm}</p>}
+                      </td>
+                      <td className="px-2 py-2 text-ee-muted whitespace-nowrap text-xs">
+                        {m.role === 'angel' ? 'Angel' : m.role === 'family_office' ? 'FO' : '—'}
+                      </td>
+                      <td className="px-2 py-2">
+                        {m.userId ? (
+                          <TierAssignment
+                            userId={m.userId}
+                            current={m.membership}
+                            disabled={!m.togglable}
+                            disabledReason={m.toggleReason}
+                          />
+                        ) : (
+                          <span className="text-xs text-ee-muted/50 italic" title="Profile not created yet">—</span>
+                        )}
+                      </td>
+                      <td className="px-2 py-2">
+                        <span
+                          className={`text-[11px] px-2 py-0.5 rounded-full border whitespace-nowrap ${STATUS_STYLES[m.status]}`}
+                          title={statusTitle}
+                        >
+                          {m.status}
+                        </span>
+                      </td>
+                      <td className="px-3 py-2 text-right text-ee-muted text-xs whitespace-nowrap">{fmtDate(m.joined)}</td>
+                      <td className="px-2 py-2 text-right">
+                        <RowActionsMenu
+                          deleteId={m.deleteId}
+                          email={m.email}
+                          deletable={m.deletable}
+                          deleteReason={m.deleteReason}
+                          resendable={m.resendable}
+                          resendReason={m.resendReason}
+                        />
+                      </td>
+                    </tr>
+
+                    {isOpen && (
+                      <tr className="border-t border-ee-border/30 bg-white/[0.02]">
+                        <td className="px-1 py-3" />
+                        <td colSpan={6} className="px-3 py-3">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                            <Field label="Admin">
+                              {m.userId ? (
+                                <AdminToggle
+                                  userId={m.userId}
+                                  initial={m.isAdmin}
+                                  selfUserId={selfUserId}
+                                  disabled={!m.staffTogglable}
+                                  disabledReason={m.staffToggleReason}
+                                />
+                              ) : (
+                                <Em title="Profile not created yet">—</Em>
+                              )}
+                            </Field>
+                            <Field label="Concierge">
+                              {m.userId ? (
+                                <ConciergeToggle
+                                  userId={m.userId}
+                                  initial={m.isConcierge}
+                                  disabled={!m.staffTogglable}
+                                  disabledReason={m.staffToggleReason}
+                                />
+                              ) : (
+                                <Em title="Profile not created yet">—</Em>
+                              )}
+                            </Field>
+                            <Field label="Managed by">
+                              {m.userId && !m.isConcierge ? (
+                                <ManagedAccountAssignment
+                                  accountId={m.userId}
+                                  currentId={m.managedBy}
+                                  concierges={concierges}
+                                />
+                              ) : (
+                                <Em title={m.isConcierge ? 'Concierges manage others, not the reverse' : 'Profile not created yet'}>—</Em>
+                              )}
+                            </Field>
+                            <Field label="Relationship manager">
+                              {m.userId && !m.isConcierge ? (
+                                <RmAssignment
+                                  userId={m.userId}
+                                  current={m.relationshipManagerId}
+                                  concierges={concierges}
+                                  disabled={!m.staffTogglable}
+                                  disabledReason={m.staffToggleReason}
+                                />
+                              ) : (
+                                <Em title={m.isConcierge ? 'Concierges are RMs, not RM recipients' : 'Profile not created yet'}>—</Em>
+                              )}
+                            </Field>
+                          </div>
+                        </td>
+                      </tr>
                     )}
-                  </div>
-                </td>
-                <td className="px-2 py-2 text-center">
-                  {m.userId ? (
-                    <AdminToggle
-                      userId={m.userId}
-                      initial={m.isAdmin}
-                      selfUserId={selfUserId}
-                      disabled={!m.staffTogglable}
-                      disabledReason={m.staffToggleReason}
-                    />
-                  ) : (
-                    <span className="text-xs text-ee-muted/50 italic" title="Profile not created yet">—</span>
-                  )}
-                </td>
-                <td className="px-2 py-2 text-center">
-                  {m.userId ? (
-                    <ConciergeToggle
-                      userId={m.userId}
-                      initial={m.isConcierge}
-                      disabled={!m.staffTogglable}
-                      disabledReason={m.staffToggleReason}
-                    />
-                  ) : (
-                    <span className="text-xs text-ee-muted/50 italic" title="Profile not created yet">—</span>
-                  )}
-                </td>
-                <td className="px-2 py-2">
-                  {m.userId && !m.isConcierge ? (
-                    <ManagedAccountAssignment
-                      accountId={m.userId}
-                      currentId={m.managedBy}
-                      concierges={concierges}
-                    />
-                  ) : (
-                    <span className="text-xs text-ee-muted/50 italic"
-                      title={m.isConcierge ? 'Concierges manage others, not the reverse' : 'Profile not created yet'}>
-                      —
-                    </span>
-                  )}
-                </td>
-                <td className="px-2 py-2">
-                  {m.userId && !m.isConcierge ? (
-                    <RmAssignment
-                      userId={m.userId}
-                      current={m.relationshipManagerId}
-                      concierges={concierges}
-                      disabled={!m.staffTogglable}
-                      disabledReason={m.staffToggleReason}
-                    />
-                  ) : (
-                    <span className="text-xs text-ee-muted/50 italic"
-                      title={m.isConcierge ? 'Concierges are RMs, not RM recipients' : 'Profile not created yet'}>
-                      —
-                    </span>
-                  )}
-                </td>
-                <td className="px-3 py-2 text-right text-ee-muted text-xs whitespace-nowrap">{fmtDate(m.joined)}</td>
-                <td className="px-2 py-2 text-right">
-                  {m.deleteId ? (
-                    <ResendLoginButton
-                      userId={m.deleteId}
-                      email={m.email}
-                      disabled={!m.resendable}
-                      disabledReason={m.resendReason}
-                    />
-                  ) : (
-                    <span className="text-xs text-ee-muted/40 italic" title="No Cognito sign-in">—</span>
-                  )}
-                </td>
-                <td className="px-2 py-2 text-right">
-                  {m.deleteId ? (
-                    <DeleteUserButton
-                      userId={m.deleteId}
-                      email={m.email}
-                      disabled={!m.deletable}
-                      disabledReason={m.deleteReason}
-                    />
-                  ) : (
-                    <span className="text-xs text-ee-muted/40 italic" title="No Cognito user or profile">—</span>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                  </React.Fragment>
+                )
+              })}
+            </tbody>
+          </table>
         </div>
       )}
 
@@ -357,5 +374,23 @@ export default function MembersTable({
         </div>
       )}
     </div>
+  )
+}
+
+// Field + Em are tiny presentational helpers for the row-expand staff
+// panel. Kept inside this file because they have no use anywhere else
+// and inline-defining them clutters the table render.
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="space-y-1">
+      <p className="font-data text-[9px] uppercase tracking-widest text-ee-muted/80">{label}</p>
+      <div>{children}</div>
+    </div>
+  )
+}
+
+function Em({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <span className="text-xs text-ee-muted/50 italic" title={title}>{children}</span>
   )
 }
