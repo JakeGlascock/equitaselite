@@ -3,9 +3,11 @@ import { headers } from 'next/headers'
 import { queryOne, query } from '@/lib/db'
 import { getTier } from '@/lib/membership'
 import { listBriefingsForRecipient } from '@/lib/portfolio-reports'
+import { listAnnotationsForConcierge, type ConciergeAnnotation } from '@/lib/concierge'
 import ConciergeForm from './ConciergeForm'
 import OperateAsButton from './OperateAsButton'
 import OnboardingQueue, { type QueueRow } from './OnboardingQueue'
+import AnnotationsPanel, { type AnnotationRow, type CounterpartyOption } from './AnnotationsPanel'
 
 function fmtDate(s: string | null): string {
   if (!s) return ''
@@ -219,6 +221,14 @@ export default async function ConciergePage() {
           <p className="text-xs text-ee-muted text-center">
             Click <strong className="text-ee-emerald">Operate as →</strong> to switch into a managed account. The whole app reflects that profile&apos;s data while you act on their behalf — banner at the top lets you exit anytime.
           </p>
+
+          {/* Phase 7B — concierge annotations (Layer 2 substrate).
+              Private notes on counterparties that drive Chelsea's
+              downstream actions without exposing her judgment to
+              members. See feedback_two_trust_layers.md. */}
+          <div className="pt-6 border-t border-ee-border">
+            {await renderAnnotationsPanel(userId!)}
+          </div>
         </div>
       </div>
     )
@@ -498,4 +508,48 @@ function AccessUpsellCard() {
       </div>
     </div>
   )
+}
+
+// Server-side helper for the concierge-only branch above. Fetches the
+// concierge's existing annotations + the pool of counterparties they
+// can annotate, then mounts the client AnnotationsPanel. Falls back to
+// rendering nothing on any error so the rest of the concierge page
+// stays usable even if the Phase 7B tables aren't yet migrated.
+async function renderAnnotationsPanel(conciergeId: string) {
+  try {
+    const annotations = await listAnnotationsForConcierge(conciergeId)
+    // Counterparty pool: every onboarded real member, plus demo profiles
+    // so Chelsea can dogfood the flow pre-launch. Excludes concierges
+    // (they can't be subjects of their own annotation table) and any
+    // managed-account placeholders (those are profile-shells without a
+    // real human counterparty behind them).
+    const counterparties = await query<CounterpartyOption>(
+      `SELECT id, full_name, firm_name, role
+       FROM profiles
+       WHERE onboarding_completed = TRUE
+         AND (is_concierge IS NULL OR is_concierge = FALSE)
+         AND id != $1
+         AND id NOT LIKE 'managed_%'
+       ORDER BY full_name ASC
+       LIMIT 500`,
+      [conciergeId],
+    )
+
+    // Normalize DB shape (Date | string for updated_at) into the
+    // string-only shape AnnotationsPanel expects.
+    const rows: AnnotationRow[] = annotations.map((a: ConciergeAnnotation) => ({
+      id:              a.id,
+      counterparty_id: a.counterparty_id,
+      note:            a.note,
+      vouch_strength:  a.vouch_strength,
+      visibility:      a.visibility,
+      updated_at:      a.updated_at instanceof Date
+        ? a.updated_at.toISOString()
+        : String(a.updated_at),
+    }))
+
+    return <AnnotationsPanel initialAnnotations={rows} counterparties={counterparties} />
+  } catch {
+    return null
+  }
 }
