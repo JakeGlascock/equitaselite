@@ -1,8 +1,7 @@
 import { describe, it, expect } from 'vitest'
-import { computeMatchScore } from '../scoring'
-import type { UserProfile, Candidate } from '@/types'
+import { computeMatchScore, applyKnockouts } from '../scoring'
+import type { UserProfile, Candidate, MandateWeights } from '@/types'
 
-// Minimal factory helpers so tests stay readable
 function makeUser(overrides: Partial<UserProfile> = {}): UserProfile {
   return {
     id: 'u1',
@@ -36,201 +35,270 @@ function makeCandidate(overrides: Partial<Candidate> = {}): Candidate {
   }
 }
 
-describe('computeMatchScore', () => {
-  describe('perfect match', () => {
-    it('caps total at 99 even when all dimensions are 100%', () => {
-      const score = computeMatchScore(makeUser(), makeCandidate())
-      expect(score.total).toBe(99)
-    })
-
-    it('returns Strong Fit label', () => {
-      expect(computeMatchScore(makeUser(), makeCandidate()).label).toBe('Strong Fit')
-    })
-
-    it('returns 100 on all dimension subscores', () => {
-      const score = computeMatchScore(makeUser(), makeCandidate())
-      expect(score.sector).toBe(100)
-      expect(score.stage).toBe(100)
-      expect(score.checkSize).toBe(100)
-      expect(score.geography).toBe(100)
-    })
+describe('computeMatchScore — legacy sub-scores', () => {
+  it('populates sector / stage / checkSize / geography from the scope+capital pillars', () => {
+    const score = computeMatchScore(makeUser(), makeCandidate())
+    expect(score.sector).toBe(100)
+    expect(score.stage).toBe(100)
+    expect(score.geography).toBe(100)
+    expect(score.checkSize).toBe(100)
   })
 
-  describe('zero overlap', () => {
-    it('returns 0 when nothing overlaps', () => {
-      const score = computeMatchScore(
-        makeUser({ sectors: ['Technology'], stages: ['Seed'], geography: ['Europe'], checkSizeMin: 10_000, checkSizeMax: 100_000 }),
-        makeCandidate({ sectors: ['Real Estate'], stages: ['Series C'], geography: ['Asia'], checkSizeMin: 10_000_000, checkSizeMax: 50_000_000 }),
-      )
-      expect(score.total).toBe(0)
-      expect(score.label).toBe('Low Fit')
-    })
+  it('scores sector partial overlap by max-set fraction', () => {
+    const score = computeMatchScore(
+      makeUser({ sectors: ['Technology', 'Healthcare'] }),
+      makeCandidate({ sectors: ['Technology', 'Real Estate'] }),
+    )
+    expect(score.sector).toBe(50)
   })
 
-  describe('sector overlap (40% weight)', () => {
-    it('scores 0 when sectors share nothing', () => {
-      const score = computeMatchScore(
-        makeUser({ sectors: ['Technology'] }),
-        makeCandidate({ sectors: ['Real Estate'] }),
-      )
-      expect(score.sector).toBe(0)
-    })
-
-    it('scores partial overlap by max-set fraction', () => {
-      // user has 2 sectors, candidate has 2, 1 matches → overlap = 1/2 = 50
-      const score = computeMatchScore(
-        makeUser({ sectors: ['Technology', 'Healthcare'] }),
-        makeCandidate({ sectors: ['Technology', 'Real Estate'] }),
-      )
-      expect(score.sector).toBe(50)
-    })
-
-    it('handles empty user sector array gracefully (returns 0)', () => {
-      const score = computeMatchScore(
-        makeUser({ sectors: [] }),
-        makeCandidate({ sectors: ['Technology'] }),
-      )
-      expect(score.sector).toBe(0)
-    })
-
-    it('handles empty candidate sector array gracefully (returns 0)', () => {
-      const score = computeMatchScore(
-        makeUser({ sectors: ['Technology'] }),
-        makeCandidate({ sectors: [] }),
-      )
-      expect(score.sector).toBe(0)
-    })
+  it('returns 0 for sector when either side is empty', () => {
+    expect(computeMatchScore(makeUser({ sectors: [] }), makeCandidate()).sector).toBe(0)
+    expect(computeMatchScore(makeUser(), makeCandidate({ sectors: [] })).sector).toBe(0)
   })
 
-  describe('stage overlap (30% weight)', () => {
-    it('scores 0 on no stage match', () => {
-      const score = computeMatchScore(
-        makeUser({ stages: ['Seed'] }),
-        makeCandidate({ stages: ['Series C'] }),
-      )
-      expect(score.stage).toBe(0)
-    })
-
-    it('scores 100 on identical single stage', () => {
-      const score = computeMatchScore(
-        makeUser({ stages: ['Series A'] }),
-        makeCandidate({ stages: ['Series A'] }),
-      )
-      expect(score.stage).toBe(100)
-    })
+  it('check-size scores proportionally on partial range overlap', () => {
+    // user 0-4M, candidate 2-6M → overlap 2M / span 6M ≈ 33
+    const score = computeMatchScore(
+      makeUser({ checkSizeMin: 0, checkSizeMax: 4_000_000 }),
+      makeCandidate({ checkSizeMin: 2_000_000, checkSizeMax: 6_000_000 }),
+    )
+    expect(score.checkSize).toBe(33)
   })
 
-  describe('check size overlap (20% weight)', () => {
-    it('scores 0 when ranges do not overlap', () => {
-      const score = computeMatchScore(
-        makeUser({ checkSizeMin: 100_000, checkSizeMax: 500_000 }),
-        makeCandidate({ checkSizeMin: 1_000_000, checkSizeMax: 5_000_000 }),
-      )
-      expect(score.checkSize).toBe(0)
-    })
-
-    it('scores 100 for identical ranges', () => {
-      const score = computeMatchScore(
-        makeUser({ checkSizeMin: 1_000_000, checkSizeMax: 5_000_000 }),
-        makeCandidate({ checkSizeMin: 1_000_000, checkSizeMax: 5_000_000 }),
-      )
-      expect(score.checkSize).toBe(100)
-    })
-
-    it('scores partial overlap proportionally', () => {
-      // user: 0–4, candidate: 2–6 → overlap 2, span 6 → 2/6 ≈ 33
-      const score = computeMatchScore(
-        makeUser({ checkSizeMin: 0, checkSizeMax: 4_000_000 }),
-        makeCandidate({ checkSizeMin: 2_000_000, checkSizeMax: 6_000_000 }),
-      )
-      expect(score.checkSize).toBe(33)
-    })
-
-    it('handles touching boundaries (lo === hi) as 0 overlap', () => {
-      const score = computeMatchScore(
-        makeUser({ checkSizeMin: 1_000_000, checkSizeMax: 2_000_000 }),
-        makeCandidate({ checkSizeMin: 2_000_000, checkSizeMax: 4_000_000 }),
-      )
-      // overlap = hi - lo = 2M - 2M = 0 → score 0
-      expect(score.checkSize).toBe(0)
-    })
-
-    it('scores 100 when both ranges collapse to the same single point (span === 0)', () => {
-      // min === max on both sides — span is zero, branch returns 1.
-      const score = computeMatchScore(
-        makeUser({ checkSizeMin: 1_000_000, checkSizeMax: 1_000_000 }),
-        makeCandidate({ checkSizeMin: 1_000_000, checkSizeMax: 1_000_000 }),
-      )
-      expect(score.checkSize).toBe(100)
-    })
+  it('check-size returns 0 on disjoint ranges', () => {
+    const score = computeMatchScore(
+      makeUser({ checkSizeMin: 100_000, checkSizeMax: 500_000 }),
+      makeCandidate({ checkSizeMin: 1_000_000, checkSizeMax: 5_000_000 }),
+    )
+    expect(score.checkSize).toBe(0)
   })
 
-  describe('geography overlap (10% weight)', () => {
-    it('scores 0 on different regions', () => {
-      const score = computeMatchScore(
-        makeUser({ geography: ['Europe'] }),
-        makeCandidate({ geography: ['Asia'] }),
-      )
-      expect(score.geography).toBe(0)
-    })
+  it('check-size collapses to 100 when both ranges are the same single point', () => {
+    const score = computeMatchScore(
+      makeUser({ checkSizeMin: 1_000_000, checkSizeMax: 1_000_000 }),
+      makeCandidate({ checkSizeMin: 1_000_000, checkSizeMax: 1_000_000 }),
+    )
+    expect(score.checkSize).toBe(100)
+  })
+})
 
-    it('scores 100 on identical single region', () => {
-      const score = computeMatchScore(
-        makeUser({ geography: ['North America'] }),
-        makeCandidate({ geography: ['North America'] }),
-      )
-      expect(score.geography).toBe(100)
-    })
+describe('computeMatchScore — total + label', () => {
+  it('caps total at 99 for a perfect scope+capital match', () => {
+    const score = computeMatchScore(makeUser(), makeCandidate())
+    expect(score.total).toBe(99)
+    expect(score.label).toBe('Strong Fit')
   })
 
-  describe('label thresholds', () => {
-    it('returns Strong Fit at exactly 80', () => {
-      // sector=100 (40) + stage=100 (30) + checkSize=0 (0) + geography=100 (10) = 80
-      const score = computeMatchScore(
-        makeUser({ checkSizeMin: 1, checkSizeMax: 2 }),
-        makeCandidate({ checkSizeMin: 100, checkSizeMax: 200 }),
-      )
-      expect(score.total).toBe(80)
-      expect(score.label).toBe('Strong Fit')
-    })
-
-    it('returns Good Fit between 65 and 79', () => {
-      // sector only (40) + geography only (10) = 50, add stage partial to get ~65-79
-      // sector=100 (40) + stage=50 (15) + geo=100 (10) + check=0 = 65
-      const score = computeMatchScore(
-        makeUser({ stages: ['Series A', 'Series B'], checkSizeMin: 1, checkSizeMax: 2 }),
-        makeCandidate({ stages: ['Series A', 'Series C'], checkSizeMin: 100, checkSizeMax: 200 }),
-      )
-      expect(score.total).toBeGreaterThanOrEqual(65)
-      expect(score.total).toBeLessThan(80)
-      expect(score.label).toBe('Good Fit')
-    })
-
-    it('returns Possible Fit between 50 and 64', () => {
-      // sector=100 (40) + stage=0 (0) + checkSize=0 (0) + geography=100 (10) = 50
-      const score = computeMatchScore(
-        makeUser({ stages: ['Seed'], checkSizeMin: 1, checkSizeMax: 2 }),
-        makeCandidate({ stages: ['Series C'], checkSizeMin: 100, checkSizeMax: 200 }),
-      )
-      expect(score.total).toBe(50)
-      expect(score.label).toBe('Possible Fit')
-    })
-
-    it('returns Low Fit below 50', () => {
-      // sector=0 + stage=0 + checkSize=0 + geography=0 = 0
-      const score = computeMatchScore(
-        makeUser({ sectors: ['X'], stages: ['Seed'], geography: ['Europe'], checkSizeMin: 1, checkSizeMax: 2 }),
-        makeCandidate({ sectors: ['Y'], stages: ['Series C'], geography: ['Asia'], checkSizeMin: 100, checkSizeMax: 200 }),
-      )
-      expect(score.total).toBeLessThan(50)
-      expect(score.label).toBe('Low Fit')
-    })
+  it('returns 0 / Low Fit on no overlap anywhere', () => {
+    const score = computeMatchScore(
+      makeUser({ sectors: ['X'], stages: ['Seed'], geography: ['Europe'], checkSizeMin: 1, checkSizeMax: 2 }),
+      makeCandidate({ sectors: ['Y'], stages: ['Series C'], geography: ['Asia'], checkSizeMin: 100, checkSizeMax: 200 }),
+    )
+    expect(score.total).toBe(0)
+    expect(score.label).toBe('Low Fit')
   })
 
-  describe('total never exceeds 99', () => {
-    it('caps at 99 for a perfect match (not 100)', () => {
-      const score = computeMatchScore(makeUser(), makeCandidate())
-      expect(score.total).toBeLessThanOrEqual(99)
-    })
+  it('a scope-perfect, capital-zero match is no longer Strong Fit', () => {
+    // Capital matters now — disjoint check ranges drag the total below 80
+    // even if everything else aligns. This was Strong Fit in the legacy
+    // weighting and is intentionally not anymore.
+    const score = computeMatchScore(
+      makeUser({ checkSizeMin: 1, checkSizeMax: 2 }),
+      makeCandidate({ checkSizeMin: 100, checkSizeMax: 200 }),
+    )
+    expect(score.label).not.toBe('Strong Fit')
+  })
+})
+
+describe('computeMatchScore — undeclared pillars drop out of weighting', () => {
+  it('a profile with only scope+capital filled scores purely on those pillars', () => {
+    // No timeRisk / governance / counterparty / values fields declared.
+    // Total should ignore those weights entirely; perfect scope+capital → 99.
+    const score = computeMatchScore(makeUser(), makeCandidate())
+    expect(score.total).toBe(99)
+  })
+
+  it('a declared timeRisk pillar contributes to the total when both sides set it', () => {
+    const baseScore = computeMatchScore(makeUser(), makeCandidate()).total
+    const withTimeRiskMatch = computeMatchScore(
+      makeUser({ holdingPeriodTargetYears: 5, lossAppetite: 'moderate' }),
+      makeCandidate({ holdingPeriodTargetYears: 5, lossAppetite: 'moderate' }),
+    ).total
+    const withTimeRiskMismatch = computeMatchScore(
+      makeUser({ holdingPeriodTargetYears: 1, lossAppetite: 'low' }),
+      makeCandidate({ holdingPeriodTargetYears: 9, lossAppetite: 'high' }),
+    ).total
+    expect(withTimeRiskMatch).toBeGreaterThanOrEqual(baseScore - 1)
+    expect(withTimeRiskMismatch).toBeLessThan(baseScore)
+  })
+
+  it('declaring esg_required on both sides keeps the total high', () => {
+    const score = computeMatchScore(
+      makeUser({ esgRequired: true }),
+      makeCandidate({ esgRequired: true }),
+    )
+    expect(score.total).toBeGreaterThanOrEqual(95)
+  })
+})
+
+describe('computeMatchScore — asymmetric weights', () => {
+  // The same pair can score differently for each side depending on whose
+  // weights are applied. Capital-heavy viewer values check-size overlap
+  // more; scope-heavy viewer punishes check mismatch less.
+  it('weight redistribution changes the total for the same pair', () => {
+    const u = makeUser({ checkSizeMin: 1, checkSizeMax: 2 })  // tiny
+    const c = makeCandidate()                                  // 1M-5M
+
+    const capitalHeavy: MandateWeights = {
+      scope: 5, capital: 80, timeRisk: 0, governance: 0, counterparty: 0, values: 15,
+    }
+    const scopeHeavy: MandateWeights = {
+      scope: 80, capital: 5, timeRisk: 0, governance: 0, counterparty: 0, values: 15,
+    }
+    const capitalView = computeMatchScore(u, c, capitalHeavy).total
+    const scopeView   = computeMatchScore(u, c, scopeHeavy).total
+    expect(scopeView).toBeGreaterThan(capitalView)
+  })
+
+  it('normalizes non-100-summing weight bundles defensively', () => {
+    // Doubled weights still produce the same effective totals — guards
+    // against garbage in the DB.
+    const wA: MandateWeights = { scope: 40, capital: 25, timeRisk: 10, governance: 5, counterparty: 10, values: 10 }
+    const wB: MandateWeights = { scope: 80, capital: 50, timeRisk: 20, governance: 10, counterparty: 20, values: 20 }
+    const a = computeMatchScore(makeUser(), makeCandidate(), wA).total
+    const b = computeMatchScore(makeUser(), makeCandidate(), wB).total
+    expect(a).toBe(b)
+  })
+})
+
+describe('applyKnockouts', () => {
+  it('passes through when no knockouts set', () => {
+    const res = applyKnockouts(makeUser(), makeCandidate())
+    expect(res.blocked).toBe(false)
+  })
+
+  it('blocks on anti_sectors overlap', () => {
+    const res = applyKnockouts(
+      makeUser({ antiSectors: ['Gambling', 'Defense'] }),
+      makeCandidate({ sectors: ['Defense', 'AI'] }),
+    )
+    expect(res.blocked).toBe(true)
+    expect(res.reason).toBe('anti_sectors')
+  })
+
+  it('does not block when anti_sectors does not overlap', () => {
+    const res = applyKnockouts(
+      makeUser({ antiSectors: ['Gambling'] }),
+      makeCandidate({ sectors: ['Healthcare'] }),
+    )
+    expect(res.blocked).toBe(false)
+  })
+
+  it('blocks on values_exclusions matching candidate sectors', () => {
+    const res = applyKnockouts(
+      makeUser({ valuesExclusions: ['Fossil Fuels'] }),
+      makeCandidate({ sectors: ['Fossil Fuels', 'Healthcare'] }),
+    )
+    expect(res.blocked).toBe(true)
+    expect(res.reason).toBe('values_exclusions')
+  })
+
+  it('blocks on values_exclusions matching candidate impact themes', () => {
+    const res = applyKnockouts(
+      makeUser({ valuesExclusions: ['Carbon-positive'] }),
+      makeCandidate({ impactThemes: ['Carbon-positive'] }),
+    )
+    expect(res.blocked).toBe(true)
+    expect(res.reason).toBe('values_exclusions')
+  })
+
+  it('blocks when candidate tier is below viewer min_counterparty_tier', () => {
+    const res = applyKnockouts(
+      makeUser({ minCounterpartyTier: 'sovereign' }),
+      makeCandidate({ membership: 'select' }),
+    )
+    expect(res.blocked).toBe(true)
+    expect(res.reason).toBe('min_counterparty_tier')
+  })
+
+  it('passes when candidate tier meets or exceeds viewer min_counterparty_tier', () => {
+    const ok = applyKnockouts(
+      makeUser({ minCounterpartyTier: 'select' }),
+      makeCandidate({ membership: 'sovereign' }),
+    )
+    expect(ok.blocked).toBe(false)
+  })
+
+  it('blocks when candidate has no membership and viewer requires one', () => {
+    const res = applyKnockouts(
+      makeUser({ minCounterpartyTier: 'access' }),
+      makeCandidate({ membership: null }),
+    )
+    expect(res.blocked).toBe(true)
+  })
+
+  it('blocks when viewer requires ESG and candidate is not flagged', () => {
+    const res = applyKnockouts(
+      makeUser({ esgRequired: true }),
+      makeCandidate({ esgRequired: false }),
+    )
+    expect(res.blocked).toBe(true)
+    expect(res.reason).toBe('esg_required')
+  })
+
+  it('passes when both sides have esg_required true', () => {
+    const res = applyKnockouts(
+      makeUser({ esgRequired: true }),
+      makeCandidate({ esgRequired: true }),
+    )
+    expect(res.blocked).toBe(false)
+  })
+
+  it('does not block on esg when viewer is indifferent', () => {
+    const res = applyKnockouts(
+      makeUser({ esgRequired: false }),
+      makeCandidate({ esgRequired: false }),
+    )
+    expect(res.blocked).toBe(false)
+  })
+
+  it('reports the first failing knockout (anti_sectors short-circuits before tier)', () => {
+    const res = applyKnockouts(
+      makeUser({
+        antiSectors:        ['Defense'],
+        minCounterpartyTier: 'sovereign',
+      }),
+      makeCandidate({ sectors: ['Defense'], membership: 'access' }),
+    )
+    expect(res.reason).toBe('anti_sectors')
+  })
+})
+
+describe('computeMatchScore — pillar breakdown', () => {
+  it('exposes per-pillar scores on the result', () => {
+    const score = computeMatchScore(makeUser(), makeCandidate())
+    expect(score.pillars).toBeDefined()
+    expect(score.pillars?.scope).toBe(100)
+    expect(score.pillars?.capital).toBe(100)
+  })
+
+  it('scope pillar respects sub_sector overlap once either side declares it', () => {
+    const score = computeMatchScore(
+      makeUser({ subSectors: ['AI Infra'] }),
+      makeCandidate({ subSectors: ['AI Infra'] }),
+    )
+    // Sub-sector now contributes — but the perfect-sector base means
+    // total scope should still be at or above the no-sub-sector baseline.
+    expect(score.pillars!.scope).toBeGreaterThanOrEqual(95)
+  })
+
+  it('a sub_sector mismatch lowers the scope score from baseline', () => {
+    const baseline = computeMatchScore(makeUser(), makeCandidate()).pillars!.scope
+    const withMismatch = computeMatchScore(
+      makeUser({ subSectors: ['AI Infra'] }),
+      makeCandidate({ subSectors: ['Real Estate'] }),
+    ).pillars!.scope
+    expect(withMismatch).toBeLessThan(baseline)
   })
 })

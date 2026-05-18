@@ -14,6 +14,7 @@ import {
   getMe,
   getCandidates,
   getIntroductions,
+  filterByKnockouts,
   type DbProfile,
 } from '../matches'
 
@@ -184,33 +185,54 @@ describe('getCandidates', () => {
     expect(params).toEqual(['family_office', 'me-1'])
   })
 
-  it('falls back to is_concierge-only when membership column is missing', async () => {
-    mockQuery
-      .mockRejectedValueOnce(new Error('column "membership" does not exist'))
-      .mockResolvedValueOnce([makeProfile({ id: 'c1', role: 'angel' })])
-    const me = makeProfile({ id: 'me-1', role: 'family_office' })
+  it('selects the new Phase 6 pillar columns', async () => {
+    mockQuery.mockResolvedValueOnce([])
+    await getCandidates(makeProfile({ role: 'family_office' }))
+    const [sql] = mockQuery.mock.calls[0]
+    // Spot-check a few of the pillar additions migration 028 brought in.
+    expect(sql).toContain('anti_sectors')
+    expect(sql).toContain('mandate_weights')
+    expect(sql).toContain('min_counterparty_tier')
+    expect(sql).toContain('esg_required')
+  })
+})
 
-    const out = await getCandidates(me)
+describe('filterByKnockouts', () => {
+  it('passes candidates through unchanged when no knockouts are set', () => {
+    const me   = makeProfile({ id: 'me-1', role: 'family_office' })
+    const them = makeProfile({ id: 'c1', role: 'angel' })
+    const out  = filterByKnockouts(me, [them])
     expect(out).toHaveLength(1)
-    expect(mockQuery).toHaveBeenCalledTimes(2)
-    const [fallbackSql] = mockQuery.mock.calls[1]
-    expect(fallbackSql).not.toContain('membership')
-    expect(fallbackSql).toContain('is_concierge')
   })
 
-  it('falls back to the unfiltered query when both membership AND is_concierge are missing', async () => {
-    mockQuery
-      .mockRejectedValueOnce(new Error('column "membership" does not exist'))
-      .mockRejectedValueOnce(new Error('column "is_concierge" does not exist'))
-      .mockResolvedValueOnce([makeProfile({ id: 'c1', role: 'angel' })])
-    const me = makeProfile({ id: 'me-1', role: 'family_office' })
+  it('hides a candidate whose sectors hit the viewer anti_sectors list', () => {
+    const me = makeProfile({
+      id: 'me-1', role: 'family_office', anti_sectors: ['Defense'],
+    })
+    const blocked = makeProfile({ id: 'b1', role: 'angel', sectors: ['Defense', 'AI'] })
+    const ok      = makeProfile({ id: 'ok', role: 'angel', sectors: ['Healthcare'] })
+    const out = filterByKnockouts(me, [blocked, ok])
+    expect(out.map(p => p.id)).toEqual(['ok'])
+  })
 
-    const out = await getCandidates(me)
-    expect(out).toHaveLength(1)
-    expect(mockQuery).toHaveBeenCalledTimes(3)
-    const [fallbackSql] = mockQuery.mock.calls[2]
-    expect(fallbackSql).not.toContain('membership')
-    expect(fallbackSql).not.toContain('is_concierge')
+  it('hides candidates below the viewer min_counterparty_tier', () => {
+    const me = makeProfile({
+      id: 'me-1', role: 'family_office', min_counterparty_tier: 'sovereign',
+    })
+    const tooLow = makeProfile({ id: 'low', role: 'angel', membership: 'select' })
+    const okHigh = makeProfile({ id: 'hi',  role: 'angel', membership: 'sovereign' })
+    const out = filterByKnockouts(me, [tooLow, okHigh])
+    expect(out.map(p => p.id)).toEqual(['hi'])
+  })
+
+  it('hides non-ESG candidates when viewer requires ESG', () => {
+    const me = makeProfile({
+      id: 'me-1', role: 'family_office', esg_required: true,
+    })
+    const blocked = makeProfile({ id: 'b1', role: 'angel', esg_required: false })
+    const ok      = makeProfile({ id: 'ok', role: 'angel', esg_required: true  })
+    const out = filterByKnockouts(me, [blocked, ok])
+    expect(out.map(p => p.id)).toEqual(['ok'])
   })
 })
 

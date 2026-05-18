@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation'
 import MatchCard from '@/components/MatchCard'
 import {
   getMe, getCandidates, getIntroductions,
-  buildIntroMap, toMatchView,
+  buildIntroMap, toMatchView, filterByKnockouts,
 } from '@/lib/matches'
 import { getActingAsState } from '@/lib/acting-as'
 import { getTier, getLimits, priorityRank, checkIntroQuota } from '@/lib/membership'
@@ -16,12 +16,15 @@ export default async function DashboardPage() {
   const me = await getMe(userId)
   if (!me || !me.onboarding_completed) redirect('/onboarding')
 
-  const [candidates, intros, tier, quota] = await Promise.all([
+  const [rawCandidates, intros, tier, quota] = await Promise.all([
     getCandidates(me),
     getIntroductions(userId),
     getTier(userId),
     checkIntroQuota(userId),
   ])
+  // Phase 6 — viewer's knockouts hide counterparties entirely before
+  // ranking. Asymmetric: applies only the viewer's hard filters.
+  const candidates = filterByKnockouts(me, rawCandidates)
   const limits  = getLimits(tier)
   const introMap = buildIntroMap(intros, userId)
 
