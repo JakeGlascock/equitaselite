@@ -60,7 +60,7 @@ resource "aws_ecs_task_definition" "app" {
       # the personalised label to render; otherwise the page falls back
       # to "the Equitas Elite concierge team" with this address as the
       # mailto target.
-      { name = "DEFAULT_CONCIERGE_EMAIL", value = "chelsea@equitaselite.com" },
+      { name = "DEFAULT_CONCIERGE_EMAIL", value = "chelsea@logictry.com" },
     ]
 
     secrets = [

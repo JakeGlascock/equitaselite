@@ -249,7 +249,7 @@ export default async function ConciergePage() {
   // hardcode a specific person's name into the source. Falls back to a
   // generic concierge-team label if the configured user doesn't exist
   // yet (e.g. before they've been invited + flagged is_concierge).
-  const DEFAULT_EMAIL = process.env.DEFAULT_CONCIERGE_EMAIL ?? 'chelsea@equitaselite.com'
+  const DEFAULT_EMAIL = process.env.DEFAULT_CONCIERGE_EMAIL ?? 'chelsea@logictry.com'
   let defaultConcierge: { full_name: string; email: string; bio: string | null } | null = null
   try {
     defaultConcierge = await queryOne<{ full_name: string; email: string; bio: string | null }>(

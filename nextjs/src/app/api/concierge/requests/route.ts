@@ -6,7 +6,7 @@ import { renderStaffEmailHtml, renderStaffEmailText, escapeHtml } from '@/lib/em
 
 const sesClient = new SESv2Client({ region: process.env.AWS_REGION ?? 'us-east-1' })
 const FROM_EMAIL  = process.env.SES_FROM_EMAIL          ?? 'Equitas Elite <system@equitaselite.com>'
-const CONCIERGE_INBOX = process.env.DEFAULT_CONCIERGE_EMAIL ?? 'chelsea@equitaselite.com'
+const CONCIERGE_INBOX = process.env.DEFAULT_CONCIERGE_EMAIL ?? 'chelsea@logictry.com'
 
 // Schema mirrors the values defined in ConciergeForm.tsx. CATEGORIES are
 // canonical short keys; URGENCIES match the strings the user picks.
