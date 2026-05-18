@@ -154,8 +154,14 @@ resource "aws_cognito_user_pool_client" "web" {
     "ALLOW_REFRESH_TOKEN_AUTH",
   ]
 
-  access_token_validity  = 1
-  id_token_validity      = 1
+  # Pre-launch session lifetime: 24h on access/id tokens (Cognito's max
+  # for these). One sign-in per day, no surprise mid-day kicks, no
+  # client-side refresh plumbing needed. Shorten BEFORE first paying
+  # customer onboards — for an institutional product 1-4h with auto-
+  # refresh is the right shape. Tracked in
+  # project_equitaselite_nice_to_haves.md.
+  access_token_validity  = 24
+  id_token_validity      = 24
   refresh_token_validity = 30
 
   token_validity_units {
