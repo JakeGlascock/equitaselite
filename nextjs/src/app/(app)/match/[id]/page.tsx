@@ -246,22 +246,28 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
           </div>
         </div>
 
-        {/* Score breakdown */}
+        {/* Score breakdown — uses the legacy 4-row layout because the
+            contextual hints (what overlaps, what doesn't) are more useful
+            here than the 6-pillar bars on the dashboard. The hard-coded
+            weight labels were removed in Phase 6 since each viewer now
+            has their own mandate_weights and the old 40/30/20/10 split
+            no longer reflects how scores are computed. */}
         <section className="glass-panel p-6 md:p-8 space-y-4">
           <h2 className="font-display text-xl text-ee-gold">Why this score</h2>
+          <p className="text-xs text-ee-muted">
+            Weighted against <strong className="text-ee-primary">your</strong> mandate.
+            Adjust the pillar weights from <span className="font-data">/profile</span> to change how strongly each signal counts.
+          </p>
           <div className="space-y-3">
             {[
-              { label: 'Sector overlap',  value: score.sector,    weight: 40, hint: dim(candidate.sectors, me.sectors) },
-              { label: 'Stage alignment', value: score.stage,     weight: 30, hint: dim(candidate.stages,  me.stages)  },
-              { label: 'Check size',      value: score.checkSize, weight: 20, hint: `${checkDisplay(me.check_size_min, me.check_size_max)} vs ${checkDisplay(candidate.check_size_min, candidate.check_size_max)}` },
-              { label: 'Geography',       value: score.geography, weight: 10, hint: dim(candidate.geography, me.geography) },
+              { label: 'Sector overlap',  value: score.sector,    hint: dim(candidate.sectors, me.sectors) },
+              { label: 'Stage alignment', value: score.stage,     hint: dim(candidate.stages,  me.stages)  },
+              { label: 'Check size',      value: score.checkSize, hint: `${checkDisplay(me.check_size_min, me.check_size_max)} vs ${checkDisplay(candidate.check_size_min, candidate.check_size_max)}` },
+              { label: 'Geography',       value: score.geography, hint: dim(candidate.geography, me.geography) },
             ].map(row => (
               <div key={row.label}>
                 <div className="flex items-center justify-between text-xs mb-1">
-                  <span className="text-ee-primary">
-                    {row.label}
-                    <span className="text-ee-muted ml-2 font-data">({row.weight}%)</span>
-                  </span>
+                  <span className="text-ee-primary">{row.label}</span>
                   <span className="font-data text-ee-muted">{row.value}%</span>
                 </div>
                 <div className="h-1.5 rounded-full bg-white/5">

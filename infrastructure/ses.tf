@@ -48,17 +48,15 @@ resource "aws_route53_record" "ses_spf" {
 #   p=none                                  → monitor only (started 2026-05-13)
 #   p=quarantine; pct=25                    → 25% of failures land in spam
 #   p=quarantine; pct=100                   → full quarantine (2026-05-14)
-#   p=reject;     pct=25 ← current          → partial reject (2026-05-15)
-#   p=reject;     pct=100                   → full reject
-# Aggregate reports go to dmarc-reports@; review them before each ratchet.
-# Next step (p=reject; pct=100) should wait a few more days of clean
-# aggregate reports — partial reject is the lower-blast-radius checkpoint.
+#   p=reject;     pct=25                    → partial reject (2026-05-15)
+#   p=reject;     pct=100 ← current         → full reject     (2026-05-18)
+# Aggregate reports go to dmarc-reports@; spot-check periodically.
 resource "aws_route53_record" "ses_dmarc" {
   zone_id = aws_route53_zone.main.zone_id
   name    = "_dmarc.${var.domain_name}"
   type    = "TXT"
   ttl     = 600
-  records = ["v=DMARC1; p=reject; pct=25; rua=mailto:dmarc-reports@${var.domain_name}"]
+  records = ["v=DMARC1; p=reject; pct=100; rua=mailto:dmarc-reports@${var.domain_name}"]
 }
 
 # Block terraform apply until SES confirms the domain is verified.
