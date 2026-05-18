@@ -5,6 +5,10 @@ import OnboardingForm from '@/app/onboarding/OnboardingForm'
 import EmailPrefToggle from './EmailPrefToggle'
 import WalkthroughReplay from './WalkthroughReplay'
 import MandatePillarsForm from './MandatePillarsForm'
+import KnockoutsReview, { type KnockoutSummaryItem } from './KnockoutsReview'
+import { getCandidates, type DbProfile as MatchDbProfile } from '@/lib/matches'
+import { countKnockoutsByReason } from '@/lib/scoring'
+import type { UserProfile, Tier } from '@/types'
 
 interface DbProfile {
   id: string
@@ -97,6 +101,10 @@ export default async function ProfilePage() {
           }}
         />
 
+        {/* Phase E — knockouts review. Renders nothing when the user has
+            no hard filters set; surfaces what's hidden when they do. */}
+        {await renderKnockoutsReview(profile)}
+
         <MandatePillarsForm
           initial={{
             sub_sectors:    profile.sub_sectors    ?? [],
@@ -118,4 +126,101 @@ export default async function ProfilePage() {
       </div>
     </div>
   )
+}
+
+// Renders the knockouts-review panel if the viewer has any hard filters
+// active. Computes counts by running the same filter logic the
+// dashboard uses against the candidate pool. Falls back to rendering
+// nothing on any error so the profile page never breaks because of this
+// auxiliary panel.
+async function renderKnockoutsReview(profile: DbProfile) {
+  try {
+    // Build a UserProfile shape for the knockout helpers (camelCase).
+    const viewer: UserProfile = {
+      id:           profile.id,
+      email:        profile.email,
+      role:         profile.role,
+      firmName:     profile.firm_name,
+      sectors:      profile.sectors,
+      stages:       profile.stages,
+      geography:    profile.geography,
+      checkSizeMin: Number(profile.check_size_min),
+      checkSizeMax: Number(profile.check_size_max),
+      antiSectors:         profile.anti_sectors   ?? [],
+      valuesExclusions:    profile.values_exclusions ?? [],
+      minCounterpartyTier: profile.min_counterparty_tier ?? null,
+      esgRequired:         profile.esg_required ?? false,
+      createdAt: '', updatedAt: '',
+    }
+
+    // Build the summary items based on which knockout fields are set.
+    const items: KnockoutSummaryItem[] = []
+    if (viewer.antiSectors?.length) {
+      items.push({
+        reason:  'anti_sectors',
+        label:   'Anti-sectors',
+        detail:  viewer.antiSectors.join(', '),
+        blocked: 0,
+      })
+    }
+    if (viewer.valuesExclusions?.length) {
+      items.push({
+        reason:  'values_exclusions',
+        label:   'Values exclusions',
+        detail:  viewer.valuesExclusions.join(', '),
+        blocked: 0,
+      })
+    }
+    if (viewer.minCounterpartyTier) {
+      const tier = viewer.minCounterpartyTier as Tier
+      items.push({
+        reason:  'min_counterparty_tier',
+        label:   'Minimum counterparty tier',
+        detail:  tier.charAt(0).toUpperCase() + tier.slice(1) + ' or higher',
+        blocked: 0,
+      })
+    }
+    if (viewer.esgRequired) {
+      items.push({
+        reason:  'esg_required',
+        label:   'ESG required',
+        detail:  'Only counterparties who have declared ESG alignment',
+        blocked: 0,
+      })
+    }
+    if (items.length === 0) return null
+
+    // Fetch candidates and compute per-reason block counts. getCandidates
+    // expects the wider MatchDbProfile but only reads role/id/etc., so
+    // the SELECT * row above is a superset and casts cleanly.
+    const candidates = await getCandidates(profile as unknown as MatchDbProfile)
+    const candidateScoring = candidates.map(c => ({
+      id:           c.id,
+      role:         c.role,
+      firmName:     c.firm_name,
+      sectors:      c.sectors,
+      stages:       c.stages,
+      geography:    c.geography,
+      checkSizeMin: Number(c.check_size_min),
+      checkSizeMax: Number(c.check_size_max),
+      membership:   c.membership ?? null,
+      esgRequired:  c.esg_required ?? false,
+      impactThemes: c.impact_themes ?? [],
+      bio:          '',
+      isVerified:   false,
+    }))
+    const counts = countKnockoutsByReason(viewer, candidateScoring)
+    for (const item of items) item.blocked = counts[item.reason]
+
+    const totalBlocked = items.reduce((s, i) => s + i.blocked, 0)
+    return (
+      <KnockoutsReview
+        totalCandidates={candidates.length}
+        totalBlocked={totalBlocked}
+        items={items}
+      />
+    )
+  } catch {
+    return null
+  }
 }

@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest'
-import { computeMatchScore, applyKnockouts } from '../scoring'
+import {
+  computeMatchScore, applyKnockouts,
+  countKnockoutsByReason, totalKnockedOut,
+} from '../scoring'
 import type { UserProfile, Candidate, MandateWeights } from '@/types'
 
 function makeUser(overrides: Partial<UserProfile> = {}): UserProfile {
@@ -272,6 +275,54 @@ describe('applyKnockouts', () => {
       makeCandidate({ sectors: ['Defense'], membership: 'access' }),
     )
     expect(res.reason).toBe('anti_sectors')
+  })
+})
+
+describe('countKnockoutsByReason', () => {
+  it('returns 0s for every reason when no candidates are blocked', () => {
+    const counts = countKnockoutsByReason(makeUser(), [makeCandidate()])
+    expect(counts).toEqual({
+      anti_sectors: 0,
+      values_exclusions: 0,
+      min_counterparty_tier: 0,
+      esg_required: 0,
+    })
+  })
+
+  it('counts each blocked candidate against its first-failing reason', () => {
+    const viewer = makeUser({
+      antiSectors:        ['Defense'],
+      esgRequired:        true,
+      minCounterpartyTier: 'sovereign',
+    })
+    const candidates: Candidate[] = [
+      makeCandidate({ id: 'c1', sectors: ['Defense'],   membership: 'sovereign', esgRequired: true  }),
+      makeCandidate({ id: 'c2', sectors: ['Healthcare'], membership: 'access',   esgRequired: true  }),
+      makeCandidate({ id: 'c3', sectors: ['Healthcare'], membership: 'sovereign', esgRequired: false }),
+      makeCandidate({ id: 'c4', sectors: ['Healthcare'], membership: 'sovereign', esgRequired: true  }),
+    ]
+    const counts = countKnockoutsByReason(viewer, candidates)
+    expect(counts.anti_sectors).toBe(1)            // c1: defense
+    expect(counts.min_counterparty_tier).toBe(1)    // c2: access
+    expect(counts.esg_required).toBe(1)             // c3: esg=false
+    // c4 survives.
+  })
+})
+
+describe('totalKnockedOut', () => {
+  it('counts the union of candidates blocked by any knockout', () => {
+    const viewer = makeUser({ antiSectors: ['Defense'], esgRequired: true })
+    const blocked = totalKnockedOut(viewer, [
+      makeCandidate({ id: 'c1', sectors: ['Defense'] }),                       // anti_sectors
+      makeCandidate({ id: 'c2', sectors: ['Healthcare'], esgRequired: false }),// esg
+      makeCandidate({ id: 'c3', sectors: ['Healthcare'], esgRequired: true }), // ok
+    ])
+    expect(blocked).toBe(2)
+  })
+
+  it('returns 0 when no candidates are blocked', () => {
+    const blocked = totalKnockedOut(makeUser(), [makeCandidate(), makeCandidate({ id: 'c2' })])
+    expect(blocked).toBe(0)
   })
 })
 

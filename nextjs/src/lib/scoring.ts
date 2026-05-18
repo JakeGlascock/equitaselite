@@ -1,6 +1,6 @@
 import type {
   UserProfile, Candidate, MatchScore, MandateWeights,
-  PillarScores, KnockoutResult,
+  PillarScores, KnockoutResult, KnockoutReason,
 } from '@/types'
 import { DEFAULT_MANDATE_WEIGHTS } from '@/types'
 
@@ -237,6 +237,38 @@ export function applyKnockouts(viewer: UserProfile, candidate: Candidate): Knock
   }
 
   return { blocked: false }
+}
+
+// Counts how many candidates each knockout reason blocks. Iterates
+// candidates once; each blocked candidate contributes 1 to the count
+// for the first-failing reason (matching applyKnockouts()'s short-circuit).
+// Useful for surfacing "your filters are hiding N counterparties" on
+// the profile page.
+export function countKnockoutsByReason(
+  viewer:     UserProfile,
+  candidates: Candidate[],
+): Record<KnockoutReason, number> {
+  const counts: Record<KnockoutReason, number> = {
+    anti_sectors:          0,
+    values_exclusions:     0,
+    min_counterparty_tier: 0,
+    esg_required:          0,
+  }
+  for (const c of candidates) {
+    const res = applyKnockouts(viewer, c)
+    if (res.blocked && res.reason) counts[res.reason] += 1
+  }
+  return counts
+}
+
+// Total number of candidates the viewer's hard filters currently hide.
+// Equivalent to summing countKnockoutsByReason but slightly cheaper —
+// only need a single boolean per candidate.
+export function totalKnockedOut(
+  viewer:     UserProfile,
+  candidates: Candidate[],
+): number {
+  return candidates.filter(c => applyKnockouts(viewer, c).blocked).length
 }
 
 // ── Public API ───────────────────────────────────────────────────────────
