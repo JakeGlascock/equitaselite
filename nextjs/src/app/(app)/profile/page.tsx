@@ -5,10 +5,11 @@ import OnboardingForm from '@/app/onboarding/OnboardingForm'
 import EmailPrefToggle from './EmailPrefToggle'
 import WalkthroughReplay from './WalkthroughReplay'
 import MandatePillarsForm from './MandatePillarsForm'
+import MandateWeightsForm from './MandateWeightsForm'
 import KnockoutsReview, { type KnockoutSummaryItem } from './KnockoutsReview'
 import { getCandidates, type DbProfile as MatchDbProfile } from '@/lib/matches'
 import { countKnockoutsByReason } from '@/lib/scoring'
-import type { UserProfile, Tier } from '@/types'
+import { DEFAULT_MANDATE_WEIGHTS, type UserProfile, type Tier, type MandateWeights } from '@/types'
 
 interface DbProfile {
   id: string
@@ -46,6 +47,11 @@ interface DbProfile {
   esg_required:     boolean | null
   impact_themes:    string[] | null
   values_exclusions: string[] | null
+  // Per-user pillar weights. JSONB column populated with the default
+  // weights at row creation (see migration 028), so this should never
+  // be null in practice — but we fall back to DEFAULT_MANDATE_WEIGHTS
+  // defensively to handle older rows or partial backfills.
+  mandate_weights:  MandateWeights | null
 }
 
 export default async function ProfilePage() {
@@ -100,6 +106,11 @@ export default async function ProfilePage() {
             email_notifications_enabled: profile.email_notifications_enabled ?? true,
           }}
         />
+
+        {/* Phase F — weights editor (preset picker + 6 sliders).
+            Determines how each pillar contributes to this user's
+            personal view of match scores. */}
+        <MandateWeightsForm initial={profile.mandate_weights ?? DEFAULT_MANDATE_WEIGHTS} />
 
         {/* Phase E — knockouts review. Renders nothing when the user has
             no hard filters set; surfaces what's hidden when they do. */}
