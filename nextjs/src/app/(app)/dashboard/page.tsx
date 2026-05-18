@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import MatchCard from '@/components/MatchCard'
+import MatchingExplainer from './MatchingExplainer'
 import {
   getMe, getCandidates, getIntroductions,
   buildIntroMap, toMatchView, filterByKnockouts,
@@ -53,19 +54,24 @@ export default async function DashboardPage() {
   return (
     <div className="px-5 md:px-8 py-8">
       <div className="max-w-5xl mx-auto space-y-6">
-        <div>
-          <p className="font-data text-[10px] tracking-[0.12em] text-ee-muted uppercase">Executive Overview</p>
-          <h1 className="font-display text-3xl text-ee-gold mt-1">Welcome back, {firstName}</h1>
-          <p className="text-ee-muted text-sm mt-1">
-            {matches.length > 0
-              ? <>
-                  {capped
-                    ? <><strong className="text-ee-primary">{matches.length}</strong> of {totalAvailable} {roleLabel} shown</>
-                    : <><strong className="text-ee-primary">{matches.length}</strong> {roleLabel} matched to your mandate</>}
-                  {' · '}{pendingIncoming} pending request{pendingIncoming === 1 ? '' : 's'}
-                </>
-              : `No ${roleLabel} have completed their profiles yet`}
-          </p>
+        <div className="flex items-start justify-between gap-4 flex-wrap">
+          <div>
+            <p className="font-data text-[10px] tracking-[0.12em] text-ee-muted uppercase">Executive Overview</p>
+            <h1 className="font-display text-3xl text-ee-gold mt-1">Welcome back, {firstName}</h1>
+            <p className="text-ee-muted text-sm mt-1">
+              {matches.length > 0
+                ? <>
+                    {capped
+                      ? <><strong className="text-ee-primary">{matches.length}</strong> of {totalAvailable} {roleLabel} shown</>
+                      : <><strong className="text-ee-primary">{matches.length}</strong> {roleLabel} matched to your mandate</>}
+                    {' · '}{pendingIncoming} pending request{pendingIncoming === 1 ? '' : 's'}
+                  </>
+                : `No ${roleLabel} have completed their profiles yet`}
+            </p>
+          </div>
+          <div className="pt-2 shrink-0">
+            <MatchingExplainer />
+          </div>
         </div>
 
         {/* Tier-based banners */}

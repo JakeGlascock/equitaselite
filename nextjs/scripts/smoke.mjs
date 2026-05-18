@@ -116,6 +116,15 @@ const CHECKS = [
     status: 403, contains: 'Preview mode',
   },
 
+  // The /dashboard matching explainer button is visible in the preview
+  // walkthrough — verify the methodology copy renders so a regression in
+  // the explainer (e.g. accidentally removed from the layout) shows up here.
+  {
+    name: 'preview-dashboard-explainer',
+    path: '/dashboard', headers: { Cookie: PREVIEW_COOKIE }, status: 200,
+    contains: 'How matching works',
+  },
+
   // SECURITY: demo-only data scoping on the investor walkthrough.
   // A demo preview cookie must not surface ANY real-member data. The
   // dashboard's match list is the highest-leverage surface — every link
