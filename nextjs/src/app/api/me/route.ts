@@ -36,7 +36,8 @@ const UpdateSchema = z.object({
 })
 
 export async function PATCH(req: NextRequest) {
-  const userId = req.headers.get('x-user-id')
+  const userId    = req.headers.get('x-user-id')
+  const userEmail = req.headers.get('x-user-email')
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const body = await req.json()
@@ -46,6 +47,18 @@ export async function PATCH(req: NextRequest) {
   }
 
   const d = parsed.data
+
+  // If the caller is trying to change `email`, it must match their JWT
+  // email — same defense as in /api/onboarding. Prevents claiming
+  // another invitee's unused email by editing your own profile.
+  if (d.email !== undefined) {
+    if (!userEmail || d.email.toLowerCase() !== userEmail.toLowerCase()) {
+      return NextResponse.json(
+        { error: 'Email can only be changed via Cognito.' },
+        { status: 400 }
+      )
+    }
+  }
   const profile = await queryOne(
     `UPDATE profiles SET
        email           = COALESCE($2,  email),
