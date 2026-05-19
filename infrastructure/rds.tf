@@ -114,6 +114,9 @@ resource "aws_cloudwatch_metric_alarm" "rds_cpu" {
   period              = 300
   statistic           = "Average"
   threshold           = 80
-  alarm_description   = "RDS CPU above 80%"
+  alarm_description   = "RDS CPU sustained above 80% for 10 minutes — investigate slow queries or scale db class."
   dimensions          = { DBInstanceIdentifier = aws_db_instance.main.id }
+  alarm_actions       = [aws_sns_topic.security_alerts.arn]
+  ok_actions          = [aws_sns_topic.security_alerts.arn]
+  treat_missing_data  = "notBreaching"
 }
