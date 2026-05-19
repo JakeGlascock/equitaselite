@@ -115,21 +115,24 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
         : profile.off_market_grace_until)
     : null
 
-  // Per-role mandate editing (Phase D2). Multi-role users get a tab
-  // switcher above the mandate form: which role's mandate are we
-  // editing? Single-role users see no tabs and edit their one mandate.
-  // Concierge-only users have no mandate to edit; the form still shows
-  // for identity fields (Phase D3 will split identity out cleanly).
+  // Per-role mandate editing (Phase D2 + E4). Multi-role users get a
+  // tab switcher above the mandate form: which role's mandate are we
+  // editing? Single-role users see no tabs. Concierge-only users have
+  // no mandate to edit; the form still shows for identity fields.
   const params         = await searchParams
-  const isAngel        = !!profile.is_angel         || profile.role === 'angel'
-  const isFamilyOffice = !!profile.is_family_office || profile.role === 'family_office'
-  const multiRole      = isAngel && isFamilyOffice
-  const paramRole      = params.role === 'angel' || params.role === 'family_office' ? params.role : null
+  const { rolesHeldBy, ROLE_LABELS, INVESTOR_ROLES } = await import('@/lib/role-compat')
+  const heldRoles      = rolesHeldBy({
+    is_angel:             !!profile.is_angel             || profile.role === 'angel',
+    is_family_office:     !!profile.is_family_office     || profile.role === 'family_office',
+    is_next_gen:          !!profile.is_next_gen,
+    is_family_foundation: !!profile.is_family_foundation,
+    is_daf:               !!profile.is_daf,
+  })
+  const multiRole = heldRoles.length > 1
+  const paramRoleRaw = typeof params.role === 'string' ? params.role : null
   const editRole: Role | null =
-       (paramRole && (paramRole === 'angel' ? isAngel : isFamilyOffice) ? paramRole as Role : null)
-    ?? (isAngel && !isFamilyOffice ? 'angel'         : null)
-    ?? (isFamilyOffice && !isAngel ? 'family_office' : null)
-    ?? (isAngel ? 'angel' : isFamilyOffice ? 'family_office' : null)
+       (paramRoleRaw && heldRoles.includes(paramRoleRaw as Role) ? (paramRoleRaw as Role) : null)
+    ?? (heldRoles[0] ?? null)
 
   // Load the role-specific mandate when available (mandates table is
   // authoritative once D2 is live). Falls back to profile columns for
@@ -190,33 +193,24 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
             URL-driven (?role=) so the choice round-trips through the
             server-rendered form. Single-role users skip this block. */}
         {multiRole && (
-          <div className="glass-panel p-3 flex items-center gap-2 text-xs">
+          <div className="glass-panel p-3 flex items-center gap-2 text-xs flex-wrap">
             <span className="font-data uppercase tracking-wider text-ee-muted shrink-0 px-2">Editing mandate</span>
-            <div className="flex gap-1">
-              <Link
-                href="/profile?role=angel"
-                replace
-                scroll={false}
-                className={`px-3 py-1.5 rounded-full transition-colors ${
-                  editRole === 'angel'
-                    ? 'bg-ee-gold text-ee-bg font-semibold'
-                    : 'border border-ee-border text-ee-muted hover:text-ee-primary'
-                }`}
-              >
-                Angel
-              </Link>
-              <Link
-                href="/profile?role=family_office"
-                replace
-                scroll={false}
-                className={`px-3 py-1.5 rounded-full transition-colors ${
-                  editRole === 'family_office'
-                    ? 'bg-ee-gold text-ee-bg font-semibold'
-                    : 'border border-ee-border text-ee-muted hover:text-ee-primary'
-                }`}
-              >
-                Family Office
-              </Link>
+            <div className="flex gap-1 flex-wrap">
+              {INVESTOR_ROLES.filter(r => heldRoles.includes(r)).map(r => (
+                <Link
+                  key={r}
+                  href={`/profile?role=${r}`}
+                  replace
+                  scroll={false}
+                  className={`px-3 py-1.5 rounded-full transition-colors ${
+                    editRole === r
+                      ? 'bg-ee-gold text-ee-bg font-semibold'
+                      : 'border border-ee-border text-ee-muted hover:text-ee-primary'
+                  }`}
+                >
+                  {ROLE_LABELS[r]}
+                </Link>
+              ))}
             </div>
             <span className="text-[11px] text-ee-muted/70 italic ml-auto pr-2 hidden sm:inline">
               Each role has its own mandate.
@@ -232,8 +226,11 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
           mode="edit"
           editRole={editRole ?? undefined}
           initialData={{
-            is_angel:         isAngel,
-            is_family_office: isFamilyOffice,
+            is_angel:             heldRoles.includes('angel'),
+            is_family_office:     heldRoles.includes('family_office'),
+            is_next_gen:          heldRoles.includes('next_gen'),
+            is_family_foundation: heldRoles.includes('family_foundation'),
+            is_daf:               heldRoles.includes('daf'),
             full_name:       profile.full_name,
             title:           profile.title          ?? '',
             firm_name:       profile.firm_name,

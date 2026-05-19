@@ -15,12 +15,15 @@ type Role = 'angel' | 'family_office'
 
 interface FormData {
   email: string
-  // Multi-role identity flags (migration 034). At least one must be
-  // true. Onboarding still collects ONE shared mandate; users with
-  // both flags can differentiate per-role mandates via /profile after
-  // signup (Phase D2).
-  is_angel:         boolean
-  is_family_office: boolean
+  // Multi-role identity flags (migrations 034 + 035). At least one
+  // must be true. Onboarding collects ONE shared mandate; users with
+  // multiple flags can differentiate per-role mandates via /profile
+  // after signup.
+  is_angel:             boolean
+  is_family_office:     boolean
+  is_next_gen:          boolean
+  is_family_foundation: boolean
+  is_daf:               boolean
   full_name: string
   title: string
   firm_name: string
@@ -109,8 +112,11 @@ export default function OnboardingForm({ email, mode = 'onboard', initialData, e
 
   const [data, setData] = useState<FormData>({
     email,
-    is_angel:         false,
-    is_family_office: false,
+    is_angel:             false,
+    is_family_office:     false,
+    is_next_gen:          false,
+    is_family_foundation: false,
+    is_daf:               false,
     full_name: '',
     title: '',
     firm_name: '',
@@ -159,7 +165,9 @@ export default function OnboardingForm({ email, mode = 'onboard', initialData, e
 
   function validateStep(s: number): string | null {
     if (s === 1) {
-      if (!data.is_angel && !data.is_family_office) return 'Pick at least one role — Angel, Family Office, or both.'
+      const anyRole = data.is_angel || data.is_family_office || data.is_next_gen
+                   || data.is_family_foundation || data.is_daf
+      if (!anyRole)                            return 'Pick at least one role.'
       if (data.full_name.trim().length < 2)    return 'Enter your full name (at least 2 characters).'
       if (data.firm_name.trim().length < 2)    return `Enter your firm or family office name.`
       if (data.is_family_office && !data.aum)  return 'Select your AUM range.'
@@ -222,12 +230,15 @@ export default function OnboardingForm({ email, mode = 'onboard', initialData, e
             <div>
               <p className="text-xs text-ee-muted mb-2 font-data uppercase tracking-wider">I invest as<Req /></p>
               <p className="text-[11px] text-ee-muted mb-3 leading-relaxed">
-                Pick all that apply. Members who invest in both capacities can switch context on the dashboard.
+                Pick all that apply. Members holding multiple roles can switch context on the dashboard and keep a distinct mandate per role.
               </p>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {([
-                  { key: 'is_angel',         label: 'Angel Investor', desc: 'Individual deploying personal capital' },
-                  { key: 'is_family_office', label: 'Family Office',  desc: 'Multi-generational wealth management' },
+                  { key: 'is_angel',             label: 'Angel Investor',    desc: 'Individual deploying personal capital' },
+                  { key: 'is_family_office',     label: 'Family Office',     desc: 'Multi-generational wealth management' },
+                  { key: 'is_next_gen',          label: 'Next Gen',          desc: 'Next-generation member of a family wealth lineage' },
+                  { key: 'is_family_foundation', label: 'Family Foundation', desc: '501(c)(3) charitable entity with an investment mandate' },
+                  { key: 'is_daf',               label: 'DAF',               desc: 'Donor-Advised Fund — sponsor-held charitable account' },
                 ] as const).map(opt => {
                   const checked = data[opt.key]
                   return (

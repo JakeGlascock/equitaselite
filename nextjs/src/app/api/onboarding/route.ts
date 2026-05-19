@@ -5,12 +5,14 @@ import { getEffectiveUserId } from '@/lib/acting-as'
 
 const OnboardingSchema = z.object({
   email:            z.string().email(),
-  // Multi-role identity (migration 034). At least one must be true.
-  // The legacy `role` field is accepted for backward compat — it's
-  // derived into flags when present and absent flags otherwise.
-  role:             z.enum(['angel', 'family_office']).optional(),
-  is_angel:         z.boolean().optional(),
-  is_family_office: z.boolean().optional(),
+  // Multi-role identity (migrations 034 + 035). At least one must be
+  // true. The legacy `role` field is accepted for backward compat.
+  role:                 z.enum(['angel', 'family_office']).optional(),
+  is_angel:             z.boolean().optional(),
+  is_family_office:     z.boolean().optional(),
+  is_next_gen:          z.boolean().optional(),
+  is_family_foundation: z.boolean().optional(),
+  is_daf:               z.boolean().optional(),
   full_name:        z.string().trim().min(2).max(120),
   title:            z.string().trim().max(120).optional(),
   firm_name:        z.string().trim().min(2).max(160),
@@ -35,9 +37,14 @@ const OnboardingSchema = z.object({
       message: 'Maximum check size must be at least the minimum.',
     })
   }
-  const wantsAngel        = !!d.is_angel         || d.role === 'angel'
-  const wantsFamilyOffice = !!d.is_family_office || d.role === 'family_office'
-  if (!wantsAngel && !wantsFamilyOffice) {
+  const wantsAngel            = !!d.is_angel             || d.role === 'angel'
+  const wantsFamilyOffice     = !!d.is_family_office     || d.role === 'family_office'
+  const wantsNextGen          = !!d.is_next_gen
+  const wantsFamilyFoundation = !!d.is_family_foundation
+  const wantsDaf              = !!d.is_daf
+  const anyRole = wantsAngel || wantsFamilyOffice || wantsNextGen
+               || wantsFamilyFoundation || wantsDaf
+  if (!anyRole) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['is_angel'], message: 'Pick at least one role.' })
   }
   if (wantsFamilyOffice) {
@@ -102,16 +109,20 @@ export async function POST(req: NextRequest) {
   }
   const emailPref = d.email_notifications_enabled ?? true
 
-  // Multi-role identity derivation (migration 034). `wantsAngel` /
-  // `wantsFamilyOffice` accept either the legacy `role` field or the
-  // new explicit flags. `primaryRole` keeps the legacy `role` column
-  // in sync (set to the only checked role, or to the legacy value when
-  // both are checked).
-  const wantsAngel        = !!d.is_angel         || d.role === 'angel'
-  const wantsFamilyOffice = !!d.is_family_office || d.role === 'family_office'
-  const primaryRole = (wantsAngel && !wantsFamilyOffice) ? 'angel'
-                    : (wantsFamilyOffice && !wantsAngel) ? 'family_office'
-                    : (d.role ?? (wantsAngel ? 'angel' : 'family_office'))
+  // Multi-role identity derivation (migrations 034 + 035). Flags
+  // accept either the legacy `role` field or the new explicit
+  // booleans. `primaryRole` keeps the legacy `role` column in sync
+  // for Angel-or-FO-only profiles; pure Next-Gen / Foundation / DAF
+  // signups leave the legacy column NULL.
+  const wantsAngel            = !!d.is_angel             || d.role === 'angel'
+  const wantsFamilyOffice     = !!d.is_family_office     || d.role === 'family_office'
+  const wantsNextGen          = !!d.is_next_gen
+  const wantsFamilyFoundation = !!d.is_family_foundation
+  const wantsDaf              = !!d.is_daf
+  const primaryRole: 'angel' | 'family_office' | null =
+       (wantsAngel && !wantsFamilyOffice) ? 'angel'
+     : (wantsFamilyOffice && !wantsAngel) ? 'family_office'
+     : (d.role ?? null)
 
   // membership is set to 'access' on first insert and intentionally NOT
   // included in DO UPDATE — re-saving the profile must not clobber an
@@ -128,7 +139,8 @@ export async function POST(req: NextRequest) {
          email_notifications_enabled,
          membership,
          onboarding_completed,
-         is_angel, is_family_office
+         is_angel, is_family_office,
+         is_next_gen, is_family_foundation, is_daf
        ) VALUES (
          $1,$2,$3,$4,$5,$6,$7,$8,
          $9,$10,$11,
@@ -137,7 +149,8 @@ export async function POST(req: NextRequest) {
          $19,
          'access',
          TRUE,
-         $20,$21
+         $20,$21,
+         $22,$23,$24
        )
        ON CONFLICT (id) DO UPDATE SET
          email=$2, role=$3, full_name=$4, title=$5, firm_name=$6,
@@ -147,7 +160,8 @@ export async function POST(req: NextRequest) {
          expected_return=$15, timeline=$16, mandate_type=$17, concentration=$18,
          email_notifications_enabled=$19,
          onboarding_completed=TRUE,
-         is_angel=$20, is_family_office=$21
+         is_angel=$20, is_family_office=$21,
+         is_next_gen=$22, is_family_foundation=$23, is_daf=$24
        RETURNING *`,
       [
         userId, d.email, primaryRole, d.full_name, d.title ?? null,
@@ -158,6 +172,7 @@ export async function POST(req: NextRequest) {
         d.mandate_type ?? null, d.concentration ?? null,
         emailPref,
         wantsAngel, wantsFamilyOffice,
+        wantsNextGen, wantsFamilyFoundation, wantsDaf,
       ]
     )
   } catch (err: unknown) {
@@ -165,6 +180,9 @@ export async function POST(req: NextRequest) {
     const isMigrationColumn = msg.includes('membership')
                            || msg.includes('is_angel')
                            || msg.includes('is_family_office')
+                           || msg.includes('is_next_gen')
+                           || msg.includes('is_family_foundation')
+                           || msg.includes('is_daf')
     if (!isMigrationColumn) throw err
     profile = await queryOne(
       `INSERT INTO profiles (
@@ -204,9 +222,12 @@ export async function POST(req: NextRequest) {
   // differentiate per-role mandates from /profile afterwards.
   // ON CONFLICT updates so re-submitting the wizard (edit mode) keeps
   // the mandates rows fresh.
-  const activeRoles: ('angel' | 'family_office')[] = []
-  if (wantsAngel)        activeRoles.push('angel')
-  if (wantsFamilyOffice) activeRoles.push('family_office')
+  const activeRoles: ('angel' | 'family_office' | 'next_gen' | 'family_foundation' | 'daf')[] = []
+  if (wantsAngel)             activeRoles.push('angel')
+  if (wantsFamilyOffice)      activeRoles.push('family_office')
+  if (wantsNextGen)           activeRoles.push('next_gen')
+  if (wantsFamilyFoundation)  activeRoles.push('family_foundation')
+  if (wantsDaf)               activeRoles.push('daf')
 
   for (const role of activeRoles) {
     try {
