@@ -3,13 +3,14 @@ import { redirect } from 'next/navigation'
 import MatchCard from '@/components/MatchCard'
 import MatchingExplainer from './MatchingExplainer'
 import {
-  getMe, getCandidates, getIntroductions,
+  getMe, getCandidates, getIntroductions, applyMandateToProfile,
   buildIntroMap, toMatchView, filterByKnockouts,
 } from '@/lib/matches'
+import { getMandate, type Role } from '@/lib/mandates'
 import { getActingAsState } from '@/lib/acting-as'
 import { getTier, getLimits, priorityRank, checkIntroQuota } from '@/lib/membership'
 
-export default async function DashboardPage() {
+export default async function DashboardPage({ searchParams }: { searchParams: Promise<{ role?: string }> }) {
   const state = await getActingAsState()
   if (!state) redirect('/signin')
   const userId = state.effectiveUserId
@@ -17,15 +18,36 @@ export default async function DashboardPage() {
   const me = await getMe(userId)
   if (!me || !me.onboarding_completed) redirect('/onboarding')
 
+  // Multi-role context selector. Chelsea = Angel + FO needs to pick
+  // which side of the market she's browsing as; the candidate list +
+  // her own scoring mandate switch accordingly. Single-role users see
+  // no selector and their (one) role is the implicit context.
+  const params       = await searchParams
+  const isAngel      = !!me.is_angel         || me.role === 'angel'
+  const isFamilyOffice = !!me.is_family_office || me.role === 'family_office'
+  const multiRole    = isAngel && isFamilyOffice
+  const paramRole    = params.role === 'angel' || params.role === 'family_office' ? params.role : null
+  const viewerRole: Role | null =
+       (paramRole && (paramRole === 'angel' ? isAngel : isFamilyOffice) ? paramRole as Role : null)
+    ?? (isAngel && !isFamilyOffice ? 'angel'         : null)
+    ?? (isFamilyOffice && !isAngel ? 'family_office' : null)
+    ?? (isAngel ? 'angel' : isFamilyOffice ? 'family_office' : null)
+
+  // Concierge-only profile (no investor role) — no match list to render.
+  // Fall through to render the page with an empty matches array; the
+  // existing "Check back soon" branch handles it gracefully.
+  const viewerMandate = viewerRole ? await getMandate(userId, viewerRole) : null
+  const scoringMe = viewerRole ? applyMandateToProfile(me, viewerMandate) : me
+
   const [rawCandidates, intros, tier, quota] = await Promise.all([
-    getCandidates(me),
+    viewerRole ? getCandidates(me, viewerRole) : Promise.resolve([]),
     getIntroductions(userId),
     getTier(userId),
     checkIntroQuota(userId),
   ])
   // Phase 6 — viewer's knockouts hide counterparties entirely before
   // ranking. Asymmetric: applies only the viewer's hard filters.
-  const candidates = filterByKnockouts(me, rawCandidates)
+  const candidates = filterByKnockouts(scoringMe, rawCandidates)
   const limits  = getLimits(tier)
   const introMap = buildIntroMap(intros, userId)
 
@@ -33,7 +55,7 @@ export default async function DashboardPage() {
   // counterparties surface first. Then cap the user's view at their tier's
   // matches-per-month limit (null = unlimited).
   const ranked = candidates
-    .map(c => ({ c, view: toMatchView(c, me, introMap.get(c.id)) }))
+    .map(c => ({ c, view: toMatchView(c, scoringMe, introMap.get(c.id)) }))
     .sort((a, b) => {
       const pa = priorityRank(a.c.membership)
       const pb = priorityRank(b.c.membership)
@@ -49,7 +71,9 @@ export default async function DashboardPage() {
 
   const pendingIncoming = intros.filter(i => i.recipient_id === userId && i.status === 'pending').length
   const firstName = me.full_name.split(' ')[0]
-  const roleLabel = me.role === 'angel' ? 'Family Offices' : 'Angel Investors'
+  const roleLabel = viewerRole === 'angel' ? 'Family Offices'
+                  : viewerRole === 'family_office' ? 'Angel Investors'
+                  : 'counterparties'
 
   // Off-Market downgrade grace banner — surfaces when the viewer is
   // currently off-market AND has a future grace expiry on file (set
@@ -87,6 +111,46 @@ export default async function DashboardPage() {
             <MatchingExplainer />
           </div>
         </div>
+
+        {/* Multi-role context selector — only rendered when the user
+            holds BOTH investor roles. Toggles between "Viewing as
+            Angel" (sees FOs) and "Viewing as Family Office" (sees
+            Angels). Server-rendered via ?role= URL param so the
+            choice is shareable and the scoring respects it cleanly. */}
+        {multiRole && (
+          <div className="glass-panel p-3 flex items-center gap-2 text-xs">
+            <span className="font-data uppercase tracking-wider text-ee-muted shrink-0 px-2">Viewing as</span>
+            <div className="flex gap-1">
+              <Link
+                href="/dashboard?role=angel"
+                replace
+                scroll={false}
+                className={`px-3 py-1.5 rounded-full transition-colors ${
+                  viewerRole === 'angel'
+                    ? 'bg-ee-gold text-ee-bg font-semibold'
+                    : 'border border-ee-border text-ee-muted hover:text-ee-primary'
+                }`}
+              >
+                Angel
+              </Link>
+              <Link
+                href="/dashboard?role=family_office"
+                replace
+                scroll={false}
+                className={`px-3 py-1.5 rounded-full transition-colors ${
+                  viewerRole === 'family_office'
+                    ? 'bg-ee-gold text-ee-bg font-semibold'
+                    : 'border border-ee-border text-ee-muted hover:text-ee-primary'
+                }`}
+              >
+                Family Office
+              </Link>
+            </div>
+            <span className="text-[11px] text-ee-muted/70 italic ml-auto pr-2 hidden sm:inline">
+              Each role has its own mandate — switch to see the matches that fit.
+            </span>
+          </div>
+        )}
 
         {/* Off-Market downgrade grace warning. Re-upgrading to Sovereign
             clears the timer (admin tier-change UPDATE handles this);

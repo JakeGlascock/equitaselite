@@ -2,6 +2,7 @@ import { query, queryOne } from '@/lib/db'
 import { applyKnockouts, computeMatchScore } from '@/lib/scoring'
 import type { Tier } from '@/lib/membership'
 import { visibilityWhereFragment } from '@/lib/visibility'
+import type { Mandate } from '@/lib/mandates'
 import type { IntroState } from '@/components/MatchCard'
 import type {
   UserProfile, Candidate, MandateWeights,
@@ -69,6 +70,11 @@ export interface DbProfile {
   // are already filtered by visibility).
   is_off_market?:          boolean | null
   off_market_grace_until?: Date | string | null
+  // Multi-role identity flags (migration 034). Backfilled from `role`
+  // for legacy single-role profiles. Drive the dashboard role-context
+  // toggle for multi-role users.
+  is_angel?:         boolean | null
+  is_family_office?: boolean | null
 }
 
 interface IntroRow {
@@ -159,46 +165,147 @@ function toCandidateProfile(p: DbProfile): Candidate {
   }
 }
 
-export async function getMe(userId: string): Promise<DbProfile | null> {
-  // Try the full SELECT first (includes the migration-033 off-market
-  // columns); fall back without them on pre-033 environments. Used for
-  // the intro-reveal banner + the dashboard downgrade-grace banner.
-  try {
-    return await queryOne<DbProfile>(
-      `SELECT ${PROFILE_COLUMNS}, is_off_market, off_market_grace_until FROM profiles WHERE id = $1`,
-      [userId]
-    )
-  } catch {
-    return queryOne<DbProfile>(
-      `SELECT ${PROFILE_COLUMNS} FROM profiles WHERE id = $1`,
-      [userId]
-    )
+// Merge a per-role mandate into the viewer's profile so scoring helpers
+// score against the role-appropriate mandate (Chelsea-as-Angel uses her
+// Angel mandate; Chelsea-as-FO uses her FO mandate). Returns the
+// original profile untouched when no mandate is provided (legacy
+// single-mandate users).
+export function applyMandateToProfile(me: DbProfile, mandate: Mandate | null): DbProfile {
+  if (!mandate) return me
+  return {
+    ...me,
+    role:                        mandate.role,
+    sectors:                     mandate.sectors,
+    sub_sectors:                 mandate.sub_sectors,
+    anti_sectors:                mandate.anti_sectors,
+    stages:                      mandate.stages,
+    geography:                   mandate.geography,
+    thematic_focus:              mandate.thematic_focus,
+    check_size_min:              mandate.check_size_min,
+    check_size_max:              mandate.check_size_max,
+    check_size_target:           mandate.check_size_target,
+    deals_per_year:              mandate.deals_per_year,
+    max_concentration_pct:       mandate.max_concentration_pct,
+    lead_capacity:               mandate.lead_capacity,
+    co_invest_appetite:          mandate.co_invest_appetite,
+    holding_period_target_years: mandate.holding_period_target_years,
+    loss_appetite:               mandate.loss_appetite,
+    engagement_style:            mandate.engagement_style,
+    diligence_depth:             mandate.diligence_depth,
+    decision_timeline_days:      mandate.decision_timeline_days,
+    preferred_counterparty_types: mandate.preferred_counterparty_types,
+    min_counterparty_tier:        mandate.min_counterparty_tier,
+    min_verification_level:       mandate.min_verification_level,
+    esg_required:      mandate.esg_required,
+    impact_themes:     mandate.impact_themes,
+    values_exclusions: mandate.values_exclusions,
+    aum:               mandate.aum,
+    mandate_weights:   mandate.mandate_weights,
   }
 }
 
-export async function getCandidates(me: DbProfile): Promise<DbProfile[]> {
-  const oppositeRole = me.role === 'angel' ? 'family_office' : 'angel'
+export async function getMe(userId: string): Promise<DbProfile | null> {
+  // Try the full SELECT first (includes the migration-033 off-market
+  // columns + the migration-034 identity flags); fall back progressively
+  // on older environments.
+  try {
+    return await queryOne<DbProfile>(
+      `SELECT ${PROFILE_COLUMNS}, is_off_market, off_market_grace_until,
+              is_angel, is_family_office
+       FROM profiles WHERE id = $1`,
+      [userId]
+    )
+  } catch {
+    try {
+      return await queryOne<DbProfile>(
+        `SELECT ${PROFILE_COLUMNS}, is_off_market, off_market_grace_until FROM profiles WHERE id = $1`,
+        [userId]
+      )
+    } catch {
+      return queryOne<DbProfile>(
+        `SELECT ${PROFILE_COLUMNS} FROM profiles WHERE id = $1`,
+        [userId]
+      )
+    }
+  }
+}
+
+// viewerRole picks which side of the market the caller is browsing as.
+// Multi-role users (Chelsea = Angel + FO) pass this from the dashboard
+// context toggle; single-role users default to their (only) role.
+//
+// Phase C reads candidate mandate fields from the mandates sub-table
+// via LEFT JOIN, falling back to the denormalized profile columns
+// (COALESCE) for profiles that haven't been backfilled yet — keeps the
+// transition safe for legacy single-mandate users.
+export async function getCandidates(me: DbProfile, viewerRole?: 'angel' | 'family_office'): Promise<DbProfile[]> {
+  const role = viewerRole ?? me.role
+  if (role !== 'angel' && role !== 'family_office') {
+    // Concierge-only viewer (no investor role) has no match list.
+    return []
+  }
+  const oppositeRole = role === 'angel' ? 'family_office' : 'angel'
+  const oppositeFlag = oppositeRole === 'angel' ? 'is_angel' : 'is_family_office'
+
   // Demo viewers (investor preview walkthroughs) only see other demo
-  // profiles — never real members. This is the read-side guard: middleware
-  // already blocks mutations in preview mode; this stops the directory
-  // and match list from exposing real-member names, firms, or mandates.
+  // profiles — never real members.
   const demoOnly = me.id.startsWith('demo_')
-  // Off-Market visibility filter (migration 033). Profiles flagged
-  // is_off_market = TRUE are hidden from match results unless the viewer
-  // is the target's RM, an admin, or has an accepted introduction with
-  // them. Self is excluded above by `id != $2`. Try the visibility-aware
-  // query first; fall back if the column doesn't exist yet (pre-033 env).
+
+  // Source mandate fields from mandates(role=$1) when present, else
+  // from the denormalized profile columns. The COALESCE pattern lets
+  // legacy single-mandate users keep working until Phase C2 backfills
+  // their mandates via the wizard rework / profile editor.
+  const candidateSelect = `
+    p.id, p.email, p.full_name, p.title, p.firm_name, p.location, p.role,
+    COALESCE(m.aum,                          p.aum)                          AS aum,
+    COALESCE(m.sectors,                      p.sectors)                      AS sectors,
+    COALESCE(m.stages,                       p.stages)                       AS stages,
+    COALESCE(m.geography,                    p.geography)                    AS geography,
+    COALESCE(m.sub_sectors,                  p.sub_sectors)                  AS sub_sectors,
+    COALESCE(m.anti_sectors,                 p.anti_sectors)                 AS anti_sectors,
+    COALESCE(m.thematic_focus,               p.thematic_focus)               AS thematic_focus,
+    COALESCE(m.check_size_min,               p.check_size_min)               AS check_size_min,
+    COALESCE(m.check_size_max,               p.check_size_max)               AS check_size_max,
+    COALESCE(m.check_size_target,            p.check_size_target)            AS check_size_target,
+    COALESCE(m.deals_per_year,               p.deals_per_year)               AS deals_per_year,
+    COALESCE(m.max_concentration_pct,        p.max_concentration_pct)        AS max_concentration_pct,
+    COALESCE(m.lead_capacity,                p.lead_capacity)                AS lead_capacity,
+    COALESCE(m.co_invest_appetite,           p.co_invest_appetite)           AS co_invest_appetite,
+    COALESCE(m.holding_period_target_years,  p.holding_period_target_years)  AS holding_period_target_years,
+    COALESCE(m.loss_appetite,                p.loss_appetite)                AS loss_appetite,
+    COALESCE(m.engagement_style,             p.engagement_style)             AS engagement_style,
+    COALESCE(m.diligence_depth,              p.diligence_depth)              AS diligence_depth,
+    COALESCE(m.decision_timeline_days,       p.decision_timeline_days)       AS decision_timeline_days,
+    COALESCE(m.preferred_counterparty_types, p.preferred_counterparty_types) AS preferred_counterparty_types,
+    COALESCE(m.min_counterparty_tier,        p.min_counterparty_tier)        AS min_counterparty_tier,
+    COALESCE(m.min_verification_level,       p.min_verification_level)       AS min_verification_level,
+    COALESCE(m.esg_required,                 p.esg_required)                 AS esg_required,
+    COALESCE(m.impact_themes,                p.impact_themes)                AS impact_themes,
+    COALESCE(m.values_exclusions,            p.values_exclusions)            AS values_exclusions,
+    COALESCE(m.mandate_weights,              p.mandate_weights)              AS mandate_weights,
+    p.membership, p.onboarding_completed
+  `
+
+  // Filter by the opposite-role flag (so multi-role users surface in
+  // both Angel- and FO-context lists). Pre-034 fallback uses p.role
+  // directly. Visibility fragment applies in the migration-033+ path.
   try {
     return await query<DbProfile>(
-      `SELECT ${PROFILE_COLUMNS}
+      `SELECT ${candidateSelect}
        FROM profiles p
-       WHERE p.role = $1 AND p.onboarding_completed = TRUE AND p.id != $2
+       LEFT JOIN mandates m
+         ON m.profile_id = p.id AND m.role = $1
+       WHERE p.${oppositeFlag} = TRUE
+         AND p.onboarding_completed = TRUE
+         AND p.id != $2
          AND (p.is_concierge IS NULL OR p.is_concierge = FALSE)
          ${demoOnly ? `AND p.id LIKE 'demo_%'` : ''}
          AND ${visibilityWhereFragment('p', 2)}`,
       [oppositeRole, me.id]
     )
   } catch {
+    // Pre-034 fallback: mandates table or is_angel/is_family_office
+    // flags don't exist yet. Use the legacy role column directly.
     return query<DbProfile>(
       `SELECT ${PROFILE_COLUMNS}
        FROM profiles

@@ -30,6 +30,8 @@ interface FullProfile {
   onboarding_completed: boolean
   is_off_market?:           boolean | null
   relationship_manager_id?: string | null
+  is_angel?:                boolean | null
+  is_family_office?:        boolean | null
 }
 
 interface IntroRow {
@@ -75,26 +77,40 @@ function toScoring(p: FullProfile) {
 }
 
 async function fetchProfile(id: string): Promise<FullProfile | null> {
-  // Try with the migration-033 columns first; fall back if not migrated yet.
+  // Try migration-034 columns first; fall back progressively for
+  // pre-034 / pre-033 environments.
   try {
     return await queryOne<FullProfile>(
       `SELECT id, email, full_name, title, firm_name, location, aum, role,
               sectors, stages, geography, check_size_min, check_size_max,
               risk_tolerance, expected_return, timeline, mandate_type,
               concentration, onboarding_completed,
-              is_off_market, relationship_manager_id
+              is_off_market, relationship_manager_id,
+              is_angel, is_family_office
        FROM profiles WHERE id = $1`,
       [id]
     )
   } catch {
-    return queryOne<FullProfile>(
-      `SELECT id, email, full_name, title, firm_name, location, aum, role,
-              sectors, stages, geography, check_size_min, check_size_max,
-              risk_tolerance, expected_return, timeline, mandate_type,
-              concentration, onboarding_completed
-       FROM profiles WHERE id = $1`,
-      [id]
-    )
+    try {
+      return await queryOne<FullProfile>(
+        `SELECT id, email, full_name, title, firm_name, location, aum, role,
+                sectors, stages, geography, check_size_min, check_size_max,
+                risk_tolerance, expected_return, timeline, mandate_type,
+                concentration, onboarding_completed,
+                is_off_market, relationship_manager_id
+         FROM profiles WHERE id = $1`,
+        [id]
+      )
+    } catch {
+      return queryOne<FullProfile>(
+        `SELECT id, email, full_name, title, firm_name, location, aum, role,
+                sectors, stages, geography, check_size_min, check_size_max,
+                risk_tolerance, expected_return, timeline, mandate_type,
+                concentration, onboarding_completed
+         FROM profiles WHERE id = $1`,
+        [id]
+      )
+    }
   }
 }
 
@@ -118,9 +134,22 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
 
   const candidate = await fetchProfile(id)
   if (!candidate || !candidate.onboarding_completed) notFound()
-  // Privacy: you can only inspect counterparties on the opposite side of the
-  // market. No browsing fellow-investor profiles or fellow-family-office profiles.
-  if (candidate.role === me.role || candidate.id === me.id) notFound()
+  // Privacy: you can only inspect counterparties on a side of the market
+  // you participate in opposite to. Multi-role users (Chelsea = Angel +
+  // FO) can inspect anyone of either role; single-role users can only
+  // inspect their opposite. Self always gets a 404.
+  if (candidate.id === me.id) notFound()
+  const candidateIsAngel        = candidate.role === 'angel'         || !!candidate.is_angel
+  const candidateIsFamilyOffice = candidate.role === 'family_office' || !!candidate.is_family_office
+  const viewerIsAngel           = me.role === 'angel'                || !!me.is_angel
+  const viewerIsFamilyOffice    = me.role === 'family_office'        || !!me.is_family_office
+  // Allow if there's at least one (viewer, candidate) role pair where
+  // they're opposites. Equivalently: deny only when their only roles
+  // overlap (e.g. both pure-Angel or both pure-FO).
+  const oppositeExists =
+       (viewerIsAngel        && candidateIsFamilyOffice)
+    || (viewerIsFamilyOffice && candidateIsAngel)
+  if (!oppositeExists) notFound()
   // Demo viewers (investor preview walkthroughs) can only inspect demo
   // profiles. Mirrors the getCandidates() scope so a demo viewer who
   // guesses or pastes a real-user id still gets a 404.
