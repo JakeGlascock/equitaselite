@@ -24,6 +24,11 @@ interface ProfileRow {
   onboarding_completed: boolean
   is_admin: boolean | null
   is_concierge: boolean | null
+  // Multi-role identity flags (migration 034). Backfilled from `role`
+  // for existing profiles. Once Phase D drops the role column, these
+  // are the only source of truth.
+  is_angel: boolean | null
+  is_family_office: boolean | null
   managed_by: string | null
   membership: 'access' | 'select' | 'sovereign' | null
   relationship_manager_id: string | null
@@ -57,52 +62,76 @@ export default async function AdminPage() {
   try {
     profiles = await query<ProfileRow>(
       `SELECT id, email, full_name, firm_name, role, onboarding_completed,
-              is_admin, is_concierge, managed_by, membership,
+              is_admin, is_concierge, is_angel, is_family_office,
+              managed_by, membership,
               relationship_manager_id, is_off_market, created_at
        FROM profiles
        ORDER BY created_at DESC`
     )
   } catch {
     try {
-      profiles = (await query<Omit<ProfileRow, 'is_off_market'>>(
+      // Pre-034 fallback: is_angel/is_family_office not yet migrated.
+      // Backfill the flags inline from `role` so badges still render.
+      type WithoutMultiRole = Omit<ProfileRow, 'is_angel' | 'is_family_office'>
+      profiles = (await query<WithoutMultiRole>(
+        `SELECT id, email, full_name, firm_name, role, onboarding_completed,
+                is_admin, is_concierge, managed_by, membership,
+                relationship_manager_id, is_off_market, created_at
+         FROM profiles
+         ORDER BY created_at DESC`
+      )).map(p => ({
+        ...p,
+        is_angel:         p.role === 'angel',
+        is_family_office: p.role === 'family_office',
+      }))
+    } catch {
+    try {
+      profiles = (await query<Omit<ProfileRow, 'is_off_market' | 'is_angel' | 'is_family_office'>>(
         `SELECT id, email, full_name, firm_name, role, onboarding_completed,
                 is_admin, is_concierge, managed_by, membership,
                 relationship_manager_id, created_at
          FROM profiles
          ORDER BY created_at DESC`
-      )).map(p => ({ ...p, is_off_market: null }))
+      )).map(p => ({
+        ...p,
+        is_off_market:    null,
+        is_angel:         p.role === 'angel',
+        is_family_office: p.role === 'family_office',
+      }))
     } catch {
+    type Pre034 = Omit<ProfileRow, 'is_angel' | 'is_family_office'>
     try {
-      profiles = (await query<Omit<ProfileRow, 'relationship_manager_id' | 'is_off_market'>>(
+      profiles = (await query<Omit<Pre034, 'relationship_manager_id' | 'is_off_market'>>(
         `SELECT id, email, full_name, firm_name, role, onboarding_completed,
                 is_admin, is_concierge, managed_by, membership, created_at
          FROM profiles
          ORDER BY created_at DESC`
-      )).map(p => ({ ...p, relationship_manager_id: null, is_off_market: null }))
+      )).map(p => ({ ...p, relationship_manager_id: null, is_off_market: null, is_angel: p.role === 'angel', is_family_office: p.role === 'family_office' }))
     } catch {
       try {
-        profiles = (await query<Omit<ProfileRow, 'membership' | 'relationship_manager_id'>>(
+        profiles = (await query<Omit<Pre034, 'membership' | 'relationship_manager_id' | 'is_off_market'>>(
           `SELECT id, email, full_name, firm_name, role, onboarding_completed,
                   is_admin, is_concierge, managed_by, created_at
            FROM profiles
            ORDER BY created_at DESC`
-        )).map(p => ({ ...p, membership: null, relationship_manager_id: null }))
+        )).map(p => ({ ...p, membership: null, relationship_manager_id: null, is_off_market: null, is_angel: p.role === 'angel', is_family_office: p.role === 'family_office' }))
       } catch {
         try {
-          profiles = (await query<Omit<ProfileRow, 'is_concierge' | 'managed_by' | 'membership' | 'relationship_manager_id'>>(
+          profiles = (await query<Omit<Pre034, 'is_concierge' | 'managed_by' | 'membership' | 'relationship_manager_id' | 'is_off_market'>>(
             `SELECT id, email, full_name, firm_name, role, onboarding_completed,
                     is_admin, created_at
              FROM profiles
              ORDER BY created_at DESC`
-          )).map(p => ({ ...p, is_concierge: null, managed_by: null, membership: null, relationship_manager_id: null }))
+          )).map(p => ({ ...p, is_concierge: null, managed_by: null, membership: null, relationship_manager_id: null, is_off_market: null, is_angel: p.role === 'angel', is_family_office: p.role === 'family_office' }))
         } catch {
-          profiles = (await query<Omit<ProfileRow, 'is_admin' | 'is_concierge' | 'managed_by' | 'membership' | 'relationship_manager_id'>>(
+          profiles = (await query<Omit<Pre034, 'is_admin' | 'is_concierge' | 'managed_by' | 'membership' | 'relationship_manager_id' | 'is_off_market'>>(
             `SELECT id, email, full_name, firm_name, role, onboarding_completed, created_at
              FROM profiles
              ORDER BY created_at DESC`
-          )).map(p => ({ ...p, is_admin: null, is_concierge: null, managed_by: null, membership: null, relationship_manager_id: null }))
+          )).map(p => ({ ...p, is_admin: null, is_concierge: null, managed_by: null, membership: null, relationship_manager_id: null, is_off_market: null, is_angel: p.role === 'angel', is_family_office: p.role === 'family_office' }))
         }
       }
+    }
     }
     }
   }
@@ -246,6 +275,8 @@ export default async function AdminPage() {
       cognitoStatus: u.status,
       isAdmin:      p?.is_admin ?? false,
       isConcierge:  p?.is_concierge ?? false,
+      isAngel:        p?.is_angel ?? false,
+      isFamilyOffice: p?.is_family_office ?? false,
       managedBy:    p?.managed_by ?? null,
       membership:   p?.membership ?? null,
       isOffMarket:  p?.is_off_market ?? false,
@@ -286,6 +317,8 @@ export default async function AdminPage() {
       cognitoStatus: null,
       isAdmin:      p.is_admin ?? false,
       isConcierge:  p.is_concierge ?? false,
+      isAngel:        p.is_angel ?? false,
+      isFamilyOffice: p.is_family_office ?? false,
       managedBy:    p.managed_by ?? null,
       membership:   p.membership ?? null,
       isOffMarket:  p.is_off_market ?? false,

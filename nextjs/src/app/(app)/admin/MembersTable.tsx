@@ -3,6 +3,7 @@
 import React, { useMemo, useState } from 'react'
 import AdminToggle from './AdminToggle'
 import ConciergeToggle from './ConciergeToggle'
+import RoleFlagToggle from './RoleFlagToggle'
 import RowActionsMenu from './RowActionsMenu'
 import ManagedAccountAssignment from './ManagedAccountAssignment'
 import TierAssignment from './TierAssignment'
@@ -21,6 +22,12 @@ export interface MemberRow {
   userId:      string | null
   isAdmin:     boolean
   isConcierge: boolean
+  // Multi-role identity (migration 034). Each member can hold any
+  // combination of Angel + Family Office + Concierge. Badges next to
+  // the name reflect the active flags; admin toggles can flip them
+  // independently.
+  isAngel:        boolean
+  isFamilyOffice: boolean
   managedBy:   string | null
   membership:  Membership | null
   relationshipManagerId: string | null
@@ -245,8 +252,32 @@ export default function MembersTable({
                         </button>
                       </td>
                       <td className="px-3 py-2 max-w-[14rem]">
-                        <p className="text-ee-primary truncate text-[13px] flex items-center gap-1.5">
+                        <p className="text-ee-primary truncate text-[13px] flex items-center gap-1.5 flex-wrap">
                           <span className="truncate">{m.name ?? m.email.split('@')[0]}</span>
+                          {m.isAngel && (
+                            <span
+                              className="shrink-0 text-[9px] font-data uppercase tracking-wider px-1.5 py-px rounded-sm border border-ee-emerald/50 bg-ee-emerald/10 text-ee-emerald"
+                              title="Angel investor"
+                            >
+                              Angel
+                            </span>
+                          )}
+                          {m.isFamilyOffice && (
+                            <span
+                              className="shrink-0 text-[9px] font-data uppercase tracking-wider px-1.5 py-px rounded-sm border border-ee-primary/40 bg-ee-primary/10 text-ee-primary"
+                              title="Family Office"
+                            >
+                              FO
+                            </span>
+                          )}
+                          {m.isConcierge && (
+                            <span
+                              className="shrink-0 text-[9px] font-data uppercase tracking-wider px-1.5 py-px rounded-sm border border-ee-gold/40 bg-ee-gold/[0.08] text-ee-gold"
+                              title="Concierge — EE staff"
+                            >
+                              Concierge
+                            </span>
+                          )}
                           {m.isOffMarket && (
                             <span
                               className="shrink-0 text-[9px] font-data uppercase tracking-wider px-1.5 py-px rounded-sm border border-ee-gold/50 bg-ee-gold/10 text-ee-gold"
@@ -318,6 +349,32 @@ export default function MembersTable({
                                 <ConciergeToggle
                                   userId={m.userId}
                                   initial={m.isConcierge}
+                                  disabled={!m.staffTogglable}
+                                  disabledReason={m.staffToggleReason}
+                                />
+                              ) : (
+                                <Em title="Profile not created yet">—</Em>
+                              )}
+                            </Field>
+                            <Field label="Angel">
+                              {m.userId ? (
+                                <RoleFlagToggle
+                                  userId={m.userId}
+                                  field="is_angel"
+                                  initial={m.isAngel}
+                                  disabled={!m.staffTogglable}
+                                  disabledReason={m.staffToggleReason}
+                                />
+                              ) : (
+                                <Em title="Profile not created yet">—</Em>
+                              )}
+                            </Field>
+                            <Field label="Family Office">
+                              {m.userId ? (
+                                <RoleFlagToggle
+                                  userId={m.userId}
+                                  field="is_family_office"
+                                  initial={m.isFamilyOffice}
                                   disabled={!m.staffTogglable}
                                   disabledReason={m.staffToggleReason}
                                 />

@@ -4,6 +4,7 @@ import { queryOne, query } from '@/lib/db'
 import OnboardingForm from '@/app/onboarding/OnboardingForm'
 import EmailPrefToggle from './EmailPrefToggle'
 import OffMarketToggle from './OffMarketToggle'
+import IdentityPanel from './IdentityPanel'
 import WalkthroughReplay from './WalkthroughReplay'
 import MandatePillarsForm from './MandatePillarsForm'
 import MandateWeightsForm from './MandateWeightsForm'
@@ -36,6 +37,12 @@ interface DbProfile {
   onboarding_completed: boolean
   is_off_market:          boolean | null
   off_market_grace_until: Date | string | null
+  // Multi-role identity (migration 034). The select * fetch picks
+  // these up automatically once the migration has run; defaulted to
+  // null on pre-034 environments so the IdentityPanel still renders.
+  is_angel:         boolean | null
+  is_family_office: boolean | null
+  is_concierge:     boolean | null
   // Phase 6 mandate pillar fields — all nullable, all defaulted via
   // migration 028 so a SELECT * always returns them on a profile that
   // hasn't customized yet.
@@ -112,6 +119,14 @@ export default async function ProfilePage() {
             Changes update your match scores immediately.
           </p>
         </div>
+
+        {/* Identity — Angel / Family Office / Concierge (Concierge is
+            admin-controlled and shown read-only). */}
+        <IdentityPanel
+          initialIsAngel={!!profile.is_angel || profile.role === 'angel'}
+          initialIsFamilyOffice={!!profile.is_family_office || profile.role === 'family_office'}
+          isConcierge={!!profile.is_concierge}
+        />
 
         {/* Top-level email opt-out, separate from the wizard form so it's
             never more than one click away. */}

@@ -5,8 +5,13 @@ import { isUserAdmin } from '@/lib/admin'
 import { deleteCognitoUser } from '@/lib/auth'
 
 const PatchSchema = z.object({
-  is_admin:     z.boolean().optional(),
-  is_concierge: z.boolean().optional(),
+  is_admin:         z.boolean().optional(),
+  is_concierge:     z.boolean().optional(),
+  // Multi-role identity (migration 034). Each profile can hold any
+  // combination of Angel + Family Office + Concierge. Admin grants
+  // are independent — flipping is_angel doesn't touch is_family_office.
+  is_angel:         z.boolean().optional(),
+  is_family_office: z.boolean().optional(),
   // null = clear back to "no tier" (rare; mostly the value flips between
   // access | select | sovereign as admins grant/downgrade).
   membership:   z.enum(['access', 'select', 'sovereign']).nullable().optional(),
@@ -15,6 +20,8 @@ const PatchSchema = z.object({
 }).refine(
   d => d.is_admin !== undefined
     || d.is_concierge !== undefined
+    || d.is_angel !== undefined
+    || d.is_family_office !== undefined
     || d.membership !== undefined
     || d.relationship_manager_id !== undefined,
   { message: 'Provide at least one field to update.' }
@@ -64,17 +71,21 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     id: string
     is_admin: boolean
     is_concierge: boolean
+    is_angel: boolean
+    is_family_office: boolean
     membership: string | null
     relationship_manager_id: string | null
   }
   const params = [
     id,
-    parsed.data.is_admin     ?? null,
-    parsed.data.is_concierge ?? null,
+    parsed.data.is_admin         ?? null,
+    parsed.data.is_concierge     ?? null,
     membershipParam !== undefined,
     membershipParam ?? null,
     rmParam !== undefined,
     rmParam ?? null,
+    parsed.data.is_angel         ?? null,
+    parsed.data.is_family_office ?? null,
   ]
 
   try {
@@ -86,6 +97,22 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
            is_concierge            = COALESCE($3, is_concierge),
            membership              = CASE WHEN $4::boolean THEN $5::text ELSE membership              END,
            relationship_manager_id = CASE WHEN $6::boolean THEN $7::text ELSE relationship_manager_id END,
+           -- Multi-role identity (migration 034). Independent flags;
+           -- toggling Angel doesn't touch Family Office.
+           is_angel         = COALESCE($8, is_angel),
+           is_family_office = COALESCE($9, is_family_office),
+           -- Keep the legacy role string in sync with the flags so
+           -- Phase B/C read paths (still on the role column) do not
+           -- drift. When both flags are TRUE, prefer the existing
+           -- role value; when
+           -- only one is TRUE, set role accordingly; when both are
+           -- FALSE (e.g. concierge-only), null out role.
+           role = CASE
+             WHEN COALESCE($8, is_angel) = TRUE AND COALESCE($9, is_family_office) = FALSE THEN 'angel'
+             WHEN COALESCE($8, is_angel) = FALSE AND COALESCE($9, is_family_office) = TRUE THEN 'family_office'
+             WHEN COALESCE($8, is_angel) = FALSE AND COALESCE($9, is_family_office) = FALSE THEN NULL
+             ELSE role
+           END,
            -- Off-Market downgrade grace (migration 033). When a
            -- Sovereign drops tier while is_off_market = TRUE, start
            -- a 7-day countdown. Re-upgrading to Sovereign during
@@ -119,14 +146,20 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
              ELSE is_off_market
            END
        WHERE id = $1
-       RETURNING id, is_admin, is_concierge, membership, relationship_manager_id`,
+       RETURNING id, is_admin, is_concierge, is_angel, is_family_office, membership, relationship_manager_id`,
         params,
       )
     } catch (innerErr: unknown) {
-      // Pre-033 fallback: off_market_grace_until column doesn't exist yet.
-      // Retry without the off-market clauses so tier changes still work.
+      // Pre-033/034 fallback: off_market_grace_until and/or is_angel/
+      // is_family_office columns don't exist yet. Retry without those
+      // clauses so tier changes still work on staging.
       const msg = innerErr instanceof Error ? innerErr.message : ''
-      if (!msg.includes('off_market_grace_until') && !msg.includes('is_off_market')) throw innerErr
+      const isMigrationColumn =
+        msg.includes('off_market_grace_until') ||
+        msg.includes('is_off_market')          ||
+        msg.includes('is_angel')               ||
+        msg.includes('is_family_office')
+      if (!isMigrationColumn) throw innerErr
       updated = await queryOne<UpdatedRow>(
         `UPDATE profiles
          SET is_admin                = COALESCE($2, is_admin),

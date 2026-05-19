@@ -37,6 +37,10 @@ const UpdateSchema = z.object({
   // Off-Market mode (Sovereign-only). Tier-gating enforced below the schema —
   // a non-Sovereign caller is rejected with 403 before the UPDATE runs.
   is_off_market: z.boolean().optional(),
+  // Multi-role identity (migration 034). User can self-toggle their
+  // investor-side flags. is_concierge stays admin-only.
+  is_angel:         z.boolean().optional(),
+  is_family_office: z.boolean().optional(),
 })
 
 export async function PATCH(req: NextRequest) {
@@ -102,6 +106,17 @@ export async function PATCH(req: NextRequest) {
        off_market_grace_until = CASE
          WHEN $19 = FALSE THEN NULL
          ELSE off_market_grace_until
+       END,
+       -- Multi-role identity (migration 034). User-controlled flags.
+       is_angel         = COALESCE($20, is_angel),
+       is_family_office = COALESCE($21, is_family_office),
+       -- Keep the legacy role column in sync with the flags so Phase B/C
+       -- read paths don't drift. Same CASE shape as the admin route.
+       role = CASE
+         WHEN COALESCE($20, is_angel) = TRUE AND COALESCE($21, is_family_office) = FALSE THEN 'angel'
+         WHEN COALESCE($20, is_angel) = FALSE AND COALESCE($21, is_family_office) = TRUE THEN 'family_office'
+         WHEN COALESCE($20, is_angel) = FALSE AND COALESCE($21, is_family_office) = FALSE THEN NULL
+         ELSE role
        END
      WHERE id = $1
      RETURNING *`,
@@ -125,6 +140,8 @@ export async function PATCH(req: NextRequest) {
       d.concentration  ?? null,
       d.email_notifications_enabled ?? null,
       d.is_off_market  ?? null,
+      d.is_angel         ?? null,
+      d.is_family_office ?? null,
     ]
   )
 
