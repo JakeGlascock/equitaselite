@@ -51,6 +51,20 @@ export default async function DashboardPage() {
   const firstName = me.full_name.split(' ')[0]
   const roleLabel = me.role === 'angel' ? 'Family Offices' : 'Angel Investors'
 
+  // Off-Market downgrade grace banner — surfaces when the viewer is
+  // currently off-market AND has a future grace expiry on file (set
+  // by the admin tier-change UPDATE when a Sovereign drops tier).
+  // Shown on dashboard so it's seen during regular use, not only when
+  // the user visits /profile. The visibility SQL fragment already
+  // treats grace-expired rows as visible, so this only fires while
+  // the timer is still ticking.
+  const graceDate = me.off_market_grace_until
+    ? new Date(me.off_market_grace_until)
+    : null
+  const inGrace = !!me.is_off_market
+    && !!graceDate
+    && graceDate.getTime() > Date.now()
+
   return (
     <div className="px-5 md:px-8 py-8">
       <div className="max-w-5xl mx-auto space-y-6">
@@ -73,6 +87,28 @@ export default async function DashboardPage() {
             <MatchingExplainer />
           </div>
         </div>
+
+        {/* Off-Market downgrade grace warning. Re-upgrading to Sovereign
+            clears the timer (admin tier-change UPDATE handles this);
+            otherwise the profile flips back to visible at graceDate. */}
+        {inGrace && (
+          <div className="glass-panel p-4 flex items-start justify-between gap-4 border-ee-gold/60 bg-ee-gold/[0.08]">
+            <div className="flex items-start gap-3 min-w-0">
+              <span className="material-symbols-outlined text-ee-gold shrink-0 mt-0.5">visibility</span>
+              <div className="min-w-0">
+                <p className="text-sm text-ee-primary font-semibold">
+                  Your profile becomes visible on {graceDate!.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+                </p>
+                <p className="text-xs text-ee-muted mt-1 leading-relaxed">
+                  You&apos;re currently in Off-Market mode, but your Sovereign tier ended. After this date, every member can see your profile in their match results. Re-upgrade to Sovereign to keep your profile private.
+                </p>
+              </div>
+            </div>
+            <Link href="/pricing" className="btn-gold whitespace-nowrap text-xs shrink-0">
+              Re-upgrade →
+            </Link>
+          </div>
+        )}
 
         {/* Tier-based banners */}
         {capped && (

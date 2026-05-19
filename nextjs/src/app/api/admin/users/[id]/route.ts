@@ -101,6 +101,22 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
              WHEN $4::boolean AND $5::text = 'sovereign'
              THEN NULL
              ELSE off_market_grace_until
+           END,
+           -- Off-Market default-on for Sovereign (F3). When membership
+           -- is being PROMOTED to 'sovereign' from a different tier,
+           -- auto-flip is_off_market = TRUE. Privacy is the headline
+           -- Sovereign benefit; users explicitly opt OUT via /profile
+           -- if they want to be visible. Existing Sovereigns whose tier
+           -- isn't changing don't get touched. Re-upgrade-from-grace
+           -- (Sovereign → lower → Sovereign during grace) hits this
+           -- branch too IF the row was somehow flipped off in between,
+           -- otherwise the row stays TRUE.
+           is_off_market = CASE
+             WHEN $4::boolean
+              AND $5::text = 'sovereign'
+              AND membership IS DISTINCT FROM 'sovereign'
+             THEN TRUE
+             ELSE is_off_market
            END
        WHERE id = $1
        RETURNING id, is_admin, is_concierge, membership, relationship_manager_id`,
