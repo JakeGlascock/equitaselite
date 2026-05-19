@@ -11,7 +11,7 @@ import type { Tier, MandateWeights } from '@/types'
 // columns from `profiles`. Until then, callers that don't find a
 // mandates row fall back to the profile's denormalized columns.
 
-export type Role = 'angel' | 'family_office'
+export type Role = 'angel' | 'family_office' | 'next_gen' | 'family_foundation' | 'daf'
 
 export interface Mandate {
   profile_id: string

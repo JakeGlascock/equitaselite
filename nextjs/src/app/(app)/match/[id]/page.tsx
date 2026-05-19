@@ -32,6 +32,9 @@ interface FullProfile {
   relationship_manager_id?: string | null
   is_angel?:                boolean | null
   is_family_office?:        boolean | null
+  is_next_gen?:             boolean | null
+  is_family_foundation?:    boolean | null
+  is_daf?:                  boolean | null
 }
 
 interface IntroRow {
@@ -134,22 +137,30 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
 
   const candidate = await fetchProfile(id)
   if (!candidate || !candidate.onboarding_completed) notFound()
-  // Privacy: you can only inspect counterparties on a side of the market
-  // you participate in opposite to. Multi-role users (Chelsea = Angel +
-  // FO) can inspect anyone of either role; single-role users can only
-  // inspect their opposite. Self always gets a 404.
+  // Privacy: you can only inspect candidates whose role is compatible
+  // with one of yours via the role-compat matrix. Self always gets a 404.
   if (candidate.id === me.id) notFound()
-  const candidateIsAngel        = candidate.role === 'angel'         || !!candidate.is_angel
-  const candidateIsFamilyOffice = candidate.role === 'family_office' || !!candidate.is_family_office
-  const viewerIsAngel           = me.role === 'angel'                || !!me.is_angel
-  const viewerIsFamilyOffice    = me.role === 'family_office'        || !!me.is_family_office
+  const { rolesHeldBy, COMPATIBILITY } = await import('@/lib/role-compat')
+  const viewerRoles    = rolesHeldBy({
+    is_angel:             !!me.is_angel             || me.role === 'angel',
+    is_family_office:     !!me.is_family_office     || me.role === 'family_office',
+    is_next_gen:          !!me.is_next_gen,
+    is_family_foundation: !!me.is_family_foundation,
+    is_daf:               !!me.is_daf,
+  })
+  const candidateRoles = rolesHeldBy({
+    is_angel:             !!candidate.is_angel             || candidate.role === 'angel',
+    is_family_office:     !!candidate.is_family_office     || candidate.role === 'family_office',
+    is_next_gen:          !!candidate.is_next_gen,
+    is_family_foundation: !!candidate.is_family_foundation,
+    is_daf:               !!candidate.is_daf,
+  })
   // Allow if there's at least one (viewer, candidate) role pair where
-  // they're opposites. Equivalently: deny only when their only roles
-  // overlap (e.g. both pure-Angel or both pure-FO).
-  const oppositeExists =
-       (viewerIsAngel        && candidateIsFamilyOffice)
-    || (viewerIsFamilyOffice && candidateIsAngel)
-  if (!oppositeExists) notFound()
+  // the viewer's role lists the candidate's role in its compat list.
+  const compatPairExists = viewerRoles.some(v =>
+    candidateRoles.some(c => COMPATIBILITY[v].includes(c))
+  )
+  if (!compatPairExists) notFound()
   // Demo viewers (investor preview walkthroughs) can only inspect demo
   // profiles. Mirrors the getCandidates() scope so a demo viewer who
   // guesses or pastes a real-user id still gets a 404.

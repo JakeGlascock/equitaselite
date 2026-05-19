@@ -173,16 +173,26 @@ describe('getCandidates', () => {
     const [sql, params] = mockQuery.mock.calls[0]
     expect(sql).toContain('is_concierge')
     expect(sql).toContain('membership')
-    expect(params).toEqual(['angel', 'me-1'])
+    // Phase E3 moved the opposite-role string from a SQL parameter into
+    // the CASE expression embedded in the JOIN. Params now carry only
+    // the viewer's id.
+    expect(params).toEqual(['me-1'])
   })
 
-  it('flips the role correctly for angel callers', async () => {
+  it('uses the compatibility matrix for angel callers', async () => {
     mockQuery.mockResolvedValueOnce([])
     const me = makeProfile({ id: 'me-1', role: 'angel' })
 
     await getCandidates(me)
-    const [, params] = mockQuery.mock.calls[0]
-    expect(params).toEqual(['family_office', 'me-1'])
+    const [sql] = mockQuery.mock.calls[0]
+    // Angel viewer's compatibility list is [family_office,
+    // family_foundation, daf, next_gen, angel]. The WHERE clause
+    // should reference all five flag columns via OR.
+    expect(sql).toContain('p.is_family_office = TRUE')
+    expect(sql).toContain('p.is_family_foundation = TRUE')
+    expect(sql).toContain('p.is_daf = TRUE')
+    expect(sql).toContain('p.is_next_gen = TRUE')
+    expect(sql).toContain('p.is_angel = TRUE')
   })
 
   it('selects the new Phase 6 pillar columns', async () => {

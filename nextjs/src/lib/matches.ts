@@ -3,6 +3,10 @@ import { applyKnockouts, computeMatchScore } from '@/lib/scoring'
 import type { Tier } from '@/lib/membership'
 import { visibilityWhereFragment } from '@/lib/visibility'
 import type { Mandate } from '@/lib/mandates'
+import {
+  compatibleFlagsWhere, matchRoleCaseExpr,
+  type Role as CompatRole,
+} from '@/lib/role-compat'
 import type { IntroState } from '@/components/MatchCard'
 import type {
   UserProfile, Candidate, MandateWeights,
@@ -70,11 +74,14 @@ export interface DbProfile {
   // are already filtered by visibility).
   is_off_market?:          boolean | null
   off_market_grace_until?: Date | string | null
-  // Multi-role identity flags (migration 034). Backfilled from `role`
-  // for legacy single-role profiles. Drive the dashboard role-context
-  // toggle for multi-role users.
-  is_angel?:         boolean | null
-  is_family_office?: boolean | null
+  // Multi-role identity flags (migrations 034 + 035). Backfilled from
+  // `role` for legacy single-role profiles where applicable. Drive
+  // the dashboard role-context toggle for multi-role users.
+  is_angel?:             boolean | null
+  is_family_office?:     boolean | null
+  is_next_gen?:          boolean | null
+  is_family_foundation?: boolean | null
+  is_daf?:               boolean | null
 }
 
 interface IntroRow {
@@ -172,9 +179,12 @@ function toCandidateProfile(p: DbProfile): Candidate {
 // single-mandate users).
 export function applyMandateToProfile(me: DbProfile, mandate: Mandate | null): DbProfile {
   if (!mandate) return me
+  // DbProfile.role is the legacy Angel/FO-only column — we don't
+  // overwrite it from the wider mandates.role (which includes Next-Gen
+  // / Foundation / DAF). Scoring uses the mandate fields below, not
+  // the role string, so leaving role alone is correct.
   return {
     ...me,
-    role:                        mandate.role,
     sectors:                     mandate.sectors,
     sub_sectors:                 mandate.sub_sectors,
     anti_sectors:                mandate.anti_sectors,
@@ -205,27 +215,36 @@ export function applyMandateToProfile(me: DbProfile, mandate: Mandate | null): D
 }
 
 export async function getMe(userId: string): Promise<DbProfile | null> {
-  // Try the full SELECT first (includes the migration-033 off-market
-  // columns + the migration-034 identity flags); fall back progressively
-  // on older environments.
+  // Try the full SELECT first (migration-035 columns); fall back
+  // progressively for pre-035 / pre-034 / pre-033 environments.
   try {
     return await queryOne<DbProfile>(
       `SELECT ${PROFILE_COLUMNS}, is_off_market, off_market_grace_until,
-              is_angel, is_family_office
+              is_angel, is_family_office,
+              is_next_gen, is_family_foundation, is_daf
        FROM profiles WHERE id = $1`,
       [userId]
     )
   } catch {
     try {
       return await queryOne<DbProfile>(
-        `SELECT ${PROFILE_COLUMNS}, is_off_market, off_market_grace_until FROM profiles WHERE id = $1`,
+        `SELECT ${PROFILE_COLUMNS}, is_off_market, off_market_grace_until,
+                is_angel, is_family_office
+         FROM profiles WHERE id = $1`,
         [userId]
       )
     } catch {
-      return queryOne<DbProfile>(
-        `SELECT ${PROFILE_COLUMNS} FROM profiles WHERE id = $1`,
-        [userId]
-      )
+      try {
+        return await queryOne<DbProfile>(
+          `SELECT ${PROFILE_COLUMNS}, is_off_market, off_market_grace_until FROM profiles WHERE id = $1`,
+          [userId]
+        )
+      } catch {
+        return queryOne<DbProfile>(
+          `SELECT ${PROFILE_COLUMNS} FROM profiles WHERE id = $1`,
+          [userId]
+        )
+      }
     }
   }
 }
@@ -234,27 +253,27 @@ export async function getMe(userId: string): Promise<DbProfile | null> {
 // Multi-role users (Chelsea = Angel + FO) pass this from the dashboard
 // context toggle; single-role users default to their (only) role.
 //
-// Phase C reads candidate mandate fields from the mandates sub-table
-// via LEFT JOIN, falling back to the denormalized profile columns
-// (COALESCE) for profiles that haven't been backfilled yet — keeps the
-// transition safe for legacy single-mandate users.
-export async function getCandidates(me: DbProfile, viewerRole?: 'angel' | 'family_office'): Promise<DbProfile[]> {
-  const role = viewerRole ?? me.role
-  if (role !== 'angel' && role !== 'family_office') {
+// Phase E3 switches from bipartite "opposite role" filtering to a
+// compatibility-matrix model (lib/role-compat.ts). For viewer-as-X the
+// candidate pool is all profiles holding any role in COMPATIBILITY[X].
+// The candidate's mandate row to JOIN is picked via a SQL CASE that
+// prefers the first compatible role the candidate actually holds.
+export async function getCandidates(me: DbProfile, viewerRole?: CompatRole): Promise<DbProfile[]> {
+  const fallbackRole = me.role === 'angel' || me.role === 'family_office' ? me.role : null
+  const role: CompatRole | null = (viewerRole as CompatRole | undefined) ?? fallbackRole as CompatRole | null
+  if (!role) {
     // Concierge-only viewer (no investor role) has no match list.
     return []
   }
-  const oppositeRole = role === 'angel' ? 'family_office' : 'angel'
-  const oppositeFlag = oppositeRole === 'angel' ? 'is_angel' : 'is_family_office'
 
   // Demo viewers (investor preview walkthroughs) only see other demo
   // profiles — never real members.
   const demoOnly = me.id.startsWith('demo_')
 
-  // Source mandate fields from mandates(role=$1) when present, else
-  // from the denormalized profile columns. The COALESCE pattern lets
-  // legacy single-mandate users keep working until Phase C2 backfills
-  // their mandates via the wizard rework / profile editor.
+  // Source mandate fields from mandates(role = <match-side>) when
+  // present, else from the denormalized profile columns. The COALESCE
+  // pattern keeps legacy single-mandate users working; the match-side
+  // role is picked via SQL CASE off the viewer's compatibility list.
   const candidateSelect = `
     p.id, p.email, p.full_name, p.title, p.firm_name, p.location, p.role,
     COALESCE(m.aum,                          p.aum)                          AS aum,
@@ -286,26 +305,30 @@ export async function getCandidates(me: DbProfile, viewerRole?: 'angel' | 'famil
     p.membership, p.onboarding_completed
   `
 
-  // Filter by the opposite-role flag (so multi-role users surface in
-  // both Angel- and FO-context lists). Pre-034 fallback uses p.role
-  // directly. Visibility fragment applies in the migration-033+ path.
+  // WHERE filters candidates to those holding at least one role
+  // compatible with the viewer's role. JOIN picks the mandate row for
+  // the highest-priority match-side role the candidate holds.
+  const matchRoleCase = matchRoleCaseExpr(role, 'p')
+  const compatFilter  = compatibleFlagsWhere(role, 'p')
   try {
     return await query<DbProfile>(
       `SELECT ${candidateSelect}
        FROM profiles p
        LEFT JOIN mandates m
-         ON m.profile_id = p.id AND m.role = $1
-       WHERE p.${oppositeFlag} = TRUE
+         ON m.profile_id = p.id AND m.role = ${matchRoleCase}
+       WHERE ${compatFilter}
          AND p.onboarding_completed = TRUE
-         AND p.id != $2
+         AND p.id != $1
          AND (p.is_concierge IS NULL OR p.is_concierge = FALSE)
          ${demoOnly ? `AND p.id LIKE 'demo_%'` : ''}
-         AND ${visibilityWhereFragment('p', 2)}`,
-      [oppositeRole, me.id]
+         AND ${visibilityWhereFragment('p', 1)}`,
+      [me.id]
     )
   } catch {
     // Pre-034 fallback: mandates table or is_angel/is_family_office
-    // flags don't exist yet. Use the legacy role column directly.
+    // flags don't exist yet. Use the legacy role column directly and
+    // the original bipartite opposite filter.
+    const oppositeRole = role === 'angel' ? 'family_office' : 'angel'
     return query<DbProfile>(
       `SELECT ${PROFILE_COLUMNS}
        FROM profiles

@@ -2,11 +2,13 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import MatchCard from '@/components/MatchCard'
 import MatchingExplainer from './MatchingExplainer'
+import ViewingAsDropdown from './ViewingAsDropdown'
 import {
   getMe, getCandidates, getIntroductions, applyMandateToProfile,
   buildIntroMap, toMatchView, filterByKnockouts,
 } from '@/lib/matches'
 import { getMandate, type Role } from '@/lib/mandates'
+import { ROLE_LABELS as DROPDOWN_LABELS, INVESTOR_ROLES as DROPDOWN_ROLES } from '@/lib/role-compat'
 import { getActingAsState } from '@/lib/acting-as'
 import { getTier, getLimits, priorityRank, checkIntroQuota } from '@/lib/membership'
 
@@ -18,20 +20,25 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   const me = await getMe(userId)
   if (!me || !me.onboarding_completed) redirect('/onboarding')
 
-  // Multi-role context selector. Chelsea = Angel + FO needs to pick
-  // which side of the market she's browsing as; the candidate list +
-  // her own scoring mandate switch accordingly. Single-role users see
-  // no selector and their (one) role is the implicit context.
-  const params       = await searchParams
-  const isAngel      = !!me.is_angel         || me.role === 'angel'
-  const isFamilyOffice = !!me.is_family_office || me.role === 'family_office'
-  const multiRole    = isAngel && isFamilyOffice
-  const paramRole    = params.role === 'angel' || params.role === 'family_office' ? params.role : null
+  // Multi-role context selector. With 5 investor-side roles
+  // (migration 035), a polymath profile picks which side of the market
+  // they're browsing as. Single-role users see no selector and their
+  // (one) role is the implicit context.
+  const params      = await searchParams
+  const { rolesHeldBy } = await import('@/lib/role-compat')
+  const heldRoles   = rolesHeldBy({
+    is_angel:             !!me.is_angel             || me.role === 'angel',
+    is_family_office:     !!me.is_family_office     || me.role === 'family_office',
+    is_next_gen:          !!me.is_next_gen,
+    is_family_foundation: !!me.is_family_foundation,
+    is_daf:               !!me.is_daf,
+  })
+  const multiRole = heldRoles.length > 1
+  const paramRoleRaw = typeof params.role === 'string' ? params.role : null
   const viewerRole: Role | null =
-       (paramRole && (paramRole === 'angel' ? isAngel : isFamilyOffice) ? paramRole as Role : null)
-    ?? (isAngel && !isFamilyOffice ? 'angel'         : null)
-    ?? (isFamilyOffice && !isAngel ? 'family_office' : null)
-    ?? (isAngel ? 'angel' : isFamilyOffice ? 'family_office' : null)
+       (paramRoleRaw && heldRoles.includes(paramRoleRaw as Role) ? (paramRoleRaw as Role) : null)
+    ?? (heldRoles.length === 1 ? heldRoles[0] : null)
+    ?? (heldRoles[0] ?? null)
 
   // Concierge-only profile (no investor role) — no match list to render.
   // Fall through to render the page with an empty matches array; the
@@ -113,39 +120,19 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
         </div>
 
         {/* Multi-role context selector — only rendered when the user
-            holds BOTH investor roles. Toggles between "Viewing as
-            Angel" (sees FOs) and "Viewing as Family Office" (sees
-            Angels). Server-rendered via ?role= URL param so the
-            choice is shareable and the scoring respects it cleanly. */}
+            holds 2+ investor-side roles. The dropdown shape scales
+            beyond the original Angel/FO pair to all five role types
+            (migration 035). Server-rendered via ?role= URL param so
+            the choice is shareable. */}
         {multiRole && (
-          <div className="glass-panel p-3 flex items-center gap-2 text-xs">
-            <span className="font-data uppercase tracking-wider text-ee-muted shrink-0 px-2">Viewing as</span>
-            <div className="flex gap-1">
-              <Link
-                href="/dashboard?role=angel"
-                replace
-                scroll={false}
-                className={`px-3 py-1.5 rounded-full transition-colors ${
-                  viewerRole === 'angel'
-                    ? 'bg-ee-gold text-ee-bg font-semibold'
-                    : 'border border-ee-border text-ee-muted hover:text-ee-primary'
-                }`}
-              >
-                Angel
-              </Link>
-              <Link
-                href="/dashboard?role=family_office"
-                replace
-                scroll={false}
-                className={`px-3 py-1.5 rounded-full transition-colors ${
-                  viewerRole === 'family_office'
-                    ? 'bg-ee-gold text-ee-bg font-semibold'
-                    : 'border border-ee-border text-ee-muted hover:text-ee-primary'
-                }`}
-              >
-                Family Office
-              </Link>
-            </div>
+          <div className="glass-panel p-3 flex items-center gap-3 text-xs flex-wrap">
+            <span className="font-data uppercase tracking-wider text-ee-muted shrink-0 pl-2">Viewing as</span>
+            <ViewingAsDropdown
+              current={viewerRole}
+              held={heldRoles}
+              labels={DROPDOWN_LABELS}
+              ordered={DROPDOWN_ROLES}
+            />
             <span className="text-[11px] text-ee-muted/70 italic ml-auto pr-2 hidden sm:inline">
               Each role has its own mandate — switch to see the matches that fit.
             </span>

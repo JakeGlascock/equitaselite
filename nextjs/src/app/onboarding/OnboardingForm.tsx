@@ -99,7 +99,7 @@ interface Props {
   // mandate-field writes to mandates(profile_id, editRole) via ?role=.
   // Omit on /onboarding (writes to all active roles via that endpoint's
   // own logic) and on single-role /profile editing.
-  editRole?: 'angel' | 'family_office'
+  editRole?: 'angel' | 'family_office' | 'next_gen' | 'family_foundation' | 'daf'
 }
 
 export default function OnboardingForm({ email, mode = 'onboard', initialData, editRole }: Props) {
