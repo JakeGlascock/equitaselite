@@ -1,6 +1,8 @@
 import { headers } from 'next/headers'
 import { redirect } from 'next/navigation'
+import Link from 'next/link'
 import { queryOne, query } from '@/lib/db'
+import { getMandate, type Role } from '@/lib/mandates'
 import OnboardingForm from '@/app/onboarding/OnboardingForm'
 import EmailPrefToggle from './EmailPrefToggle'
 import OffMarketToggle from './OffMarketToggle'
@@ -65,7 +67,7 @@ interface DbProfile {
   mandate_weights:  MandateWeights | null
 }
 
-export default async function ProfilePage() {
+export default async function ProfilePage({ searchParams }: { searchParams: Promise<{ role?: string }> }) {
   const headersList = await headers()
   const userId = headersList.get('x-user-id')
   if (!userId) redirect('/signin')
@@ -109,6 +111,40 @@ export default async function ProfilePage() {
         : profile.off_market_grace_until)
     : null
 
+  // Per-role mandate editing (Phase D2). Multi-role users get a tab
+  // switcher above the mandate form: which role's mandate are we
+  // editing? Single-role users see no tabs and edit their one mandate.
+  // Concierge-only users have no mandate to edit; the form still shows
+  // for identity fields (Phase D3 will split identity out cleanly).
+  const params         = await searchParams
+  const isAngel        = !!profile.is_angel         || profile.role === 'angel'
+  const isFamilyOffice = !!profile.is_family_office || profile.role === 'family_office'
+  const multiRole      = isAngel && isFamilyOffice
+  const paramRole      = params.role === 'angel' || params.role === 'family_office' ? params.role : null
+  const editRole: Role | null =
+       (paramRole && (paramRole === 'angel' ? isAngel : isFamilyOffice) ? paramRole as Role : null)
+    ?? (isAngel && !isFamilyOffice ? 'angel'         : null)
+    ?? (isFamilyOffice && !isAngel ? 'family_office' : null)
+    ?? (isAngel ? 'angel' : isFamilyOffice ? 'family_office' : null)
+
+  // Load the role-specific mandate when available (mandates table is
+  // authoritative once D2 is live). Falls back to profile columns for
+  // users who haven't been migrated/edited yet.
+  const mandate = editRole ? await getMandate(userId, editRole) : null
+  const m = {
+    aum:             mandate?.aum             ?? profile.aum             ?? '',
+    sectors:         mandate?.sectors         ?? profile.sectors,
+    stages:          mandate?.stages          ?? profile.stages,
+    geography:       mandate?.geography       ?? profile.geography,
+    check_size_min:  Number(mandate?.check_size_min  ?? profile.check_size_min),
+    check_size_max:  Number(mandate?.check_size_max  ?? profile.check_size_max),
+    risk_tolerance:  (mandate?.risk_tolerance  ?? profile.risk_tolerance) ?? '',
+    expected_return: (mandate?.expected_return ?? profile.expected_return) ?? '',
+    timeline:        (mandate?.timeline        ?? profile.timeline) ?? '',
+    mandate_type:    (mandate?.mandate_type    ?? profile.mandate_type) ?? '',
+    concentration:   (mandate?.concentration   ?? profile.concentration) ?? '',
+  }
+
   return (
     <div className="px-5 md:px-8 py-8">
       <div className="max-w-xl mx-auto space-y-6">
@@ -143,27 +179,69 @@ export default async function ProfilePage() {
 
         <WalkthroughReplay />
 
+        {/* Multi-role: tabs choose which mandate the form below edits.
+            URL-driven (?role=) so the choice round-trips through the
+            server-rendered form. Single-role users skip this block. */}
+        {multiRole && (
+          <div className="glass-panel p-3 flex items-center gap-2 text-xs">
+            <span className="font-data uppercase tracking-wider text-ee-muted shrink-0 px-2">Editing mandate</span>
+            <div className="flex gap-1">
+              <Link
+                href="/profile?role=angel"
+                replace
+                scroll={false}
+                className={`px-3 py-1.5 rounded-full transition-colors ${
+                  editRole === 'angel'
+                    ? 'bg-ee-gold text-ee-bg font-semibold'
+                    : 'border border-ee-border text-ee-muted hover:text-ee-primary'
+                }`}
+              >
+                Angel
+              </Link>
+              <Link
+                href="/profile?role=family_office"
+                replace
+                scroll={false}
+                className={`px-3 py-1.5 rounded-full transition-colors ${
+                  editRole === 'family_office'
+                    ? 'bg-ee-gold text-ee-bg font-semibold'
+                    : 'border border-ee-border text-ee-muted hover:text-ee-primary'
+                }`}
+              >
+                Family Office
+              </Link>
+            </div>
+            <span className="text-[11px] text-ee-muted/70 italic ml-auto pr-2 hidden sm:inline">
+              Each role has its own mandate.
+            </span>
+          </div>
+        )}
+
         <OnboardingForm
+          // Force a remount when the editRole changes so the form
+          // re-reads its initialData (state is mounted-once otherwise).
+          key={editRole ?? 'no-role'}
           email={profile.email}
           mode="edit"
+          editRole={editRole ?? undefined}
           initialData={{
-            is_angel:         !!profile.is_angel         || profile.role === 'angel',
-            is_family_office: !!profile.is_family_office || profile.role === 'family_office',
+            is_angel:         isAngel,
+            is_family_office: isFamilyOffice,
             full_name:       profile.full_name,
             title:           profile.title          ?? '',
             firm_name:       profile.firm_name,
             location:        profile.location        ?? '',
-            aum:             profile.aum             ?? '',
-            sectors:         profile.sectors,
-            stages:          profile.stages,
-            geography:       profile.geography,
-            check_size_min:  Number(profile.check_size_min),
-            check_size_max:  Number(profile.check_size_max),
-            risk_tolerance:  profile.risk_tolerance  ?? '',
-            expected_return: profile.expected_return ?? '',
-            timeline:        profile.timeline        ?? '',
-            mandate_type:    profile.mandate_type    ?? '',
-            concentration:   profile.concentration   ?? '',
+            aum:             m.aum,
+            sectors:         m.sectors,
+            stages:          m.stages,
+            geography:       m.geography,
+            check_size_min:  m.check_size_min,
+            check_size_max:  m.check_size_max,
+            risk_tolerance:  m.risk_tolerance,
+            expected_return: m.expected_return,
+            timeline:        m.timeline,
+            mandate_type:    m.mandate_type,
+            concentration:   m.concentration,
             email_notifications_enabled: profile.email_notifications_enabled ?? true,
           }}
         />

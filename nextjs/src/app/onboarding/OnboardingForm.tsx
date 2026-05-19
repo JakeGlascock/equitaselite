@@ -95,9 +95,14 @@ interface Props {
   email: string
   mode?: 'onboard' | 'edit'
   initialData?: Partial<FormData>
+  // Edit-mode only: which role's mandate this form is editing. Routes
+  // mandate-field writes to mandates(profile_id, editRole) via ?role=.
+  // Omit on /onboarding (writes to all active roles via that endpoint's
+  // own logic) and on single-role /profile editing.
+  editRole?: 'angel' | 'family_office'
 }
 
-export default function OnboardingForm({ email, mode = 'onboard', initialData }: Props) {
+export default function OnboardingForm({ email, mode = 'onboard', initialData, editRole }: Props) {
   const [step, setStep] = useState(1)
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
@@ -132,7 +137,10 @@ export default function OnboardingForm({ email, mode = 'onboard', initialData }:
     setSaving(true)
     setError('')
     try {
-      const url    = mode === 'edit' ? '/api/me' : '/api/onboarding'
+      const baseUrl = mode === 'edit' ? '/api/me' : '/api/onboarding'
+      const url = mode === 'edit' && editRole
+        ? `${baseUrl}?role=${editRole}`
+        : baseUrl
       const method = mode === 'edit' ? 'PATCH'  : 'POST'
       const res = await fetch(url, {
         method,

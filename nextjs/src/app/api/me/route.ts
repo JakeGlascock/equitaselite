@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { queryOne } from '@/lib/db'
+import { query, queryOne } from '@/lib/db'
 import { getTier } from '@/lib/membership'
 import { z } from 'zod'
 
@@ -146,5 +146,74 @@ export async function PATCH(req: NextRequest) {
   )
 
   if (!profile) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+
+  // Per-role mandate edit (Phase D2). When ?role=angel|family_office is
+  // present, also upsert the mandate fields to mandates(profile_id, role).
+  // Lets multi-role users keep distinct mandates per role; the profile
+  // columns stay populated as a denormalized cache (Phase D drops them).
+  // Profile-level fields (name, firm, title, location, email pref, flags)
+  // are NEVER per-role — they always go to profiles only.
+  const url       = new URL(req.url)
+  const roleParam = url.searchParams.get('role')
+  if (roleParam === 'angel' || roleParam === 'family_office') {
+    const anyMandateField = d.sectors !== undefined
+      || d.stages !== undefined  || d.geography !== undefined
+      || d.check_size_min !== undefined || d.check_size_max !== undefined
+      || d.risk_tolerance !== undefined
+      || d.expected_return !== undefined || d.timeline !== undefined
+      || d.mandate_type !== undefined  || d.concentration !== undefined
+      || d.aum !== undefined
+    if (anyMandateField) {
+      try {
+        await query(
+          `INSERT INTO mandates (
+             profile_id, role,
+             sectors, stages, geography,
+             check_size_min, check_size_max, risk_tolerance,
+             expected_return, timeline, mandate_type, concentration,
+             aum
+           ) VALUES (
+             $1, $2,
+             COALESCE($3, '{}'), COALESCE($4, '{}'), COALESCE($5, '{}'),
+             COALESCE($6, 0),    COALESCE($7, 0),    $8,
+             $9, $10, $11, $12,
+             $13
+           )
+           ON CONFLICT (profile_id, role) DO UPDATE SET
+             sectors        = COALESCE($3,  mandates.sectors),
+             stages         = COALESCE($4,  mandates.stages),
+             geography      = COALESCE($5,  mandates.geography),
+             check_size_min = COALESCE($6,  mandates.check_size_min),
+             check_size_max = COALESCE($7,  mandates.check_size_max),
+             risk_tolerance = COALESCE($8,  mandates.risk_tolerance),
+             expected_return = COALESCE($9, mandates.expected_return),
+             timeline       = COALESCE($10, mandates.timeline),
+             mandate_type   = COALESCE($11, mandates.mandate_type),
+             concentration  = COALESCE($12, mandates.concentration),
+             aum            = COALESCE($13, mandates.aum),
+             updated_at = NOW()`,
+          [
+            userId, roleParam,
+            d.sectors        ?? null,
+            d.stages         ?? null,
+            d.geography      ?? null,
+            d.check_size_min ?? null,
+            d.check_size_max ?? null,
+            d.risk_tolerance ?? null,
+            d.expected_return ?? null,
+            d.timeline       ?? null,
+            d.mandate_type   ?? null,
+            d.concentration  ?? null,
+            d.aum            ?? null,
+          ],
+        )
+      } catch {
+        // Pre-034 — mandates table absent. Profile UPDATE above already
+        // saved the data to denormalized columns; the COALESCE fallback
+        // in getCandidates handles it. Silent no-op.
+      }
+    }
+  }
+
   return NextResponse.json(profile)
 }
