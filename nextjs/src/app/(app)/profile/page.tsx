@@ -39,12 +39,16 @@ interface DbProfile {
   onboarding_completed: boolean
   is_off_market:          boolean | null
   off_market_grace_until: Date | string | null
-  // Multi-role identity (migration 034). The select * fetch picks
-  // these up automatically once the migration has run; defaulted to
-  // null on pre-034 environments so the IdentityPanel still renders.
-  is_angel:         boolean | null
-  is_family_office: boolean | null
-  is_concierge:     boolean | null
+  // Multi-role identity (migrations 034 + 035). The select * fetch
+  // picks these up automatically once the migrations have run;
+  // defaulted to null on pre-migration environments so the
+  // IdentityPanel still renders.
+  is_angel:             boolean | null
+  is_family_office:     boolean | null
+  is_next_gen:          boolean | null
+  is_family_foundation: boolean | null
+  is_daf:               boolean | null
+  is_concierge:         boolean | null
   // Phase 6 mandate pillar fields — all nullable, all defaulted via
   // migration 028 so a SELECT * always returns them on a profile that
   // hasn't customized yet.
@@ -156,11 +160,14 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
           </p>
         </div>
 
-        {/* Identity — Angel / Family Office / Concierge (Concierge is
-            admin-controlled and shown read-only). */}
+        {/* Identity — Angel / FO / Next Gen / Foundation / DAF
+            (Concierge is admin-controlled and shown read-only). */}
         <IdentityPanel
           initialIsAngel={!!profile.is_angel || profile.role === 'angel'}
           initialIsFamilyOffice={!!profile.is_family_office || profile.role === 'family_office'}
+          initialIsNextGen={!!profile.is_next_gen}
+          initialIsFamilyFoundation={!!profile.is_family_foundation}
+          initialIsDaf={!!profile.is_daf}
           isConcierge={!!profile.is_concierge}
         />
 

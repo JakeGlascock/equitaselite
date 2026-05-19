@@ -7,11 +7,15 @@ import { deleteCognitoUser } from '@/lib/auth'
 const PatchSchema = z.object({
   is_admin:         z.boolean().optional(),
   is_concierge:     z.boolean().optional(),
-  // Multi-role identity (migration 034). Each profile can hold any
-  // combination of Angel + Family Office + Concierge. Admin grants
-  // are independent — flipping is_angel doesn't touch is_family_office.
-  is_angel:         z.boolean().optional(),
-  is_family_office: z.boolean().optional(),
+  // Multi-role identity (migration 034 + 035). Each profile can hold
+  // any combination of Angel + FO + Concierge + Next-Gen + Foundation
+  // + DAF. Admin grants are independent — flipping is_angel doesn't
+  // touch is_family_office or any of the role-035 flags.
+  is_angel:             z.boolean().optional(),
+  is_family_office:     z.boolean().optional(),
+  is_next_gen:          z.boolean().optional(),
+  is_family_foundation: z.boolean().optional(),
+  is_daf:               z.boolean().optional(),
   // null = clear back to "no tier" (rare; mostly the value flips between
   // access | select | sovereign as admins grant/downgrade).
   membership:   z.enum(['access', 'select', 'sovereign']).nullable().optional(),
@@ -22,6 +26,9 @@ const PatchSchema = z.object({
     || d.is_concierge !== undefined
     || d.is_angel !== undefined
     || d.is_family_office !== undefined
+    || d.is_next_gen !== undefined
+    || d.is_family_foundation !== undefined
+    || d.is_daf !== undefined
     || d.membership !== undefined
     || d.relationship_manager_id !== undefined,
   { message: 'Provide at least one field to update.' }
@@ -73,19 +80,25 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     is_concierge: boolean
     is_angel: boolean
     is_family_office: boolean
+    is_next_gen: boolean
+    is_family_foundation: boolean
+    is_daf: boolean
     membership: string | null
     relationship_manager_id: string | null
   }
   const params = [
     id,
-    parsed.data.is_admin         ?? null,
-    parsed.data.is_concierge     ?? null,
+    parsed.data.is_admin             ?? null,
+    parsed.data.is_concierge         ?? null,
     membershipParam !== undefined,
     membershipParam ?? null,
     rmParam !== undefined,
     rmParam ?? null,
-    parsed.data.is_angel         ?? null,
-    parsed.data.is_family_office ?? null,
+    parsed.data.is_angel             ?? null,
+    parsed.data.is_family_office     ?? null,
+    parsed.data.is_next_gen          ?? null,
+    parsed.data.is_family_foundation ?? null,
+    parsed.data.is_daf               ?? null,
   ]
 
   try {
@@ -99,8 +112,11 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
            relationship_manager_id = CASE WHEN $6::boolean THEN $7::text ELSE relationship_manager_id END,
            -- Multi-role identity (migration 034). Independent flags;
            -- toggling Angel doesn't touch Family Office.
-           is_angel         = COALESCE($8, is_angel),
-           is_family_office = COALESCE($9, is_family_office),
+           is_angel             = COALESCE($8,  is_angel),
+           is_family_office     = COALESCE($9,  is_family_office),
+           is_next_gen          = COALESCE($10, is_next_gen),
+           is_family_foundation = COALESCE($11, is_family_foundation),
+           is_daf               = COALESCE($12, is_daf),
            -- Keep the legacy role string in sync with the flags so
            -- Phase B/C read paths (still on the role column) do not
            -- drift. When both flags are TRUE, prefer the existing
@@ -146,7 +162,10 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
              ELSE is_off_market
            END
        WHERE id = $1
-       RETURNING id, is_admin, is_concierge, is_angel, is_family_office, membership, relationship_manager_id`,
+       RETURNING id, is_admin, is_concierge,
+                 is_angel, is_family_office,
+                 is_next_gen, is_family_foundation, is_daf,
+                 membership, relationship_manager_id`,
         params,
       )
     } catch (innerErr: unknown) {
@@ -158,7 +177,10 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
         msg.includes('off_market_grace_until') ||
         msg.includes('is_off_market')          ||
         msg.includes('is_angel')               ||
-        msg.includes('is_family_office')
+        msg.includes('is_family_office')       ||
+        msg.includes('is_next_gen')            ||
+        msg.includes('is_family_foundation')   ||
+        msg.includes('is_daf')
       if (!isMigrationColumn) throw innerErr
       updated = await queryOne<UpdatedRow>(
         `UPDATE profiles

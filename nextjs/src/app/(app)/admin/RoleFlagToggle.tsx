@@ -11,17 +11,23 @@ import { useState } from 'react'
 
 interface Props {
   userId:          string
-  field:           'is_angel' | 'is_family_office'
+  field:           'is_angel' | 'is_family_office' | 'is_next_gen' | 'is_family_foundation' | 'is_daf'
   initial:         boolean
   disabled?:       boolean
   disabledReason?: string
 }
 
 const LABELS: Record<Props['field'], { on: string; off: string; aria_on: string; aria_off: string }> = {
-  is_angel:         { on: 'Revoke Angel role', off: 'Grant Angel role',
-                       aria_on: 'Revoke Angel role', aria_off: 'Grant Angel role' },
-  is_family_office: { on: 'Revoke Family Office role', off: 'Grant Family Office role',
-                       aria_on: 'Revoke Family Office role', aria_off: 'Grant Family Office role' },
+  is_angel:             { on: 'Revoke Angel role',             off: 'Grant Angel role',
+                           aria_on: 'Revoke Angel role',             aria_off: 'Grant Angel role' },
+  is_family_office:     { on: 'Revoke Family Office role',     off: 'Grant Family Office role',
+                           aria_on: 'Revoke Family Office role',     aria_off: 'Grant Family Office role' },
+  is_next_gen:          { on: 'Revoke Next Gen role',          off: 'Grant Next Gen role',
+                           aria_on: 'Revoke Next Gen role',          aria_off: 'Grant Next Gen role' },
+  is_family_foundation: { on: 'Revoke Family Foundation role', off: 'Grant Family Foundation role',
+                           aria_on: 'Revoke Family Foundation role', aria_off: 'Grant Family Foundation role' },
+  is_daf:               { on: 'Revoke DAF role',               off: 'Grant DAF role',
+                           aria_on: 'Revoke DAF role',               aria_off: 'Grant DAF role' },
 }
 
 export default function RoleFlagToggle({ userId, field, initial, disabled, disabledReason }: Props) {

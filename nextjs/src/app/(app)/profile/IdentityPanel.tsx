@@ -2,33 +2,62 @@
 
 import { useState } from 'react'
 
-// Multi-role identity panel for /profile (migration 034).
-// User-controlled flags are Angel + Family Office. Concierge is shown
-// as a read-only badge if granted (admin-controlled, no self-toggle).
+// Multi-role identity panel for /profile (migrations 034 + 035).
 //
-// A profile must keep at least one of Angel / Family Office / Concierge.
-// If the user tries to clear both investor flags AND isn't a concierge,
-// the UI refuses to PATCH and surfaces an inline error.
+// Five investor-side roles the user can self-toggle:
+//   Angel, Family Office, Next Gen, Family Foundation, DAF
+//
+// Concierge is staff-only and surfaces as a read-only badge if granted.
+//
+// A profile must keep at least one role (any of the five investor-side
+// flags OR is_concierge). The UI refuses to clear the last investor
+// role on a non-concierge.
+
+type InvestorRoleField = 'is_angel' | 'is_family_office' | 'is_next_gen' | 'is_family_foundation' | 'is_daf'
+
+const ROW_CONFIG: { field: InvestorRoleField; label: string; description: string }[] = [
+  { field: 'is_angel',             label: 'Angel investor',
+    description: 'Individual investor making direct checks into companies.' },
+  { field: 'is_family_office',     label: 'Family Office',
+    description: 'Institutional steward of family or principal capital.' },
+  { field: 'is_next_gen',          label: 'Next Gen',
+    description: 'Next-generation member of a family wealth lineage. Often paired with Angel or Family Office.' },
+  { field: 'is_family_foundation', label: 'Family Foundation',
+    description: '501(c)(3) family foundation. Charitable entity with its own investment mandate.' },
+  { field: 'is_daf',               label: 'Donor-Advised Fund (DAF)',
+    description: 'Sponsor-held charitable account. Grant-funded investment cadence, often impact-themed.' },
+]
 
 export default function IdentityPanel({
   initialIsAngel,
   initialIsFamilyOffice,
+  initialIsNextGen,
+  initialIsFamilyFoundation,
+  initialIsDaf,
   isConcierge,
 }: {
-  initialIsAngel:        boolean
-  initialIsFamilyOffice: boolean
-  isConcierge:           boolean
+  initialIsAngel:            boolean
+  initialIsFamilyOffice:     boolean
+  initialIsNextGen:          boolean
+  initialIsFamilyFoundation: boolean
+  initialIsDaf:              boolean
+  isConcierge:               boolean
 }) {
-  const [isAngel,        setIsAngel]        = useState(initialIsAngel)
-  const [isFamilyOffice, setIsFamilyOffice] = useState(initialIsFamilyOffice)
+  const [flags, setFlags] = useState<Record<InvestorRoleField, boolean>>({
+    is_angel:             initialIsAngel,
+    is_family_office:     initialIsFamilyOffice,
+    is_next_gen:          initialIsNextGen,
+    is_family_foundation: initialIsFamilyFoundation,
+    is_daf:               initialIsDaf,
+  })
   const [busy, setBusy]   = useState(false)
   const [error, setError] = useState('')
 
-  async function flip(field: 'is_angel' | 'is_family_office', next: boolean) {
+  async function flip(field: InvestorRoleField, next: boolean) {
     // Prevent clearing the last investor role on a non-concierge.
-    const wouldBeAngel        = field === 'is_angel'         ? next : isAngel
-    const wouldBeFamilyOffice = field === 'is_family_office' ? next : isFamilyOffice
-    if (!wouldBeAngel && !wouldBeFamilyOffice && !isConcierge) {
+    const wouldBe = { ...flags, [field]: next }
+    const anyInvestorRoleLeft = ROW_CONFIG.some(r => wouldBe[r.field])
+    if (!anyInvestorRoleLeft && !isConcierge) {
       setError('You must hold at least one role. Toggle another role on first.')
       return
     }
@@ -42,8 +71,7 @@ export default function IdentityPanel({
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? 'Failed')
-      if (field === 'is_angel')        setIsAngel(next)
-      if (field === 'is_family_office') setIsFamilyOffice(next)
+      setFlags(wouldBe)
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed')
     } finally {
@@ -56,26 +84,22 @@ export default function IdentityPanel({
       <div>
         <p className="font-display text-base text-ee-primary">Identity</p>
         <p className="text-xs text-ee-muted mt-1 leading-relaxed">
-          Hold any combination of roles. Each investor-side role can have its own mandate
-          (coming in the next phase). Concierge is staff-only — granted by an EE admin.
+          Hold any combination of roles. Each investor-side role has its own mandate —
+          edit them via the role tabs below. Concierge is staff-only; granted by an EE admin.
         </p>
       </div>
 
       <div className="space-y-3">
-        <RoleRow
-          label="Angel investor"
-          description="Individual investor making direct checks into companies."
-          on={isAngel}
-          busy={busy}
-          onChange={next => flip('is_angel', next)}
-        />
-        <RoleRow
-          label="Family Office"
-          description="Institutional steward of family or principal capital."
-          on={isFamilyOffice}
-          busy={busy}
-          onChange={next => flip('is_family_office', next)}
-        />
+        {ROW_CONFIG.map(row => (
+          <RoleRow
+            key={row.field}
+            label={row.label}
+            description={row.description}
+            on={flags[row.field]}
+            busy={busy}
+            onChange={next => flip(row.field, next)}
+          />
+        ))}
         {isConcierge && (
           <div className="flex items-center justify-between gap-4 py-2">
             <div className="min-w-0">

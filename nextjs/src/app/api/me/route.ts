@@ -37,10 +37,13 @@ const UpdateSchema = z.object({
   // Off-Market mode (Sovereign-only). Tier-gating enforced below the schema —
   // a non-Sovereign caller is rejected with 403 before the UPDATE runs.
   is_off_market: z.boolean().optional(),
-  // Multi-role identity (migration 034). User can self-toggle their
-  // investor-side flags. is_concierge stays admin-only.
-  is_angel:         z.boolean().optional(),
-  is_family_office: z.boolean().optional(),
+  // Multi-role identity (migration 034 + 035). User can self-toggle
+  // all investor-side flags. is_concierge stays admin-only.
+  is_angel:             z.boolean().optional(),
+  is_family_office:     z.boolean().optional(),
+  is_next_gen:          z.boolean().optional(),
+  is_family_foundation: z.boolean().optional(),
+  is_daf:               z.boolean().optional(),
 })
 
 export async function PATCH(req: NextRequest) {
@@ -107,11 +110,17 @@ export async function PATCH(req: NextRequest) {
          WHEN $19 = FALSE THEN NULL
          ELSE off_market_grace_until
        END,
-       -- Multi-role identity (migration 034). User-controlled flags.
-       is_angel         = COALESCE($20, is_angel),
-       is_family_office = COALESCE($21, is_family_office),
-       -- Keep the legacy role column in sync with the flags so Phase B/C
-       -- read paths don't drift. Same CASE shape as the admin route.
+       -- Multi-role identity (migration 034 + 035). User-controlled
+       -- investor-side flags. is_concierge stays admin-only.
+       is_angel             = COALESCE($20, is_angel),
+       is_family_office     = COALESCE($21, is_family_office),
+       is_next_gen          = COALESCE($22, is_next_gen),
+       is_family_foundation = COALESCE($23, is_family_foundation),
+       is_daf               = COALESCE($24, is_daf),
+       -- Keep the legacy role column in sync with Angel/FO only. The
+       -- three migration-035 roles don't map back to the binary role
+       -- column — they live exclusively in their boolean flags and the
+       -- mandates table. role stays as Angel-or-FO-or-null for now.
        role = CASE
          WHEN COALESCE($20, is_angel) = TRUE AND COALESCE($21, is_family_office) = FALSE THEN 'angel'
          WHEN COALESCE($20, is_angel) = FALSE AND COALESCE($21, is_family_office) = TRUE THEN 'family_office'
@@ -140,8 +149,11 @@ export async function PATCH(req: NextRequest) {
       d.concentration  ?? null,
       d.email_notifications_enabled ?? null,
       d.is_off_market  ?? null,
-      d.is_angel         ?? null,
-      d.is_family_office ?? null,
+      d.is_angel             ?? null,
+      d.is_family_office     ?? null,
+      d.is_next_gen          ?? null,
+      d.is_family_foundation ?? null,
+      d.is_daf               ?? null,
     ]
   )
 
@@ -155,7 +167,8 @@ export async function PATCH(req: NextRequest) {
   // are NEVER per-role — they always go to profiles only.
   const url       = new URL(req.url)
   const roleParam = url.searchParams.get('role')
-  if (roleParam === 'angel' || roleParam === 'family_office') {
+  const validMandateRoles = ['angel', 'family_office', 'next_gen', 'family_foundation', 'daf'] as const
+  if (validMandateRoles.includes(roleParam as typeof validMandateRoles[number])) {
     const anyMandateField = d.sectors !== undefined
       || d.stages !== undefined  || d.geography !== undefined
       || d.check_size_min !== undefined || d.check_size_max !== undefined

@@ -24,11 +24,14 @@ interface ProfileRow {
   onboarding_completed: boolean
   is_admin: boolean | null
   is_concierge: boolean | null
-  // Multi-role identity flags (migration 034). Backfilled from `role`
-  // for existing profiles. Once Phase D drops the role column, these
-  // are the only source of truth.
-  is_angel: boolean | null
-  is_family_office: boolean | null
+  // Multi-role identity flags (migrations 034 + 035). Backfilled from
+  // `role` for existing profiles. Once Phase D drops the role column,
+  // these are the only source of truth.
+  is_angel:             boolean | null
+  is_family_office:     boolean | null
+  is_next_gen:          boolean | null
+  is_family_foundation: boolean | null
+  is_daf:               boolean | null
   managed_by: string | null
   membership: 'access' | 'select' | 'sovereign' | null
   relationship_manager_id: string | null
@@ -58,11 +61,19 @@ export default async function AdminPage() {
   // Profiles may not yet have the is_admin / is_concierge / managed_by columns
   // (before the corresponding init buttons run). Try most-complete query first,
   // fall back progressively.
+  // Defaults applied to every fallback path for the migration-035 role
+  // flags (Next Gen / Foundation / DAF) — none of them have a derived
+  // value from older columns, so they uniformly default to FALSE/null
+  // when the pre-035 columns are absent.
+  const ROLE_035_DEFAULTS = { is_next_gen: null, is_family_foundation: null, is_daf: null }
+
   let profiles: ProfileRow[]
   try {
     profiles = await query<ProfileRow>(
       `SELECT id, email, full_name, firm_name, role, onboarding_completed,
-              is_admin, is_concierge, is_angel, is_family_office,
+              is_admin, is_concierge,
+              is_angel, is_family_office,
+              is_next_gen, is_family_foundation, is_daf,
               managed_by, membership,
               relationship_manager_id, is_off_market, created_at
        FROM profiles
@@ -70,9 +81,23 @@ export default async function AdminPage() {
     )
   } catch {
     try {
+      // Pre-035 fallback: load the 034 columns; default the 035 flags
+      // to null. Catches the case where 034 is live but 035 hasn't
+      // landed yet.
+      type Without035 = Omit<ProfileRow, 'is_next_gen' | 'is_family_foundation' | 'is_daf'>
+      profiles = (await query<Without035>(
+        `SELECT id, email, full_name, firm_name, role, onboarding_completed,
+                is_admin, is_concierge, is_angel, is_family_office,
+                managed_by, membership,
+                relationship_manager_id, is_off_market, created_at
+         FROM profiles
+         ORDER BY created_at DESC`
+      )).map(p => ({ ...p, ...ROLE_035_DEFAULTS }))
+    } catch {
+    try {
       // Pre-034 fallback: is_angel/is_family_office not yet migrated.
       // Backfill the flags inline from `role` so badges still render.
-      type WithoutMultiRole = Omit<ProfileRow, 'is_angel' | 'is_family_office'>
+      type WithoutMultiRole = Omit<ProfileRow, 'is_angel' | 'is_family_office' | 'is_next_gen' | 'is_family_foundation' | 'is_daf'>
       profiles = (await query<WithoutMultiRole>(
         `SELECT id, email, full_name, firm_name, role, onboarding_completed,
                 is_admin, is_concierge, managed_by, membership,
@@ -83,10 +108,12 @@ export default async function AdminPage() {
         ...p,
         is_angel:         p.role === 'angel',
         is_family_office: p.role === 'family_office',
+        ...ROLE_035_DEFAULTS,
       }))
     } catch {
+    type Pre034 = Omit<ProfileRow, 'is_angel' | 'is_family_office' | 'is_next_gen' | 'is_family_foundation' | 'is_daf'>
     try {
-      profiles = (await query<Omit<ProfileRow, 'is_off_market' | 'is_angel' | 'is_family_office'>>(
+      profiles = (await query<Omit<ProfileRow, 'is_off_market' | 'is_angel' | 'is_family_office' | 'is_next_gen' | 'is_family_foundation' | 'is_daf'>>(
         `SELECT id, email, full_name, firm_name, role, onboarding_completed,
                 is_admin, is_concierge, managed_by, membership,
                 relationship_manager_id, created_at
@@ -97,16 +124,16 @@ export default async function AdminPage() {
         is_off_market:    null,
         is_angel:         p.role === 'angel',
         is_family_office: p.role === 'family_office',
+        ...ROLE_035_DEFAULTS,
       }))
     } catch {
-    type Pre034 = Omit<ProfileRow, 'is_angel' | 'is_family_office'>
     try {
       profiles = (await query<Omit<Pre034, 'relationship_manager_id' | 'is_off_market'>>(
         `SELECT id, email, full_name, firm_name, role, onboarding_completed,
                 is_admin, is_concierge, managed_by, membership, created_at
          FROM profiles
          ORDER BY created_at DESC`
-      )).map(p => ({ ...p, relationship_manager_id: null, is_off_market: null, is_angel: p.role === 'angel', is_family_office: p.role === 'family_office' }))
+      )).map(p => ({ ...p, relationship_manager_id: null, is_off_market: null, is_angel: p.role === 'angel', is_family_office: p.role === 'family_office', ...ROLE_035_DEFAULTS }))
     } catch {
       try {
         profiles = (await query<Omit<Pre034, 'membership' | 'relationship_manager_id' | 'is_off_market'>>(
@@ -114,7 +141,7 @@ export default async function AdminPage() {
                   is_admin, is_concierge, managed_by, created_at
            FROM profiles
            ORDER BY created_at DESC`
-        )).map(p => ({ ...p, membership: null, relationship_manager_id: null, is_off_market: null, is_angel: p.role === 'angel', is_family_office: p.role === 'family_office' }))
+        )).map(p => ({ ...p, membership: null, relationship_manager_id: null, is_off_market: null, is_angel: p.role === 'angel', is_family_office: p.role === 'family_office', ...ROLE_035_DEFAULTS }))
       } catch {
         try {
           profiles = (await query<Omit<Pre034, 'is_concierge' | 'managed_by' | 'membership' | 'relationship_manager_id' | 'is_off_market'>>(
@@ -122,15 +149,16 @@ export default async function AdminPage() {
                     is_admin, created_at
              FROM profiles
              ORDER BY created_at DESC`
-          )).map(p => ({ ...p, is_concierge: null, managed_by: null, membership: null, relationship_manager_id: null, is_off_market: null, is_angel: p.role === 'angel', is_family_office: p.role === 'family_office' }))
+          )).map(p => ({ ...p, is_concierge: null, managed_by: null, membership: null, relationship_manager_id: null, is_off_market: null, is_angel: p.role === 'angel', is_family_office: p.role === 'family_office', ...ROLE_035_DEFAULTS }))
         } catch {
           profiles = (await query<Omit<Pre034, 'is_admin' | 'is_concierge' | 'managed_by' | 'membership' | 'relationship_manager_id' | 'is_off_market'>>(
             `SELECT id, email, full_name, firm_name, role, onboarding_completed, created_at
              FROM profiles
              ORDER BY created_at DESC`
-          )).map(p => ({ ...p, is_admin: null, is_concierge: null, managed_by: null, membership: null, relationship_manager_id: null, is_off_market: null, is_angel: p.role === 'angel', is_family_office: p.role === 'family_office' }))
+          )).map(p => ({ ...p, is_admin: null, is_concierge: null, managed_by: null, membership: null, relationship_manager_id: null, is_off_market: null, is_angel: p.role === 'angel', is_family_office: p.role === 'family_office', ...ROLE_035_DEFAULTS }))
         }
       }
+    }
     }
     }
     }
@@ -275,8 +303,11 @@ export default async function AdminPage() {
       cognitoStatus: u.status,
       isAdmin:      p?.is_admin ?? false,
       isConcierge:  p?.is_concierge ?? false,
-      isAngel:        p?.is_angel ?? false,
-      isFamilyOffice: p?.is_family_office ?? false,
+      isAngel:            p?.is_angel ?? false,
+      isFamilyOffice:     p?.is_family_office ?? false,
+      isNextGen:          p?.is_next_gen ?? false,
+      isFamilyFoundation: p?.is_family_foundation ?? false,
+      isDaf:              p?.is_daf ?? false,
       managedBy:    p?.managed_by ?? null,
       membership:   p?.membership ?? null,
       isOffMarket:  p?.is_off_market ?? false,
@@ -317,8 +348,11 @@ export default async function AdminPage() {
       cognitoStatus: null,
       isAdmin:      p.is_admin ?? false,
       isConcierge:  p.is_concierge ?? false,
-      isAngel:        p.is_angel ?? false,
-      isFamilyOffice: p.is_family_office ?? false,
+      isAngel:            p.is_angel ?? false,
+      isFamilyOffice:     p.is_family_office ?? false,
+      isNextGen:          p.is_next_gen ?? false,
+      isFamilyFoundation: p.is_family_foundation ?? false,
+      isDaf:              p.is_daf ?? false,
       managedBy:    p.managed_by ?? null,
       membership:   p.membership ?? null,
       isOffMarket:  p.is_off_market ?? false,

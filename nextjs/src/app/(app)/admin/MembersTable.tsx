@@ -22,12 +22,15 @@ export interface MemberRow {
   userId:      string | null
   isAdmin:     boolean
   isConcierge: boolean
-  // Multi-role identity (migration 034). Each member can hold any
-  // combination of Angel + Family Office + Concierge. Badges next to
-  // the name reflect the active flags; admin toggles can flip them
-  // independently.
-  isAngel:        boolean
-  isFamilyOffice: boolean
+  // Multi-role identity (migrations 034 + 035). Each member can hold
+  // any combination of Angel + FO + Concierge + Next-Gen + Foundation
+  // + DAF. Badges next to the name reflect the active flags; admin
+  // toggles can flip them independently.
+  isAngel:            boolean
+  isFamilyOffice:     boolean
+  isNextGen:          boolean
+  isFamilyFoundation: boolean
+  isDaf:              boolean
   managedBy:   string | null
   membership:  Membership | null
   relationshipManagerId: string | null
@@ -270,6 +273,30 @@ export default function MembersTable({
                               FO
                             </span>
                           )}
+                          {m.isNextGen && (
+                            <span
+                              className="shrink-0 text-[9px] font-data uppercase tracking-wider px-1.5 py-px rounded-sm border border-ee-emerald/40 bg-ee-emerald/[0.08] text-ee-emerald"
+                              title="Next Gen — next-generation member of a family wealth lineage"
+                            >
+                              Next Gen
+                            </span>
+                          )}
+                          {m.isFamilyFoundation && (
+                            <span
+                              className="shrink-0 text-[9px] font-data uppercase tracking-wider px-1.5 py-px rounded-sm border border-ee-primary/30 bg-white/5 text-ee-primary"
+                              title="Family Foundation — 501(c)(3) charitable entity"
+                            >
+                              Foundation
+                            </span>
+                          )}
+                          {m.isDaf && (
+                            <span
+                              className="shrink-0 text-[9px] font-data uppercase tracking-wider px-1.5 py-px rounded-sm border border-ee-primary/30 bg-white/5 text-ee-primary"
+                              title="Donor-Advised Fund"
+                            >
+                              DAF
+                            </span>
+                          )}
                           {m.isConcierge && (
                             <span
                               className="shrink-0 text-[9px] font-data uppercase tracking-wider px-1.5 py-px rounded-sm border border-ee-gold/40 bg-ee-gold/[0.08] text-ee-gold"
@@ -375,6 +402,45 @@ export default function MembersTable({
                                   userId={m.userId}
                                   field="is_family_office"
                                   initial={m.isFamilyOffice}
+                                  disabled={!m.staffTogglable}
+                                  disabledReason={m.staffToggleReason}
+                                />
+                              ) : (
+                                <Em title="Profile not created yet">—</Em>
+                              )}
+                            </Field>
+                            <Field label="Next Gen">
+                              {m.userId ? (
+                                <RoleFlagToggle
+                                  userId={m.userId}
+                                  field="is_next_gen"
+                                  initial={m.isNextGen}
+                                  disabled={!m.staffTogglable}
+                                  disabledReason={m.staffToggleReason}
+                                />
+                              ) : (
+                                <Em title="Profile not created yet">—</Em>
+                              )}
+                            </Field>
+                            <Field label="Family Foundation">
+                              {m.userId ? (
+                                <RoleFlagToggle
+                                  userId={m.userId}
+                                  field="is_family_foundation"
+                                  initial={m.isFamilyFoundation}
+                                  disabled={!m.staffTogglable}
+                                  disabledReason={m.staffToggleReason}
+                                />
+                              ) : (
+                                <Em title="Profile not created yet">—</Em>
+                              )}
+                            </Field>
+                            <Field label="DAF">
+                              {m.userId ? (
+                                <RoleFlagToggle
+                                  userId={m.userId}
+                                  field="is_daf"
+                                  initial={m.isDaf}
                                   disabled={!m.staffTogglable}
                                   disabledReason={m.staffToggleReason}
                                 />
