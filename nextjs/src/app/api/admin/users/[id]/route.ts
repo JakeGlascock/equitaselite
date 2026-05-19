@@ -60,31 +60,68 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     }
   }
 
+  type UpdatedRow = {
+    id: string
+    is_admin: boolean
+    is_concierge: boolean
+    membership: string | null
+    relationship_manager_id: string | null
+  }
+  const params = [
+    id,
+    parsed.data.is_admin     ?? null,
+    parsed.data.is_concierge ?? null,
+    membershipParam !== undefined,
+    membershipParam ?? null,
+    rmParam !== undefined,
+    rmParam ?? null,
+  ]
+
   try {
-    const updated = await queryOne<{
-      id: string
-      is_admin: boolean
-      is_concierge: boolean
-      membership: string | null
-      relationship_manager_id: string | null
-    }>(
+    let updated: UpdatedRow | null
+    try {
+      updated = await queryOne<UpdatedRow>(
       `UPDATE profiles
        SET is_admin                = COALESCE($2, is_admin),
            is_concierge            = COALESCE($3, is_concierge),
            membership              = CASE WHEN $4::boolean THEN $5::text ELSE membership              END,
-           relationship_manager_id = CASE WHEN $6::boolean THEN $7::text ELSE relationship_manager_id END
+           relationship_manager_id = CASE WHEN $6::boolean THEN $7::text ELSE relationship_manager_id END,
+           -- Off-Market downgrade grace (migration 033). When a
+           -- Sovereign drops tier while is_off_market = TRUE, start
+           -- a 7-day countdown. Re-upgrading to Sovereign during
+           -- grace clears the timer. No-ops on rows where the column
+           -- doesn't exist yet — the outer try/catch falls back to
+           -- the pre-033 update.
+           off_market_grace_until = CASE
+             WHEN $4::boolean
+              AND $5::text IS DISTINCT FROM 'sovereign'
+              AND membership = 'sovereign'
+              AND is_off_market = TRUE
+             THEN NOW() + INTERVAL '7 days'
+             WHEN $4::boolean AND $5::text = 'sovereign'
+             THEN NULL
+             ELSE off_market_grace_until
+           END
        WHERE id = $1
        RETURNING id, is_admin, is_concierge, membership, relationship_manager_id`,
-      [
-        id,
-        parsed.data.is_admin     ?? null,
-        parsed.data.is_concierge ?? null,
-        membershipParam !== undefined,
-        membershipParam ?? null,
-        rmParam !== undefined,
-        rmParam ?? null,
-      ]
-    )
+        params,
+      )
+    } catch (innerErr: unknown) {
+      // Pre-033 fallback: off_market_grace_until column doesn't exist yet.
+      // Retry without the off-market clauses so tier changes still work.
+      const msg = innerErr instanceof Error ? innerErr.message : ''
+      if (!msg.includes('off_market_grace_until') && !msg.includes('is_off_market')) throw innerErr
+      updated = await queryOne<UpdatedRow>(
+        `UPDATE profiles
+         SET is_admin                = COALESCE($2, is_admin),
+             is_concierge            = COALESCE($3, is_concierge),
+             membership              = CASE WHEN $4::boolean THEN $5::text ELSE membership              END,
+             relationship_manager_id = CASE WHEN $6::boolean THEN $7::text ELSE relationship_manager_id END
+         WHERE id = $1
+         RETURNING id, is_admin, is_concierge, membership, relationship_manager_id`,
+        params,
+      )
+    }
     if (!updated) return NextResponse.json({ error: 'Not found' }, { status: 404 })
     return NextResponse.json(updated)
   } catch (err: unknown) {

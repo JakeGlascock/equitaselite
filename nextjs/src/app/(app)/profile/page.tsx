@@ -1,14 +1,16 @@
 import { headers } from 'next/headers'
 import { redirect } from 'next/navigation'
-import { queryOne } from '@/lib/db'
+import { queryOne, query } from '@/lib/db'
 import OnboardingForm from '@/app/onboarding/OnboardingForm'
 import EmailPrefToggle from './EmailPrefToggle'
+import OffMarketToggle from './OffMarketToggle'
 import WalkthroughReplay from './WalkthroughReplay'
 import MandatePillarsForm from './MandatePillarsForm'
 import MandateWeightsForm from './MandateWeightsForm'
 import KnockoutsReview, { type KnockoutSummaryItem } from './KnockoutsReview'
 import { getCandidates, type DbProfile as MatchDbProfile } from '@/lib/matches'
 import { countKnockoutsByReason } from '@/lib/scoring'
+import { getTier } from '@/lib/membership'
 import { DEFAULT_MANDATE_WEIGHTS, type UserProfile, type Tier, type MandateWeights } from '@/types'
 
 interface DbProfile {
@@ -32,6 +34,8 @@ interface DbProfile {
   concentration: string | null
   email_notifications_enabled: boolean | null
   onboarding_completed: boolean
+  is_off_market:          boolean | null
+  off_market_grace_until: Date | string | null
   // Phase 6 mandate pillar fields — all nullable, all defaulted via
   // migration 028 so a SELECT * always returns them on a profile that
   // hasn't customized yet.
@@ -66,6 +70,38 @@ export default async function ProfilePage() {
 
   if (!profile || !profile.onboarding_completed) redirect('/onboarding')
 
+  // Off-Market: look up the live tier (membership column may lag if a
+  // downgrade just happened) and forward the grace-until timestamp so
+  // the toggle component can show the countdown.
+  const tier = await getTier(userId)
+
+  // Lazy grace expiry. The visibility SQL fragment already respects
+  // off_market_grace_until <= NOW() so visibility is correct regardless,
+  // but this UPDATE catches the row up so the toggle in the UI reflects
+  // what's actually being served. Idempotent + race-safe under the
+  // matching WHERE clause.
+  if (profile.is_off_market && profile.off_market_grace_until) {
+    const expires = new Date(profile.off_market_grace_until)
+    if (expires.getTime() <= Date.now()) {
+      try {
+        await query(
+          `UPDATE profiles
+              SET is_off_market = FALSE, off_market_grace_until = NULL
+            WHERE id = $1 AND off_market_grace_until <= NOW() AND is_off_market = TRUE`,
+          [userId],
+        )
+        profile.is_off_market          = false
+        profile.off_market_grace_until = null
+      } catch { /* pre-033 — column not present; no-op */ }
+    }
+  }
+
+  const graceUntil = profile.off_market_grace_until
+    ? (profile.off_market_grace_until instanceof Date
+        ? profile.off_market_grace_until.toISOString()
+        : profile.off_market_grace_until)
+    : null
+
   return (
     <div className="px-5 md:px-8 py-8">
       <div className="max-w-xl mx-auto space-y-6">
@@ -80,6 +116,15 @@ export default async function ProfilePage() {
         {/* Top-level email opt-out, separate from the wizard form so it's
             never more than one click away. */}
         <EmailPrefToggle initial={profile.email_notifications_enabled ?? true} />
+
+        {/* Off-Market mode — Sovereign-tier privacy toggle. Rendered for
+            every tier so lower tiers can see what they'd unlock; the
+            client component disables itself when tier !== sovereign. */}
+        <OffMarketToggle
+          initial={!!profile.is_off_market}
+          tier={tier}
+          graceUntil={graceUntil}
+        />
 
         <WalkthroughReplay />
 

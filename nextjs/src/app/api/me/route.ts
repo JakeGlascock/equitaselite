@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { queryOne } from '@/lib/db'
+import { getTier } from '@/lib/membership'
 import { z } from 'zod'
 
 export async function GET(req: NextRequest) {
@@ -33,6 +34,9 @@ const UpdateSchema = z.object({
   mandate_type:    z.string().optional(),
   concentration:   z.string().optional(),
   email_notifications_enabled: z.boolean().optional(),
+  // Off-Market mode (Sovereign-only). Tier-gating enforced below the schema —
+  // a non-Sovereign caller is rejected with 403 before the UPDATE runs.
+  is_off_market: z.boolean().optional(),
 })
 
 export async function PATCH(req: NextRequest) {
@@ -59,6 +63,20 @@ export async function PATCH(req: NextRequest) {
       )
     }
   }
+
+  // Off-Market is Sovereign-only. Reject any non-Sovereign caller trying
+  // to flip it on. (We also allow Sovereigns to flip it OFF freely;
+  // the auto-flip on downgrade-grace expiry runs as the system in
+  // lib/membership.ts, bypassing this gate.)
+  if (d.is_off_market === true) {
+    const tier = await getTier(userId)
+    if (tier !== 'sovereign') {
+      return NextResponse.json(
+        { error: 'Off-Market mode requires the Sovereign tier.' },
+        { status: 403 }
+      )
+    }
+  }
   const profile = await queryOne(
     `UPDATE profiles SET
        email           = COALESCE($2,  email),
@@ -77,7 +95,14 @@ export async function PATCH(req: NextRequest) {
        timeline        = COALESCE($15, timeline),
        mandate_type    = COALESCE($16, mandate_type),
        concentration   = COALESCE($17, concentration),
-       email_notifications_enabled = COALESCE($18, email_notifications_enabled)
+       email_notifications_enabled = COALESCE($18, email_notifications_enabled),
+       is_off_market   = COALESCE($19, is_off_market),
+       -- Clearing off-market also clears any active grace timer — they're
+       -- now visible by their own choice, no expiry needed.
+       off_market_grace_until = CASE
+         WHEN $19 = FALSE THEN NULL
+         ELSE off_market_grace_until
+       END
      WHERE id = $1
      RETURNING *`,
     [
@@ -99,6 +124,7 @@ export async function PATCH(req: NextRequest) {
       d.mandate_type   ?? null,
       d.concentration  ?? null,
       d.email_notifications_enabled ?? null,
+      d.is_off_market  ?? null,
     ]
   )
 

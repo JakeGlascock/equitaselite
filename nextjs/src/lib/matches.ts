@@ -1,6 +1,7 @@
 import { query, queryOne } from '@/lib/db'
 import { applyKnockouts, computeMatchScore } from '@/lib/scoring'
 import type { Tier } from '@/lib/membership'
+import { visibilityWhereFragment } from '@/lib/visibility'
 import type { IntroState } from '@/components/MatchCard'
 import type {
   UserProfile, Candidate, MandateWeights,
@@ -166,14 +167,31 @@ export async function getCandidates(me: DbProfile): Promise<DbProfile[]> {
   // already blocks mutations in preview mode; this stops the directory
   // and match list from exposing real-member names, firms, or mandates.
   const demoOnly = me.id.startsWith('demo_')
-  return query<DbProfile>(
-    `SELECT ${PROFILE_COLUMNS}
-     FROM profiles
-     WHERE role = $1 AND onboarding_completed = TRUE AND id != $2
-       AND (is_concierge IS NULL OR is_concierge = FALSE)
-       ${demoOnly ? `AND id LIKE 'demo_%'` : ''}`,
-    [oppositeRole, me.id]
-  )
+  // Off-Market visibility filter (migration 033). Profiles flagged
+  // is_off_market = TRUE are hidden from match results unless the viewer
+  // is the target's RM, an admin, or has an accepted introduction with
+  // them. Self is excluded above by `id != $2`. Try the visibility-aware
+  // query first; fall back if the column doesn't exist yet (pre-033 env).
+  try {
+    return await query<DbProfile>(
+      `SELECT ${PROFILE_COLUMNS}
+       FROM profiles p
+       WHERE p.role = $1 AND p.onboarding_completed = TRUE AND p.id != $2
+         AND (p.is_concierge IS NULL OR p.is_concierge = FALSE)
+         ${demoOnly ? `AND p.id LIKE 'demo_%'` : ''}
+         AND ${visibilityWhereFragment('p', 2)}`,
+      [oppositeRole, me.id]
+    )
+  } catch {
+    return query<DbProfile>(
+      `SELECT ${PROFILE_COLUMNS}
+       FROM profiles
+       WHERE role = $1 AND onboarding_completed = TRUE AND id != $2
+         AND (is_concierge IS NULL OR is_concierge = FALSE)
+         ${demoOnly ? `AND id LIKE 'demo_%'` : ''}`,
+      [oppositeRole, me.id]
+    )
+  }
 }
 
 // Filters candidates through the viewer's knockouts. Returns the survivors.

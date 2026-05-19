@@ -13,6 +13,7 @@ import PreviewTokensPanel from './PreviewTokensPanel'
 import DeckTokensPanel from './DeckTokensPanel'
 import ReportsPanel from './ReportsPanel'
 import PortfolioReportsPanel from './PortfolioReportsPanel'
+import StartOnboardingTestButton from './StartOnboardingTestButton'
 
 interface ProfileRow {
   id: string
@@ -26,6 +27,7 @@ interface ProfileRow {
   managed_by: string | null
   membership: 'access' | 'select' | 'sovereign' | null
   relationship_manager_id: string | null
+  is_off_market: boolean | null
   created_at: Date | string
 }
 
@@ -56,18 +58,27 @@ export default async function AdminPage() {
     profiles = await query<ProfileRow>(
       `SELECT id, email, full_name, firm_name, role, onboarding_completed,
               is_admin, is_concierge, managed_by, membership,
-              relationship_manager_id, created_at
+              relationship_manager_id, is_off_market, created_at
        FROM profiles
        ORDER BY created_at DESC`
     )
   } catch {
     try {
-      profiles = (await query<Omit<ProfileRow, 'relationship_manager_id'>>(
+      profiles = (await query<Omit<ProfileRow, 'is_off_market'>>(
+        `SELECT id, email, full_name, firm_name, role, onboarding_completed,
+                is_admin, is_concierge, managed_by, membership,
+                relationship_manager_id, created_at
+         FROM profiles
+         ORDER BY created_at DESC`
+      )).map(p => ({ ...p, is_off_market: null }))
+    } catch {
+    try {
+      profiles = (await query<Omit<ProfileRow, 'relationship_manager_id' | 'is_off_market'>>(
         `SELECT id, email, full_name, firm_name, role, onboarding_completed,
                 is_admin, is_concierge, managed_by, membership, created_at
          FROM profiles
          ORDER BY created_at DESC`
-      )).map(p => ({ ...p, relationship_manager_id: null }))
+      )).map(p => ({ ...p, relationship_manager_id: null, is_off_market: null }))
     } catch {
       try {
         profiles = (await query<Omit<ProfileRow, 'membership' | 'relationship_manager_id'>>(
@@ -92,6 +103,7 @@ export default async function AdminPage() {
           )).map(p => ({ ...p, is_admin: null, is_concierge: null, managed_by: null, membership: null, relationship_manager_id: null }))
         }
       }
+    }
     }
   }
 
@@ -236,6 +248,7 @@ export default async function AdminPage() {
       isConcierge:  p?.is_concierge ?? false,
       managedBy:    p?.managed_by ?? null,
       membership:   p?.membership ?? null,
+      isOffMarket:  p?.is_off_market ?? false,
       relationshipManagerId: p?.relationship_manager_id ?? null,
       togglable,
       staffTogglable:    togglable,  // same gate for real users — admin can flip A/C/RM on any non-Disabled real user
@@ -275,6 +288,7 @@ export default async function AdminPage() {
       isConcierge:  p.is_concierge ?? false,
       managedBy:    p.managed_by ?? null,
       membership:   p.membership ?? null,
+      isOffMarket:  p.is_off_market ?? false,
       relationshipManagerId: p.relationship_manager_id ?? null,
       togglable:         true,    // demo rows: tier IS editable so you can preview each tier's UI
       staffTogglable:    !isDemo, // but admin/concierge/RM aren't meaningful on demo fixtures
@@ -354,6 +368,23 @@ export default async function AdminPage() {
           <div className="px-6 pb-6 pt-2 space-y-3 border-t border-ee-border">
             <SeedDemoButton />
             <BackfillPlaceholdersButton />
+          </div>
+        </details>
+
+        <details className="glass-panel group">
+          <summary className="px-6 py-4 cursor-pointer list-none flex items-center justify-between gap-4 select-none">
+            <div>
+              <h2 className="font-display text-base text-ee-primary">Test fixtures</h2>
+              <p className="text-xs text-ee-muted mt-0.5">
+                Walk the onboarding wizard against a sandbox profile — no throwaway Cognito invite required.
+              </p>
+            </div>
+            <span className="material-symbols-outlined text-ee-muted transition-transform group-open:rotate-180">
+              expand_more
+            </span>
+          </summary>
+          <div className="px-6 pb-6 pt-2 border-t border-ee-border">
+            <StartOnboardingTestButton />
           </div>
         </details>
 

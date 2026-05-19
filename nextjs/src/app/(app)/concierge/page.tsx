@@ -4,6 +4,7 @@ import { queryOne, query } from '@/lib/db'
 import { getTier } from '@/lib/membership'
 import { listBriefingsForRecipient } from '@/lib/portfolio-reports'
 import { listAnnotationsForConcierge, type ConciergeAnnotation } from '@/lib/concierge'
+import { visibilityWhereFragment } from '@/lib/visibility'
 import ConciergeForm from './ConciergeForm'
 import OperateAsButton from './OperateAsButton'
 import OnboardingQueue, { type QueueRow } from './OnboardingQueue'
@@ -97,23 +98,50 @@ export default async function ConciergePage() {
     }
     let queue: QueueRow[] = []
     try {
+      // Off-Market visibility (migration 033): a Sovereign who has flipped
+      // is_off_market = TRUE only surfaces to this concierge if they're
+      // the assigned RM. Unclaimed off-market Sovereigns disappear from
+      // every concierge's queue — admins handle that edge via /admin.
       const rows = await query<QueueDbRow>(
         `SELECT id, email, full_name, firm_name, role, membership,
                 created_at
-         FROM profiles
-         WHERE membership IN ('select','sovereign')
-           AND onboarding_completed = TRUE
-           AND welcomed_at IS NULL
-           AND managed_by IS NULL
-           AND (is_concierge IS NULL OR is_concierge = FALSE)
-         ORDER BY created_at DESC
-         LIMIT 50`
+         FROM profiles p
+         WHERE p.membership IN ('select','sovereign')
+           AND p.onboarding_completed = TRUE
+           AND p.welcomed_at IS NULL
+           AND p.managed_by IS NULL
+           AND (p.is_concierge IS NULL OR p.is_concierge = FALSE)
+           AND ${visibilityWhereFragment('p', 1)}
+         ORDER BY p.created_at DESC
+         LIMIT 50`,
+        [userId!]
       )
       queue = rows.map(r => ({
         ...r,
         created_at: r.created_at instanceof Date ? r.created_at.toISOString() : r.created_at,
       }))
-    } catch { /* welcomed_at column not yet migrated */ }
+    } catch {
+      // Fall back to the pre-033 query if the is_off_market column isn't
+      // present yet — keeps staging environments functional during rollout.
+      try {
+        const rows = await query<QueueDbRow>(
+          `SELECT id, email, full_name, firm_name, role, membership,
+                  created_at
+           FROM profiles
+           WHERE membership IN ('select','sovereign')
+             AND onboarding_completed = TRUE
+             AND welcomed_at IS NULL
+             AND managed_by IS NULL
+             AND (is_concierge IS NULL OR is_concierge = FALSE)
+           ORDER BY created_at DESC
+           LIMIT 50`
+        )
+        queue = rows.map(r => ({
+          ...r,
+          created_at: r.created_at instanceof Date ? r.created_at.toISOString() : r.created_at,
+        }))
+      } catch { /* welcomed_at column not yet migrated */ }
+    }
 
     const angels = managed.filter(m => m.role === 'angel').length
     const offices = managed.filter(m => m.role === 'family_office').length

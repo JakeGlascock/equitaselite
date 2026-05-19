@@ -14,13 +14,17 @@ interface Props {
   recipientFirstName: string
   initial:            IntroState
   canSendIntros:      boolean
+  // When the viewer has Off-Market mode on, sending an intro reveals
+  // their identity to the recipient — surface this in the compose UI
+  // so the click is informed.
+  viewerIsOffMarket?: boolean
 }
 
 // Larger, page-level version of MatchCard's IntroAction. Same mechanics:
 // inline compose textarea, POSTs /api/introductions, handles 402 with the
 // upgrade-CTA fallback.
 export default function IntroActionClient({
-  recipientId, recipientFirstName, initial, canSendIntros,
+  recipientId, recipientFirstName, initial, canSendIntros, viewerIsOffMarket,
 }: Props) {
   const [intro, setIntro]         = useState<IntroState>(initial)
   const [composing, setComposing] = useState(false)
@@ -96,6 +100,16 @@ export default function IntroActionClient({
   if (composing) {
     return (
       <div className="space-y-2 max-w-xl">
+        {viewerIsOffMarket && (
+          <div className="rounded-md border border-ee-gold/40 bg-ee-gold/10 px-3 py-2 text-xs text-ee-gold flex items-start gap-2">
+            <span className="material-symbols-outlined text-sm shrink-0 mt-0.5">visibility</span>
+            <span>
+              You&apos;re in <strong>Off-Market mode</strong>. Sending this request reveals
+              your profile to {recipientFirstName} so they can decide. Other members still
+              can&apos;t see you.
+            </span>
+          </div>
+        )}
         <label className="block text-[10px] text-ee-muted font-data uppercase tracking-wider">
           Add a note for {recipientFirstName} (optional)
         </label>

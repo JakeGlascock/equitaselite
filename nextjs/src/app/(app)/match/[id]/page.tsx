@@ -4,6 +4,8 @@ import { queryOne } from '@/lib/db'
 import { getActingAsState } from '@/lib/acting-as'
 import { computeMatchScore } from '@/lib/scoring'
 import { checkIntroQuota } from '@/lib/membership'
+import { isUserAdmin } from '@/lib/admin'
+import { isProfileVisibleTo } from '@/lib/visibility'
 import IntroActionClient from './IntroActionClient'
 
 interface FullProfile {
@@ -26,6 +28,8 @@ interface FullProfile {
   mandate_type:    string | null
   concentration:   string | null
   onboarding_completed: boolean
+  is_off_market?:           boolean | null
+  relationship_manager_id?: string | null
 }
 
 interface IntroRow {
@@ -71,14 +75,27 @@ function toScoring(p: FullProfile) {
 }
 
 async function fetchProfile(id: string): Promise<FullProfile | null> {
-  return queryOne<FullProfile>(
-    `SELECT id, email, full_name, title, firm_name, location, aum, role,
-            sectors, stages, geography, check_size_min, check_size_max,
-            risk_tolerance, expected_return, timeline, mandate_type,
-            concentration, onboarding_completed
-     FROM profiles WHERE id = $1`,
-    [id]
-  )
+  // Try with the migration-033 columns first; fall back if not migrated yet.
+  try {
+    return await queryOne<FullProfile>(
+      `SELECT id, email, full_name, title, firm_name, location, aum, role,
+              sectors, stages, geography, check_size_min, check_size_max,
+              risk_tolerance, expected_return, timeline, mandate_type,
+              concentration, onboarding_completed,
+              is_off_market, relationship_manager_id
+       FROM profiles WHERE id = $1`,
+      [id]
+    )
+  } catch {
+    return queryOne<FullProfile>(
+      `SELECT id, email, full_name, title, firm_name, location, aum, role,
+              sectors, stages, geography, check_size_min, check_size_max,
+              risk_tolerance, expected_return, timeline, mandate_type,
+              concentration, onboarding_completed
+       FROM profiles WHERE id = $1`,
+      [id]
+    )
+  }
 }
 
 const LABEL_COLOR: Record<'Strong Fit' | 'Good Fit' | 'Possible Fit' | 'Low Fit', string> = {
@@ -108,6 +125,18 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
   // profiles. Mirrors the getCandidates() scope so a demo viewer who
   // guesses or pastes a real-user id still gets a 404.
   if (me.id.startsWith('demo_') && !candidate.id.startsWith('demo_')) notFound()
+
+  // Off-Market visibility gate (migration 033). If the candidate has
+  // flipped on Off-Market mode, only self / their RM / admins / accepted
+  // connections can see them. Anyone else gets a 404 — same shape as the
+  // demo-scope guard above, so a guessed or shared id doesn't leak
+  // membership of the off-market segment.
+  const viewerIsAdmin = await isUserAdmin(me.id, null)
+  const visible = await isProfileVisibleTo(
+    { viewerId: me.id, viewerIsAdmin },
+    candidate,
+  )
+  if (!visible) notFound()
 
   const score = computeMatchScore(toScoring(me), toScoring(candidate))
   const color = LABEL_COLOR[score.label]
@@ -241,6 +270,7 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
                   contactEmail: intro?.status === 'accepted' ? intro.other_email : null,
                 }}
                 canSendIntros={quota.ok}
+                viewerIsOffMarket={!!me.is_off_market}
               />
             </div>
           </div>

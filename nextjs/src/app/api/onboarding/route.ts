@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { queryOne } from '@/lib/db'
+import { getEffectiveUserId } from '@/lib/acting-as'
 
 const OnboardingSchema = z.object({
   email:            z.string().email(),
@@ -51,9 +52,15 @@ const OnboardingSchema = z.object({
 })
 
 export async function POST(req: NextRequest) {
-  const userId    = req.headers.get('x-user-id')
-  const userEmail = req.headers.get('x-user-email')
-  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const actualUserId = req.headers.get('x-user-id')
+  const userEmail    = req.headers.get('x-user-email')
+  if (!actualUserId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  // When an admin is acting-as the onboarding test fixture, writes target
+  // the fixture's row — not the admin's. getEffectiveUserId honours the
+  // acting-as cookie (concierge-managed flow or admin-test-fixture flow).
+  const userId = await getEffectiveUserId(req) ?? actualUserId
+  const isImpersonating = userId !== actualUserId
 
   const body = await req.json()
   const parsed = OnboardingSchema.safeParse(body)
@@ -73,7 +80,11 @@ export async function POST(req: NextRequest) {
   // victim@x.com and claim a not-yet-onboarded invitee's address before
   // they get a chance to use it. UNIQUE(email) blocks the collision but
   // only after the squat has succeeded; this rejects the squat upfront.
-  if (!userEmail || d.email.toLowerCase() !== userEmail.toLowerCase()) {
+  //
+  // Skipped when acting-as a different profile: the impersonation cookie
+  // was already authorised (see acting-as.ts) and the target email won't
+  // match the admin's JWT email by design.
+  if (!isImpersonating && (!userEmail || d.email.toLowerCase() !== userEmail.toLowerCase())) {
     return NextResponse.json(
       { error: 'Submitted email must match your signed-in account.' },
       { status: 400 }

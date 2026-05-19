@@ -200,14 +200,15 @@ describe('getCandidates', () => {
     mockQuery.mockResolvedValueOnce([])
     await getCandidates(makeProfile({ id: 'demo_fo_hartwell', role: 'family_office' }))
     const [sql] = mockQuery.mock.calls[0]
-    expect(sql).toContain(`AND id LIKE 'demo_%'`)
+    // Migration 033 added an alias `p` on the FROM clause for the visibility fragment.
+    expect(sql).toMatch(/AND p?\.?id LIKE 'demo_%'/)
   })
 
   it('does NOT scope to demo for real (Cognito-sub) viewers', async () => {
     mockQuery.mockResolvedValueOnce([])
     await getCandidates(makeProfile({ id: 'aaaa-1111-bbbb-2222', role: 'angel' }))
     const [sql] = mockQuery.mock.calls[0]
-    expect(sql).not.toContain(`AND id LIKE 'demo_%'`)
+    expect(sql).not.toMatch(/AND p?\.?id LIKE 'demo_%'/)
   })
 })
 

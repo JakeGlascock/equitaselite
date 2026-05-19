@@ -24,6 +24,10 @@ export interface MemberRow {
   managedBy:   string | null
   membership:  Membership | null
   relationshipManagerId: string | null
+  // Off-Market (migration 033): Sovereign-only privacy flag. Admins
+  // always see the profile but a small badge marks it so they know it
+  // isn't surfaced to other members.
+  isOffMarket: boolean
   togglable:   boolean
   // Whether Admin / Concierge / RM toggles are clickable for this row.
   // Demo accounts can have their tier changed (so you can preview each
@@ -241,7 +245,17 @@ export default function MembersTable({
                         </button>
                       </td>
                       <td className="px-3 py-2 max-w-[14rem]">
-                        <p className="text-ee-primary truncate text-[13px]">{m.name ?? m.email.split('@')[0]}</p>
+                        <p className="text-ee-primary truncate text-[13px] flex items-center gap-1.5">
+                          <span className="truncate">{m.name ?? m.email.split('@')[0]}</span>
+                          {m.isOffMarket && (
+                            <span
+                              className="shrink-0 text-[9px] font-data uppercase tracking-wider px-1.5 py-px rounded-sm border border-ee-gold/50 bg-ee-gold/10 text-ee-gold"
+                              title="Off-Market — hidden from other members. Visible to their RM, admins, and accepted connections."
+                            >
+                              Off-Market
+                            </span>
+                          )}
+                        </p>
                         <p className="text-[11px] text-ee-muted truncate">{m.email}</p>
                         {m.firm && <p className="text-[10px] text-ee-muted/70 truncate">{m.firm}</p>}
                       </td>

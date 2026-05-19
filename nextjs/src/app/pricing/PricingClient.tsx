@@ -74,6 +74,7 @@ const PLANS: Plan[] = [
       { label: 'Bespoke portfolio intelligence',       included: true },
       { label: 'Dedicated onboarding support',         included: true },
       { label: 'Dedicated relationship manager',       included: true },
+      { label: 'Off-Market mode (private profile)',    included: true },
       { label: 'Exclusive deal flow invitations',      included: true },
       { label: 'Annual summit invitation',             included: true },
     ],

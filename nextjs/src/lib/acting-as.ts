@@ -35,9 +35,17 @@ export async function getActingAsState(): Promise<ActingAsState | null> {
   }
 
   try {
+    // Authorised if the caller manages the target (concierge flow) OR the
+    // target is an is_test fixture and the caller is an admin (test-flow).
+    // The OR clause is added in a try/catch fallback below — pre-032
+    // environments don't have is_test and would throw.
     const profile = await queryOne<ManagedProfileLite>(
-      `SELECT id, full_name, firm_name, role FROM profiles
-       WHERE id = $1 AND managed_by = $2`,
+      `SELECT t.id, t.full_name, t.firm_name, t.role FROM profiles t
+       WHERE t.id = $1 AND (
+         t.managed_by = $2
+         OR (t.is_test = TRUE
+             AND EXISTS (SELECT 1 FROM profiles a WHERE a.id = $2 AND a.is_admin = TRUE))
+       )`,
       [target, actualUserId]
     )
     if (!profile) {
@@ -45,7 +53,20 @@ export async function getActingAsState(): Promise<ActingAsState | null> {
     }
     return { effectiveUserId: profile.id, actualUserId, managedProfile: profile }
   } catch {
-    return { effectiveUserId: actualUserId, actualUserId, managedProfile: null }
+    // Pre-032 fallback — only the managed_by gate exists.
+    try {
+      const profile = await queryOne<ManagedProfileLite>(
+        `SELECT id, full_name, firm_name, role FROM profiles
+         WHERE id = $1 AND managed_by = $2`,
+        [target, actualUserId]
+      )
+      if (!profile) {
+        return { effectiveUserId: actualUserId, actualUserId, managedProfile: null }
+      }
+      return { effectiveUserId: profile.id, actualUserId, managedProfile: profile }
+    } catch {
+      return { effectiveUserId: actualUserId, actualUserId, managedProfile: null }
+    }
   }
 }
 
@@ -62,11 +83,24 @@ export async function getEffectiveUserId(req: NextRequest): Promise<string | nul
 
   try {
     const profile = await queryOne<{ id: string }>(
-      'SELECT id FROM profiles WHERE id = $1 AND managed_by = $2',
+      `SELECT t.id FROM profiles t
+       WHERE t.id = $1 AND (
+         t.managed_by = $2
+         OR (t.is_test = TRUE
+             AND EXISTS (SELECT 1 FROM profiles a WHERE a.id = $2 AND a.is_admin = TRUE))
+       )`,
       [target, actualUserId]
     )
     return profile ? profile.id : actualUserId
   } catch {
-    return actualUserId
+    try {
+      const profile = await queryOne<{ id: string }>(
+        'SELECT id FROM profiles WHERE id = $1 AND managed_by = $2',
+        [target, actualUserId]
+      )
+      return profile ? profile.id : actualUserId
+    } catch {
+      return actualUserId
+    }
   }
 }

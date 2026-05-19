@@ -60,6 +60,26 @@ const CHECKS = [
   { name: 'gate-help',         path: '/help',               status: [302, 307, 308], redirectContains: '/signin', followRedirect: false },
   { name: 'gate-briefings',    path: '/briefings/00000000-0000-0000-0000-000000000000', status: [302, 307, 308], redirectContains: '/signin', followRedirect: false },
 
+  // Admin-only test fixture endpoint. Without a session it must redirect
+  // to /signin like the rest of /admin — proves the route is wired AND
+  // that it isn't accidentally on the public-API list.
+  { name: 'gate-test-fixture-onboarding-start', path: '/api/admin/test-fixtures/onboarding/start', method: 'POST', body: '', status: [302, 307, 308], redirectContains: '/signin', followRedirect: false },
+
+  // ───── Off-Market mode (migration 033) ─────
+  // /pricing must list the feature under the Sovereign tier — surfacing
+  // it is the only way prospects know the privacy story exists.
+  { name: 'pricing-lists-off-market', path: '/pricing', status: 200, contains: 'Off-Market' },
+  // PATCH /api/me without auth → redirect to /signin (proves the route
+  // is wired + middleware-gated; the tier-check happens behind auth).
+  { name: 'gate-me-patch-off-market', path: '/api/me', method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: '{"is_off_market":true}', status: [302, 307, 308], redirectContains: '/signin', followRedirect: false },
+  // Preview viewers (demo cookie) must STILL be blocked from flipping
+  // off-market — same mutation gate as every other PATCH.
+  {
+    name: 'preview-blocks-off-market-patch',
+    path: '/api/me', method: 'PATCH', headers: PREVIEW_MUTATION_HEADERS,
+    body: '{"is_off_market":true}', status: 403, contains: 'Preview mode',
+  },
+
   // ───── Investor preview ─────
   // Malformed token → "Link not found" via the /preview-denied page.
   { name: 'preview-bad-shape', path: '/preview/notatoken',                                                          status: 200, contains: 'Link not found' },

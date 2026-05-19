@@ -46,7 +46,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   const isAdmin      = await isUserAdmin(userId, userEmail)
   const isConcierge  = !!profile.is_concierge
-  const actingAs     = isConcierge ? await getActingAsState() : null
+  // Compute acting-as state for concierges (managed-account flow) AND
+  // admins (test-fixture flow). Skipped for plain users to avoid an
+  // unnecessary DB roundtrip.
+  const actingAs     = (isConcierge || isAdmin) ? await getActingAsState() : null
   const managedAs: ManagedProfileLite | null = actingAs?.managedProfile ?? null
 
   // When operating as a managed account, show that profile's tier (not the

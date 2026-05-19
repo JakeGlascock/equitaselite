@@ -1,6 +1,7 @@
 import { headers } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { queryOne } from '@/lib/db'
+import { getActingAsState } from '@/lib/acting-as'
 import OnboardingForm from './OnboardingForm'
 
 interface Profile {
@@ -10,9 +11,13 @@ interface Profile {
 
 export default async function OnboardingPage() {
   const headersList = await headers()
-  const userId = headersList.get('x-user-id')
+  const state = await getActingAsState()
+  if (!state) redirect('/signin')
 
-  if (!userId) redirect('/signin')
+  // When an admin is acting-as the onboarding test fixture, the wizard
+  // operates on the fixture's profile (not the admin's). The fixture is
+  // always onboarding_completed=FALSE at "Start" time so this renders.
+  const userId = state.effectiveUserId
 
   const profile = await queryOne<Profile>(
     'SELECT onboarding_completed, email FROM profiles WHERE id = $1',
