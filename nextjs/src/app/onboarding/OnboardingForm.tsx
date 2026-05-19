@@ -15,7 +15,12 @@ type Role = 'angel' | 'family_office'
 
 interface FormData {
   email: string
-  role: Role | ''
+  // Multi-role identity flags (migration 034). At least one must be
+  // true. Onboarding still collects ONE shared mandate; users with
+  // both flags can differentiate per-role mandates via /profile after
+  // signup (Phase D2).
+  is_angel:         boolean
+  is_family_office: boolean
   full_name: string
   title: string
   firm_name: string
@@ -99,7 +104,8 @@ export default function OnboardingForm({ email, mode = 'onboard', initialData }:
 
   const [data, setData] = useState<FormData>({
     email,
-    role: '',
+    is_angel:         false,
+    is_family_office: false,
     full_name: '',
     title: '',
     firm_name: '',
@@ -145,10 +151,10 @@ export default function OnboardingForm({ email, mode = 'onboard', initialData }:
 
   function validateStep(s: number): string | null {
     if (s === 1) {
-      if (!data.role)                          return 'Please select a role.'
+      if (!data.is_angel && !data.is_family_office) return 'Pick at least one role — Angel, Family Office, or both.'
       if (data.full_name.trim().length < 2)    return 'Enter your full name (at least 2 characters).'
-      if (data.firm_name.trim().length < 2)    return `Enter your ${data.role === 'angel' ? 'firm/fund' : 'family office'} name.`
-      if (data.role === 'family_office' && !data.aum) return 'Select your AUM range.'
+      if (data.firm_name.trim().length < 2)    return `Enter your firm or family office name.`
+      if (data.is_family_office && !data.aum)  return 'Select your AUM range.'
       return null
     }
     if (s === 2) {
@@ -164,12 +170,14 @@ export default function OnboardingForm({ email, mode = 'onboard', initialData }:
       return null
     }
     if (s === 4) {
-      if (data.role === 'angel') {
+      // Multi-role users must complete both sets of role-specific fields.
+      if (data.is_angel) {
         if (!data.expected_return) return 'Select a target return multiple.'
         if (!data.timeline)        return 'Select an investment horizon.'
-      } else if (data.role === 'family_office') {
-        if (!data.mandate_type)    return 'Select a mandate type.'
-        if (!data.concentration)   return 'Select a deal structure preference.'
+      }
+      if (data.is_family_office) {
+        if (!data.mandate_type)  return 'Select a mandate type.'
+        if (!data.concentration) return 'Select a deal structure preference.'
       }
       return null
     }
@@ -204,29 +212,46 @@ export default function OnboardingForm({ email, mode = 'onboard', initialData }:
             </div>
 
             <div>
-              <p className="text-xs text-ee-muted mb-2 font-data uppercase tracking-wider">I am a<Req /></p>
+              <p className="text-xs text-ee-muted mb-2 font-data uppercase tracking-wider">I invest as<Req /></p>
+              <p className="text-[11px] text-ee-muted mb-3 leading-relaxed">
+                Pick all that apply. Members who invest in both capacities can switch context on the dashboard.
+              </p>
               <div className="grid grid-cols-2 gap-3">
-                {(['angel', 'family_office'] as const).map(r => (
-                  <button
-                    key={r}
-                    type="button"
-                    onClick={() => set('role', r)}
-                    className={`p-4 rounded-lg border text-left transition-all ${
-                      data.role === r
-                        ? 'border-ee-gold bg-ee-gold/10 text-ee-gold'
-                        : 'border-ee-border text-ee-primary hover:border-ee-gold/40'
-                    }`}
-                  >
-                    <p className="font-semibold text-sm">
-                      {r === 'angel' ? 'Angel Investor' : 'Family Office'}
-                    </p>
-                    <p className="text-xs text-ee-muted mt-0.5">
-                      {r === 'angel'
-                        ? 'Individual deploying personal capital'
-                        : 'Multi-generational wealth management'}
-                    </p>
-                  </button>
-                ))}
+                {([
+                  { key: 'is_angel',         label: 'Angel Investor', desc: 'Individual deploying personal capital' },
+                  { key: 'is_family_office', label: 'Family Office',  desc: 'Multi-generational wealth management' },
+                ] as const).map(opt => {
+                  const checked = data[opt.key]
+                  return (
+                    <button
+                      key={opt.key}
+                      type="button"
+                      onClick={() => set(opt.key, !checked)}
+                      aria-pressed={checked}
+                      className={`p-4 rounded-lg border text-left transition-all ${
+                        checked
+                          ? 'border-ee-gold bg-ee-gold/10 text-ee-gold'
+                          : 'border-ee-border text-ee-primary hover:border-ee-gold/40'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="font-semibold text-sm">{opt.label}</p>
+                          <p className="text-xs text-ee-muted mt-0.5">{opt.desc}</p>
+                        </div>
+                        <span className={`shrink-0 mt-0.5 w-4 h-4 rounded border flex items-center justify-center ${
+                          checked ? 'bg-ee-gold border-ee-gold' : 'border-ee-border'
+                        }`}>
+                          {checked && (
+                            <svg className="w-3 h-3 text-ee-bg" viewBox="0 0 16 16" fill="none">
+                              <path d="M3 8l3 3 7-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                            </svg>
+                          )}
+                        </span>
+                      </div>
+                    </button>
+                  )
+                })}
               </div>
             </div>
 
@@ -260,13 +285,15 @@ export default function OnboardingForm({ email, mode = 'onboard', initialData }:
               </div>
               <div>
                 <label className="block text-xs text-ee-muted mb-1.5 font-data uppercase tracking-wider">
-                  {data.role === 'angel' ? 'Firm / Fund name' : 'Family office name'}<Req />
+                  {data.is_family_office && !data.is_angel ? 'Family office name'
+                    : data.is_angel && !data.is_family_office ? 'Firm / Fund name'
+                    : 'Firm or family office name'}<Req />
                 </label>
                 <input
                   className="input-field"
                   value={data.firm_name}
                   onChange={e => set('firm_name', e.target.value)}
-                  placeholder={data.role === 'angel' ? 'Horizon Ventures' : 'Chen Family Office'}
+                  placeholder={data.is_family_office && !data.is_angel ? 'Chen Family Office' : 'Horizon Ventures'}
                   maxLength={160}
                   autoComplete="organization"
                   required
@@ -285,7 +312,7 @@ export default function OnboardingForm({ email, mode = 'onboard', initialData }:
                     maxLength={120}
                   />
                 </div>
-                {data.role === 'family_office' && (
+                {data.is_family_office && (
                   <div>
                     <label className="block text-xs text-ee-muted mb-1.5 font-data uppercase tracking-wider">
                       AUM<Req />
@@ -401,17 +428,20 @@ export default function OnboardingForm({ email, mode = 'onboard', initialData }:
           </>
         )}
 
-        {/* Step 4 — Role-specific preferences */}
+        {/* Step 4 — Role-specific preferences. Multi-role members
+            (both Angel + FO) see both sections. */}
         {step === 4 && (
           <>
             <div>
               <h2 className="font-display text-xl text-ee-gold mb-1">
-                {data.role === 'angel' ? 'Return expectations' : 'Mandate & structure'}
+                {data.is_angel && data.is_family_office
+                  ? 'Returns & mandate'
+                  : data.is_angel ? 'Return expectations' : 'Mandate & structure'}
               </h2>
               <p className="text-ee-muted text-sm">Final details to complete your profile.</p>
             </div>
 
-            {data.role === 'angel' ? (
+            {data.is_angel && (
               <>
                 <div>
                   <p className="text-xs text-ee-muted mb-2 font-data uppercase tracking-wider">
@@ -457,8 +487,15 @@ export default function OnboardingForm({ email, mode = 'onboard', initialData }:
                   </div>
                 </div>
               </>
-            ) : (
+            )}
+
+            {data.is_family_office && (
               <>
+                {data.is_angel && (
+                  <div className="pt-4 border-t border-ee-border/40 -mb-2">
+                    <p className="text-[10px] text-ee-muted font-data uppercase tracking-widest">Family office mandate</p>
+                  </div>
+                )}
                 <div>
                   <p className="text-xs text-ee-muted mb-2 font-data uppercase tracking-wider">
                     Mandate type<Req />

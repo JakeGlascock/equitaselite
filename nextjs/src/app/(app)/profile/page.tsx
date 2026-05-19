@@ -147,7 +147,8 @@ export default async function ProfilePage() {
           email={profile.email}
           mode="edit"
           initialData={{
-            role:            profile.role,
+            is_angel:         !!profile.is_angel         || profile.role === 'angel',
+            is_family_office: !!profile.is_family_office || profile.role === 'family_office',
             full_name:       profile.full_name,
             title:           profile.title          ?? '',
             firm_name:       profile.firm_name,

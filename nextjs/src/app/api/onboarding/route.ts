@@ -1,11 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import { queryOne } from '@/lib/db'
+import { query, queryOne } from '@/lib/db'
 import { getEffectiveUserId } from '@/lib/acting-as'
 
 const OnboardingSchema = z.object({
   email:            z.string().email(),
-  role:             z.enum(['angel', 'family_office']),
+  // Multi-role identity (migration 034). At least one must be true.
+  // The legacy `role` field is accepted for backward compat — it's
+  // derived into flags when present and absent flags otherwise.
+  role:             z.enum(['angel', 'family_office']).optional(),
+  is_angel:         z.boolean().optional(),
+  is_family_office: z.boolean().optional(),
   full_name:        z.string().trim().min(2).max(120),
   title:            z.string().trim().max(120).optional(),
   firm_name:        z.string().trim().min(2).max(160),
@@ -30,7 +35,12 @@ const OnboardingSchema = z.object({
       message: 'Maximum check size must be at least the minimum.',
     })
   }
-  if (d.role === 'family_office') {
+  const wantsAngel        = !!d.is_angel         || d.role === 'angel'
+  const wantsFamilyOffice = !!d.is_family_office || d.role === 'family_office'
+  if (!wantsAngel && !wantsFamilyOffice) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['is_angel'], message: 'Pick at least one role.' })
+  }
+  if (wantsFamilyOffice) {
     if (!d.aum) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['aum'], message: 'AUM is required for family offices.' })
     }
@@ -41,7 +51,7 @@ const OnboardingSchema = z.object({
       ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['concentration'], message: 'Deal structure preference is required.' })
     }
   }
-  if (d.role === 'angel') {
+  if (wantsAngel) {
     if (!d.expected_return) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['expected_return'], message: 'Target return multiple is required.' })
     }
@@ -91,6 +101,18 @@ export async function POST(req: NextRequest) {
     )
   }
   const emailPref = d.email_notifications_enabled ?? true
+
+  // Multi-role identity derivation (migration 034). `wantsAngel` /
+  // `wantsFamilyOffice` accept either the legacy `role` field or the
+  // new explicit flags. `primaryRole` keeps the legacy `role` column
+  // in sync (set to the only checked role, or to the legacy value when
+  // both are checked).
+  const wantsAngel        = !!d.is_angel         || d.role === 'angel'
+  const wantsFamilyOffice = !!d.is_family_office || d.role === 'family_office'
+  const primaryRole = (wantsAngel && !wantsFamilyOffice) ? 'angel'
+                    : (wantsFamilyOffice && !wantsAngel) ? 'family_office'
+                    : (d.role ?? (wantsAngel ? 'angel' : 'family_office'))
+
   // membership is set to 'access' on first insert and intentionally NOT
   // included in DO UPDATE — re-saving the profile must not clobber an
   // admin-granted upgrade. If the column hasn't been initialized yet
@@ -105,7 +127,8 @@ export async function POST(req: NextRequest) {
          expected_return, timeline, mandate_type, concentration,
          email_notifications_enabled,
          membership,
-         onboarding_completed
+         onboarding_completed,
+         is_angel, is_family_office
        ) VALUES (
          $1,$2,$3,$4,$5,$6,$7,$8,
          $9,$10,$11,
@@ -113,7 +136,8 @@ export async function POST(req: NextRequest) {
          $15,$16,$17,$18,
          $19,
          'access',
-         TRUE
+         TRUE,
+         $20,$21
        )
        ON CONFLICT (id) DO UPDATE SET
          email=$2, role=$3, full_name=$4, title=$5, firm_name=$6,
@@ -122,20 +146,26 @@ export async function POST(req: NextRequest) {
          check_size_min=$12, check_size_max=$13, risk_tolerance=$14,
          expected_return=$15, timeline=$16, mandate_type=$17, concentration=$18,
          email_notifications_enabled=$19,
-         onboarding_completed=TRUE
+         onboarding_completed=TRUE,
+         is_angel=$20, is_family_office=$21
        RETURNING *`,
       [
-        userId, d.email, d.role, d.full_name, d.title ?? null,
+        userId, d.email, primaryRole, d.full_name, d.title ?? null,
         d.firm_name, d.location ?? null, d.aum ?? null,
         d.sectors, d.stages, d.geography,
         d.check_size_min, d.check_size_max, d.risk_tolerance ?? null,
         d.expected_return ?? null, d.timeline ?? null,
         d.mandate_type ?? null, d.concentration ?? null,
         emailPref,
+        wantsAngel, wantsFamilyOffice,
       ]
     )
   } catch (err: unknown) {
-    if (!(err instanceof Error) || !err.message.includes('membership')) throw err
+    const msg = err instanceof Error ? err.message : ''
+    const isMigrationColumn = msg.includes('membership')
+                           || msg.includes('is_angel')
+                           || msg.includes('is_family_office')
+    if (!isMigrationColumn) throw err
     profile = await queryOne(
       `INSERT INTO profiles (
          id, email, role, full_name, title, firm_name, location, aum,
@@ -157,7 +187,7 @@ export async function POST(req: NextRequest) {
          onboarding_completed=TRUE
        RETURNING *`,
       [
-        userId, d.email, d.role, d.full_name, d.title ?? null,
+        userId, d.email, primaryRole, d.full_name, d.title ?? null,
         d.firm_name, d.location ?? null, d.aum ?? null,
         d.sectors, d.stages, d.geography,
         d.check_size_min, d.check_size_max, d.risk_tolerance ?? null,
@@ -166,6 +196,54 @@ export async function POST(req: NextRequest) {
         emailPref,
       ]
     )
+  }
+
+  // Mirror the mandate to the per-role mandates table (migration 034).
+  // One row per checked investor role; the wizard collects ONE shared
+  // mandate so both rows get the same data on first submit. Users can
+  // differentiate per-role mandates from /profile afterwards.
+  // ON CONFLICT updates so re-submitting the wizard (edit mode) keeps
+  // the mandates rows fresh.
+  const activeRoles: ('angel' | 'family_office')[] = []
+  if (wantsAngel)        activeRoles.push('angel')
+  if (wantsFamilyOffice) activeRoles.push('family_office')
+
+  for (const role of activeRoles) {
+    try {
+      await query(
+        `INSERT INTO mandates (
+           profile_id, role,
+           sectors, stages, geography,
+           check_size_min, check_size_max, risk_tolerance,
+           expected_return, timeline, mandate_type, concentration,
+           aum
+         ) VALUES (
+           $1, $2,
+           $3, $4, $5,
+           $6, $7, $8,
+           $9, $10, $11, $12,
+           $13
+         )
+         ON CONFLICT (profile_id, role) DO UPDATE SET
+           sectors=$3, stages=$4, geography=$5,
+           check_size_min=$6, check_size_max=$7, risk_tolerance=$8,
+           expected_return=$9, timeline=$10, mandate_type=$11, concentration=$12,
+           aum=$13,
+           updated_at=NOW()`,
+        [
+          userId, role,
+          d.sectors, d.stages, d.geography,
+          d.check_size_min, d.check_size_max, d.risk_tolerance ?? null,
+          d.expected_return ?? null, d.timeline ?? null,
+          d.mandate_type ?? null, d.concentration ?? null,
+          d.aum ?? null,
+        ],
+      )
+    } catch {
+      // Pre-034 environment — mandates table doesn't exist yet.
+      // Profile row still has the denormalized mandate from above; the
+      // match algorithm's COALESCE fallback handles it.
+    }
   }
 
   return NextResponse.json(profile, { status: 201 })
