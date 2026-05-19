@@ -100,11 +100,15 @@ function checkDisplay(min: number, max: number): string {
   return `${fmt(min)}–${fmt(max)}`
 }
 
-function IntroAction({ recipientId, recipientFirstName, initial, canSendIntros = true }: {
+function IntroAction({ recipientId, recipientFirstName, initial, canSendIntros = true, viewerIsOffMarket = false }: {
   recipientId: string
   recipientFirstName: string
   initial: IntroState
   canSendIntros?: boolean
+  // When the viewer is off-market, sending an intro reveals their identity
+  // to this recipient. Surface that explicitly in the compose UI so the
+  // click is informed. Same banner shape as IntroActionClient on /match/[id].
+  viewerIsOffMarket?: boolean
 }) {
   const [intro, setIntro]         = useState<IntroState>(initial)
   const [composing, setComposing] = useState(false)
@@ -165,6 +169,16 @@ function IntroAction({ recipientId, recipientFirstName, initial, canSendIntros =
   if (composing) {
     return (
       <div className="w-full space-y-2">
+        {viewerIsOffMarket && (
+          <div className="rounded-md border border-ee-gold/40 bg-ee-gold/10 px-3 py-2 text-[11px] text-ee-gold flex items-start gap-2">
+            <span className="material-symbols-outlined text-sm shrink-0 mt-0.5">visibility</span>
+            <span>
+              You&apos;re in <strong>Off-Market mode</strong>. Sending this reveals your
+              profile to {recipientFirstName} so they can decide. Other members still
+              can&apos;t see you.
+            </span>
+          </div>
+        )}
         <label className="block text-[10px] text-ee-muted font-data uppercase tracking-wider">
           Add a note for {recipientFirstName} (optional)
         </label>
@@ -227,7 +241,7 @@ function IntroAction({ recipientId, recipientFirstName, initial, canSendIntros =
   )
 }
 
-export default function MatchCard({ match, canSendIntros = true }: { match: Match; canSendIntros?: boolean }) {
+export default function MatchCard({ match, canSendIntros = true, viewerIsOffMarket = false }: { match: Match; canSendIntros?: boolean; viewerIsOffMarket?: boolean }) {
   const { score } = match
   const color = LABEL_COLOR[score.label]
 
@@ -317,6 +331,7 @@ export default function MatchCard({ match, canSendIntros = true }: { match: Matc
             recipientFirstName={match.fullName.split(' ')[0]}
             initial={match.intro}
             canSendIntros={canSendIntros}
+            viewerIsOffMarket={viewerIsOffMarket}
           />
         </div>
       </div>

@@ -63,6 +63,10 @@ export interface DbProfile {
   // Optional — present iff the membership column has been initialized.
   // Drives priority placement in match sort. Null/missing = lowest priority.
   membership?: Tier | null
+  // Off-Market mode (migration 033). Present on `me` so the dashboard
+  // can pass it to MatchCard for the intro-reveal banner. Not used in
+  // candidate rows directly (those are already filtered by visibility).
+  is_off_market?: boolean | null
 }
 
 interface IntroRow {
@@ -154,10 +158,20 @@ function toCandidateProfile(p: DbProfile): Candidate {
 }
 
 export async function getMe(userId: string): Promise<DbProfile | null> {
-  return queryOne<DbProfile>(
-    `SELECT ${PROFILE_COLUMNS} FROM profiles WHERE id = $1`,
-    [userId]
-  )
+  // Try the full SELECT first (includes is_off_market from migration 033);
+  // fall back without it on pre-033 environments. is_off_market is only
+  // used to drive the intro-reveal banner — safe to default to null.
+  try {
+    return await queryOne<DbProfile>(
+      `SELECT ${PROFILE_COLUMNS}, is_off_market FROM profiles WHERE id = $1`,
+      [userId]
+    )
+  } catch {
+    return queryOne<DbProfile>(
+      `SELECT ${PROFILE_COLUMNS} FROM profiles WHERE id = $1`,
+      [userId]
+    )
+  }
 }
 
 export async function getCandidates(me: DbProfile): Promise<DbProfile[]> {

@@ -35,7 +35,7 @@ export default async function DiscoveryPage() {
           </p>
         </div>
 
-        <DiscoveryList matches={matches} />
+        <DiscoveryList matches={matches} viewerIsOffMarket={!!me.is_off_market} />
       </div>
     </div>
   )

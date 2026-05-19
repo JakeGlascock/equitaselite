@@ -108,7 +108,7 @@ export default async function DashboardPage() {
         ) : (
           <div data-tour="match-list" className="space-y-4">
             {matches.map(m => (
-              <MatchCard key={m.id} match={m} canSendIntros={quota.ok} />
+              <MatchCard key={m.id} match={m} canSendIntros={quota.ok} viewerIsOffMarket={!!me.is_off_market} />
             ))}
           </div>
         )}

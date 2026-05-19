@@ -28,7 +28,7 @@ function Chip({ label, selected, onClick }: { label: string; selected: boolean; 
   )
 }
 
-export default function DiscoveryList({ matches }: { matches: MatchView[] }) {
+export default function DiscoveryList({ matches, viewerIsOffMarket = false }: { matches: MatchView[]; viewerIsOffMarket?: boolean }) {
   const [search, setSearch] = useState('')
   const [sectors, setSectors] = useState<string[]>([])
   const [stages, setStages] = useState<string[]>([])
@@ -136,7 +136,7 @@ export default function DiscoveryList({ matches }: { matches: MatchView[] }) {
         </div>
       ) : (
         <div className="space-y-4">
-          {filtered.map(m => <MatchCard key={m.id} match={m} />)}
+          {filtered.map(m => <MatchCard key={m.id} match={m} viewerIsOffMarket={viewerIsOffMarket} />)}
         </div>
       )}
     </div>
