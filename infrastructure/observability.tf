@@ -124,13 +124,13 @@ resource "aws_cloudwatch_metric_alarm" "rds_free_storage" {
 # way — until confirmed, the subscription stays in PendingConfirmation
 # state and alarms fire into the void.
 #
-# Address is a Google Workspace alias. If alerts@ doesn't forward yet,
-# create the alias before this resource is provisioned (or confirm via
-# whichever address it's forwarded to).
+# Address is a Google Workspace alias (alert@, singular — not alerts@).
+# If the alias doesn't forward yet, create it before this resource is
+# provisioned (or confirm via whichever address it's forwarded to).
 resource "aws_sns_topic_subscription" "alerts_email" {
   topic_arn = aws_sns_topic.security_alerts.arn
   protocol  = "email"
-  endpoint  = "alerts@${var.domain_name}"
+  endpoint  = "alert@${var.domain_name}"
 }
 
 # 5. RDS connection pressure. The pg Pool has a max — if we get close
