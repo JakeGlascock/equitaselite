@@ -9,7 +9,13 @@ resource "aws_cloudtrail" "main" {
 
   cloud_watch_logs_group_arn = "${aws_cloudwatch_log_group.cloudtrail.arn}:*"
   cloud_watch_logs_role_arn  = aws_iam_role.cloudtrail.arn
-  sns_topic_name             = aws_sns_topic.security_alerts.name
+  # sns_topic_name intentionally NOT set. When configured, CloudTrail
+  # publishes a delivery notification to SNS on every log-file write
+  # (every ~5 min), which is only useful if there's a downstream Lambda
+  # processor. We don't have one — we just read logs from S3 on demand.
+  # With this set + an email subscriber, the topic becomes a spam cannon.
+  # The real security alarms in this file still fire because they're
+  # metric_alarms on the log group, not the trail's built-in SNS.
 
   event_selector {
     read_write_type           = "All"
