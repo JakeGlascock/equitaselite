@@ -220,7 +220,11 @@ export default function PricingClient({ currentTier }: { currentTier: Tier | nul
                       {fmt(price * 12)}/yr · saves {fmt(plan.monthly * 12 - price * 12)}
                     </p>
                   )}
-                  <p className="text-sm text-ee-muted mt-3 leading-relaxed">
+                  {/* Pin to a 3-line floor on md+ so all three description
+                      blocks reserve the same height and every row below
+                      (CTA + features) lines up across cards. Mobile stays
+                      naturally sized since cards stack vertically there. */}
+                  <p className="text-sm text-ee-muted mt-3 leading-relaxed md:min-h-[5rem]">
                     {plan.description}
                   </p>
                 </div>
