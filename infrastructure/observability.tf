@@ -117,6 +117,22 @@ resource "aws_cloudwatch_metric_alarm" "rds_free_storage" {
   treat_missing_data  = "notBreaching"
 }
 
+# Email subscription on the SNS topic so alarms actually reach a human.
+# Confirmation is a one-time manual step: AWS sends a "Confirm
+# subscription" email to the endpoint when this resource is created;
+# the recipient clicks the link to activate. terraform succeeds either
+# way — until confirmed, the subscription stays in PendingConfirmation
+# state and alarms fire into the void.
+#
+# Address is a Google Workspace alias. If alerts@ doesn't forward yet,
+# create the alias before this resource is provisioned (or confirm via
+# whichever address it's forwarded to).
+resource "aws_sns_topic_subscription" "alerts_email" {
+  topic_arn = aws_sns_topic.security_alerts.arn
+  protocol  = "email"
+  endpoint  = "alerts@${var.domain_name}"
+}
+
 # 5. RDS connection pressure. The pg Pool has a max — if we get close
 # to RDS's per-instance max_connections, new requests start queueing
 # or failing. db.t4g.medium tops out around 87 max_connections.
