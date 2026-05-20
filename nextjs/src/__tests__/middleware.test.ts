@@ -55,6 +55,14 @@ describe('middleware: isPublic', () => {
     })
   })
 
+  describe('Apple App Site Association (Phase M3)', () => {
+    it('treats /.well-known/apple-app-site-association as public', () => {
+      // iOS fetches this on install without any session — if it ever
+      // redirects to /signin, Universal Links silently break.
+      expect(isPublic('/.well-known/apple-app-site-association')).toBe(true)
+    })
+  })
+
   describe('demo magic-link entry + interstitials', () => {
     it.each([
       '/try',

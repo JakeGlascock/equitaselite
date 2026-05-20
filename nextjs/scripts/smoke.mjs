@@ -29,6 +29,10 @@ const PREVIEW_MUTATION_HEADERS = { 'Content-Type': 'application/json', 'Cookie':
 const CHECKS = [
   // ───── Health + public pages ─────
   { name: 'health',          path: '/api/health',      status: 200, contains: '"status":"ok"' },
+  // Phase M3 — Apple App Site Association. iOS fetches this file once on
+  // install to enable Universal Links. Must return 200 + JSON with no
+  // redirects. Always reachable without auth.
+  { name: 'aasa',            path: '/.well-known/apple-app-site-association', status: 200, contains: 'applinks' },
   { name: 'landing',         path: '/',                status: 200, contains: 'Equitas Elite' },
   { name: 'signin',          path: '/signin',          status: 200, contains: 'Welcome back' },
   { name: 'pricing',         path: '/pricing',         status: 200, contains: 'Sovereign' },
@@ -65,6 +69,12 @@ const CHECKS = [
   // to /signin like the rest of /admin — proves the route is wired AND
   // that it isn't accidentally on the public-API list.
   { name: 'gate-test-fixture-onboarding-start', path: '/api/admin/test-fixtures/onboarding/start', method: 'POST', body: '', status: [302, 307, 308], redirectContains: '/signin', followRedirect: false },
+
+  // Phase M2 — device-token endpoints. Both auth-gated; unauth callers
+  // must redirect to /signin. A leak here lets anyone register an
+  // arbitrary push token against any user (or revoke someone else's).
+  { name: 'gate-devices-register',   path: '/api/devices/register',   method: 'POST', body: '', status: [302, 307, 308], redirectContains: '/signin', followRedirect: false },
+  { name: 'gate-devices-unregister', path: '/api/devices/unregister', method: 'POST', body: '', status: [302, 307, 308], redirectContains: '/signin', followRedirect: false },
 
   // ───── Public demo (migration 036 / Phase F) ─────
   // /try is publicly accessible — no auth required.
@@ -165,6 +175,16 @@ const CHECKS = [
     name: 'preview-blocks-concierge-annotation-delete',
     path: '/api/concierge/annotations/00000000-0000-0000-0000-000000000000',
     method: 'DELETE', headers: PREVIEW_MUTATION_HEADERS,
+    status: 403, contains: 'Preview mode',
+  },
+  // Phase M2 — preview-mode demo sessions must not be able to register
+  // a push token. The register handler explicitly returns 403 on the
+  // preview-mode header so a leaked demo link can't quietly attach a
+  // device to the demo profile.
+  {
+    name: 'preview-blocks-device-register',
+    path: '/api/devices/register', method: 'POST', headers: PREVIEW_MUTATION_HEADERS,
+    body: '{"platform":"ios","token":"abcdef0123456789abcdef0123456789"}',
     status: 403, contains: 'Preview mode',
   },
 

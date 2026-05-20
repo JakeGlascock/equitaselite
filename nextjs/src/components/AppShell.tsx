@@ -10,6 +10,7 @@ import WalkthroughMobile from './WalkthroughMobile'
 import PreviewBanner from './PreviewBanner'
 import PreviewWalkthroughDriver from './PreviewWalkthroughDriver'
 import PreviewWalkthroughMobile from './PreviewWalkthroughMobile'
+import CapacitorBridge from './CapacitorBridge'
 
 type Tier = 'access' | 'select' | 'sovereign'
 
@@ -126,6 +127,11 @@ export default function AppShell({
 
   return (
     <div className="min-h-screen">
+      {/* Capacitor native bridge — no-op on web; inside the iOS wrapper
+          this registers for APNs push and wires deep-link handling.
+          Skipped in preview mode (demo sessions have no real user). */}
+      {!previewMode && <CapacitorBridge />}
+
       {/* Investor-preview banner — takes precedence in the unlikely case both flags are set */}
       {previewMode && (
         <PreviewBanner viewingAsName={user.fullName} viewingAsRole={user.role} />

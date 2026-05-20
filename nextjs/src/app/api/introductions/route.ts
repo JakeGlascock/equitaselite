@@ -4,6 +4,7 @@ import { query, queryOne } from '@/lib/db'
 import { emailIntroRequested } from '@/lib/email'
 import { getEffectiveUserId } from '@/lib/acting-as'
 import { checkIntroQuota } from '@/lib/membership'
+import { sendPushToUser } from '@/lib/push'
 
 const CreateSchema = z.object({
   recipient_id: z.string().min(1),
@@ -99,6 +100,18 @@ export async function POST(req: NextRequest) {
         // Email (gated on recipient's email_notifications_enabled inside the helper)
         try { await emailIntroRequested(recipient_id, me.full_name, me.firm_name, trimmed || null) }
         catch (err) { console.error('email send failed:', err) }
+
+        // Native push (Phase M2). Stub provider just logs in CloudWatch
+        // today; APNs/FCM transport plugs in once the Apple push key is
+        // uploaded. Wrapped to keep an outage from blocking the intro.
+        try {
+          await sendPushToUser(recipient_id, {
+            title:    `${me.full_name} requested an introduction`,
+            body,
+            url:      '/connections',
+            category: 'intro',
+          })
+        } catch (err) { console.error('push send failed:', err) }
       }
     } catch { /* notifications table not yet initialized */ }
 
