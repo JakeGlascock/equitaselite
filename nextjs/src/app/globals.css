@@ -40,6 +40,14 @@
     box-sizing: border-box;
   }
 
+  html {
+    /* Tells the browser to render native form controls (selects,
+       scrollbars, date pickers) in dark mode. Most visible on iOS
+       inside the Capacitor wrapper, where the native <select> wheel
+       picker drum and inputs default to light otherwise. */
+    color-scheme: dark;
+  }
+
   body {
     background-color: var(--ee-bg);
     color: var(--ee-primary);
