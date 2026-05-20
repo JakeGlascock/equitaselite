@@ -9,9 +9,10 @@
 -- which device received which intro/event push. Push dispatch filters on
 -- revoked_at IS NULL.
 
+-- profiles.id is TEXT (Cognito sub stored as-is); the FK column matches.
 CREATE TABLE IF NOT EXISTS device_tokens (
   id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id      UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  user_id      TEXT NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
   platform     TEXT NOT NULL CHECK (platform IN ('ios', 'android', 'web')),
   token        TEXT NOT NULL,
   app_version  TEXT,
