@@ -316,7 +316,17 @@ export default function AppShell({
           >
             <div className="p-4 border-b border-ee-outline/30">
               <p className="text-[13px] font-semibold text-ee-primary truncate">{user.fullName}</p>
-              <p className="font-data text-[10px] tracking-wider text-ee-gold uppercase">{roleLabel}</p>
+              <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                <p className="font-data text-[10px] tracking-wider text-ee-gold uppercase">{roleLabel}</p>
+                <Link
+                  href="/pricing"
+                  onClick={() => setMobileOpen(false)}
+                  title={`${TIER_LABEL[user.tier]} plan — tap to manage`}
+                  className={`font-data text-[9px] font-bold tracking-widest uppercase px-2 py-0.5 rounded-full border ${TIER_STYLE[user.tier]}`}
+                >
+                  {TIER_LABEL[user.tier]}
+                </Link>
+              </div>
             </div>
             <nav className="flex flex-col gap-0.5 p-3 flex-grow overflow-y-auto">
               {NAV_ITEMS.map(item => (
@@ -334,6 +344,15 @@ export default function AppShell({
               ))}
             </nav>
             <div className="p-3 space-y-1 border-t border-ee-outline/30">
+              {user.isAdmin && (
+                <Link
+                  href="/admin"
+                  onClick={() => setMobileOpen(false)}
+                  className="flex items-center gap-3 px-3 py-2.5 rounded-lg font-data text-[11px] font-bold tracking-widest uppercase text-ee-gold bg-ee-gold/10 hover:bg-ee-gold/20"
+                >
+                  <span className="material-symbols-outlined text-lg">shield_person</span>Admin
+                </Link>
+              )}
               <Link
                 href="/profile"
                 onClick={() => setMobileOpen(false)}
