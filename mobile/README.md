@@ -57,14 +57,39 @@ cocoapods` and follow that plugin's docs.
 | Bundle ID     | `com.equitaselite.app` (matches App ID) |
 | Hybrid URL    | `https://equitaselite.com`           |
 
+## Running on a physical iPhone (no push required)
+
+For UI / navigation testing on hardware, you don't need any of the
+APNs setup. Plug the phone in (or pair wirelessly via
+Window → Devices & Simulators in Xcode), then:
+
+1. Xcode → Top device selector → pick the connected phone.
+2. App target → Signing & Capabilities → set Team to your personal
+   Apple Developer team. Xcode generates a provisioning profile
+   automatically.
+3. ▶ Run. First launch will fail to launch the app — trust the
+   developer cert on the phone: Settings → General → VPN & Device
+   Management → tap your developer cert → Trust.
+4. Re-run. App opens, loads `https://equitaselite.com` in the
+   embedded WebView. Sign in with a real account to exercise the
+   authed flows.
+
+Push will fire `[capacitor] push permission not granted` in console
+until the APNs key + SNS Platform Application + `terraform apply` are
+done — see the handoff list in `project_equitaselite_mobile_plan.md`.
+The app itself still works without push.
+
 ## Phases
 
 - **M0** — boilerplate legal (/terms + /privacy) — shipped 2026-05-20
-- **M1** — Capacitor scaffold (this directory) — in progress
-- **M2** — core native capabilities (push + Face ID + share)
-- **M2b** — maximalist §4.2 belt-and-braces (widget + contacts + haptics + calendar + Spotlight)
-- **M3** — Universal Links + polish
-- **M4** — App Store submission
+- **M1** — Capacitor scaffold + safe-area chrome — shipped 2026-05-20
+- **M2** — push + Face ID + share — shipped 2026-05-20 (SNS transport
+  live behind `PUSH_PROVIDER=sns`; stub mode is the default)
+- **M2b** — maximalist §4.2 belt-and-braces (widget + contacts + haptics + calendar + Spotlight) — deferred
+- **M3** — Universal Links + polish — AASA route shipped; Xcode
+  Associated Domains capability pending
+- **M4** — App Store submission — icon + splash assets shipped;
+  screenshots + listing pending
 
 See `project_equitaselite_mobile_plan.md` in memory for the full
-plan + locked decisions.
+plan + locked decisions + Apple-side handoff list.
