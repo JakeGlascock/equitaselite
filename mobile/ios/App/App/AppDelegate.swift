@@ -7,7 +7,11 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     var window: UIWindow?
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
-        // Override point for customization after application launch.
+        // Brand-navy fills the safe-area gap above the WebView (status bar / notch / dynamic
+        // island area). Without this the system default (white in light mode) shows through
+        // and looks like a layout bug. RGB matches `--ee-bg` = #031427.
+        let brandNavy = UIColor(red: 0x03/255.0, green: 0x14/255.0, blue: 0x27/255.0, alpha: 1.0)
+        self.window?.backgroundColor = brandNavy
         return true
     }
 
