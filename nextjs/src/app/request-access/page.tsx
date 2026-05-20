@@ -2,8 +2,8 @@ import Link from 'next/link'
 import RequestForm from './RequestForm'
 
 export const metadata = {
-  title: 'Request access — Equitas Elite',
-  description: 'Apply for an invitation to Equitas Elite, the private platform for institutional investor alignment.',
+  title: 'Join the waitlist — Equitas Elite',
+  description: 'Reserve your spot in the next Equitas Elite cohort. Invitation-only, reviewed manually, limited seats.',
 }
 
 export default function RequestAccessPage() {
@@ -26,14 +26,14 @@ export default function RequestAccessPage() {
         <div className="max-w-xl mx-auto space-y-8">
           <div className="text-center">
             <p className="font-data text-[11px] tracking-[0.2em] uppercase text-ee-gold mb-3">
-              Invitation only
+              Invitation only · Limited seats
             </p>
             <h1 className="font-display text-3xl md:text-4xl text-ee-primary leading-tight">
-              Request your invitation
+              Join the waitlist
             </h1>
             <p className="text-ee-muted text-sm mt-3 leading-relaxed">
-              Equitas Elite is reviewed manually before access is granted. Tell us a bit about
-              your firm and we&apos;ll be in touch within two business days.
+              We&apos;re reviewing applications manually and inviting members in cohorts. Share a bit
+              about your firm and mandate &mdash; you&apos;ll hear from us when the next cohort opens.
             </p>
           </div>
 

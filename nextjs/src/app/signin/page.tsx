@@ -123,7 +123,7 @@ export default function LoginPage() {
 
               <p className="text-center text-xs text-ee-muted">
                 Access is by invitation only.{' '}
-                <Link href="/request-access" className="text-ee-gold hover:underline">Request access</Link>
+                <Link href="/request-access" className="text-ee-gold hover:underline">Join the waitlist</Link>
               </p>
               <p className="text-center text-xs text-ee-muted">
                 <a href="/pricing" className="hover:text-ee-primary transition-colors">View membership plans →</a>

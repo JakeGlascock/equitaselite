@@ -52,17 +52,17 @@ export async function POST(req: NextRequest) {
     const notesText = notes ? `\n\nNotes:\n${notes}` : ''
 
     const parts = {
-      eyebrow:  'Access request',
+      eyebrow:  'Waitlist application',
       heading:  `${full_name} (${firm_name})`,
       bodyHtml: `
-        <p style="margin:0 0 12px 0;"><strong style="color:#e9c176;">${escapeHtml(full_name)}</strong> from <strong style="color:#e9c176;">${escapeHtml(firm_name)}</strong> has requested access.</p>
+        <p style="margin:0 0 12px 0;"><strong style="color:#e9c176;">${escapeHtml(full_name)}</strong> from <strong style="color:#e9c176;">${escapeHtml(firm_name)}</strong> joined the waitlist.</p>
         <p style="margin:0;">
           Role: <strong>${escapeHtml(roleLabel)}</strong><br>
           Email: <a href="mailto:${escapeHtml(email)}" style="color:#e9c176;">${escapeHtml(email)}</a>
         </p>
         ${notesHtml}
       `,
-      bodyText:  `${full_name} from ${firm_name} has requested access.\n\nRole: ${roleLabel}\nEmail: ${email}${notesText}`,
+      bodyText:  `${full_name} from ${firm_name} joined the waitlist.\n\nRole: ${roleLabel}\nEmail: ${email}${notesText}`,
       ctaLabel:  'Manage on admin page',
       ctaPath:   '/admin/access-requests',
     }
@@ -73,7 +73,7 @@ export async function POST(req: NextRequest) {
       ReplyToAddresses: [email],
       Content: {
         Simple: {
-          Subject: { Data: `Access request: ${full_name} (${firm_name})`, Charset: 'UTF-8' },
+          Subject: { Data: `Waitlist: ${full_name} (${firm_name})`, Charset: 'UTF-8' },
           Body: {
             Html: { Data: renderStaffEmailHtml(parts), Charset: 'UTF-8' },
             Text: { Data: renderStaffEmailText(parts), Charset: 'UTF-8' },

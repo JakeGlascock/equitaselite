@@ -23,7 +23,7 @@ const PLANS: Plan[] = [
     name:        'Access',
     monthly:     1500,
     description: 'For investors beginning to explore curated deal flow.',
-    cta:         'Request access',
+    cta:         'Join the waitlist',
     highlight:   false,
     features: [
       { label: 'Up to 10 curated matches / month',     included: true },
@@ -44,7 +44,7 @@ const PLANS: Plan[] = [
     name:        'Select',
     monthly:     3750,
     description: 'For active deployers who want to move with conviction.',
-    cta:         'Request access',
+    cta:         'Join the waitlist',
     highlight:   true,
     features: [
       { label: 'Unlimited curated matches',            included: true },
@@ -65,7 +65,7 @@ const PLANS: Plan[] = [
     name:        'Sovereign',
     monthly:     9500,
     description: 'White-glove service for principals who expect more — paired with a credentialed family office practitioner.',
-    cta:         'Request access',
+    cta:         'Join the waitlist',
     highlight:   false,
     features: [
       { label: 'Unlimited curated matches',            included: true },

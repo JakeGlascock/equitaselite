@@ -47,10 +47,13 @@ export default function RequestForm() {
             check
           </span>
         </div>
-        <h2 className="font-display text-2xl text-ee-gold">Request received</h2>
+        <h2 className="font-display text-2xl text-ee-gold">You&apos;re on the waitlist</h2>
         <p className="text-ee-muted text-sm max-w-md mx-auto leading-relaxed">
-          Thanks, {fullName.split(' ')[0]}. We&apos;ll review your request and respond within
-          two business days. Look out for an email from <span className="text-ee-primary">system@equitaselite.com</span>.
+          Thanks, {fullName.split(' ')[0]}. We&apos;re reviewing applications and inviting members
+          in cohorts &mdash; we&apos;ll be in touch from <span className="text-ee-primary">system@equitaselite.com</span> when
+          your seat opens up. In the meantime,{' '}
+          <Link href="/try" className="text-ee-gold hover:underline">walk through a private demo</Link>{' '}
+          while you wait.
         </p>
         <Link href="/" className="inline-block btn-ghost mt-2">Back to home</Link>
       </div>
@@ -140,11 +143,11 @@ export default function RequestForm() {
         disabled={loading || !role || !email || !fullName || !firmName}
         className="btn-gold w-full justify-center disabled:opacity-40 disabled:cursor-not-allowed"
       >
-        {loading ? 'Submitting…' : 'Request access'}
+        {loading ? 'Submitting…' : 'Join the waitlist'}
       </button>
 
       <p className="text-xs text-ee-muted text-center leading-relaxed">
-        We&apos;ll only use this information to evaluate your request and reach out.
+        We&apos;ll only use this information to evaluate your application and reach out.
       </p>
     </form>
   )

@@ -60,7 +60,7 @@ function Hero() {
             href="/request-access"
             className="btn-ghost inline-flex items-center justify-center"
           >
-            Request access
+            Join the waitlist
           </Link>
           <Link
             href="/signin"
@@ -274,8 +274,8 @@ function FAQ() {
       a: 'Both sides receive each other’s primary email and can take the conversation off-platform. Equitas Elite makes the introduction, not the deal — we never touch your transaction.',
     },
     {
-      q: 'How do I request access?',
-      a: <>Submit the <Link className="text-ee-gold hover:underline" href="/request-access">access request form</Link> with a brief note about your firm and mandate. We typically respond within two business days.</>,
+      q: 'How do I join?',
+      a: <>Equitas Elite is reviewed manually before access is granted. <Link className="text-ee-gold hover:underline" href="/request-access">Join the waitlist</Link> with a brief note about your firm and mandate; we&apos;ll invite you as we onboard the next cohort.</>,
     },
   ]
   return (
@@ -322,14 +322,14 @@ function FinalCTA() {
           Ready to find your <span className="text-ee-gold">aligned counterparties</span>?
         </h2>
         <p className="text-ee-muted mt-4 text-base">
-          Membership is invitation-only and reviewed manually. Reach out and we&apos;ll be in touch.
+          Membership is invitation-only and reviewed manually. Join the waitlist now &mdash; we&apos;re onboarding the next cohort shortly.
         </p>
         <div className="mt-8 flex flex-col sm:flex-row gap-3 justify-center">
           <Link
             href="/request-access"
             className="btn-gold inline-flex items-center justify-center gap-2"
           >
-            Request access
+            Join the waitlist
             <span className="material-symbols-outlined text-base">arrow_forward</span>
           </Link>
           <Link href="/signin" className="btn-ghost inline-flex items-center justify-center">

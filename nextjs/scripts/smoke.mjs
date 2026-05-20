@@ -32,7 +32,7 @@ const CHECKS = [
   { name: 'landing',         path: '/',                status: 200, contains: 'Equitas Elite' },
   { name: 'signin',          path: '/signin',          status: 200, contains: 'Welcome back' },
   { name: 'pricing',         path: '/pricing',         status: 200, contains: 'Sovereign' },
-  { name: 'request-access',  path: '/request-access',  status: 200, contains: 'Request access' },
+  { name: 'request-access',  path: '/request-access',  status: 200, contains: 'Join the waitlist' },
   { name: 'privacy',         path: '/privacy',         status: 200, contains: 'Privacy' },
   // /unsubscribe with no token still renders (shows "missing or malformed").
   // /unsubscribe with a real token would actually disable that user's mail — never run that in smoke.
