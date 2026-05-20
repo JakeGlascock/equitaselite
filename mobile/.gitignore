@@ -1,0 +1,23 @@
+# Node
+node_modules/
+*.log
+
+# macOS
+.DS_Store
+
+# Xcode build artifacts
+ios/App/build/
+ios/App/DerivedData/
+ios/App/Pods/
+ios/App/Podfile.lock
+**/xcuserdata/
+*.xcuserstate
+ios/App/App.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
+
+# Capacitor sync artifacts (generated from www/ + capacitor.config.ts
+# by `npx cap sync ios`; never edit directly)
+ios/App/App/public/
+ios/App/App/capacitor.config.json
+
+# Capacitor caches
+.capacitor/
