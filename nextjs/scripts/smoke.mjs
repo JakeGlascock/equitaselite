@@ -65,6 +65,21 @@ const CHECKS = [
   // that it isn't accidentally on the public-API list.
   { name: 'gate-test-fixture-onboarding-start', path: '/api/admin/test-fixtures/onboarding/start', method: 'POST', body: '', status: [302, 307, 308], redirectContains: '/signin', followRedirect: false },
 
+  // ───── Public demo (migration 036 / Phase F) ─────
+  // /try is publicly accessible — no auth required.
+  { name: 'try-public', path: '/try', status: 200, contains: 'Walk through the platform' },
+  // The interstitial + expired pages render with no auth too.
+  { name: 'try-check-email-public', path: '/try/check-email', status: 200, contains: 'Check your email' },
+  { name: 'try-expired-public',     path: '/try/expired',     status: 200, contains: 'Link not found' },
+  // Magic-link route handler with a bad token redirects to /try/expired.
+  // Tests the path is wired + the bad-shape pre-check fires.
+  { name: 'try-start-bad-token', path: '/try/start/notatoken', status: [302, 307, 308], redirectContains: '/try/expired', followRedirect: false },
+  // POST /api/demo/signup with no body → schema error 400.
+  // (The endpoint is deliberately public so unauthenticated prospects
+  // can hit it; the WAF auth-tier rate limit + Turnstile + magic-link
+  // verify are the layered defenses, not the mutation-block.)
+  { name: 'demo-signup-empty', path: '/api/demo/signup', method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}', status: 400 },
+
   // ───── Off-Market mode (migration 033) ─────
   // /pricing must list the feature under the Sovereign tier — surfacing
   // it is the only way prospects know the privacy story exists.

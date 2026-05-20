@@ -13,9 +13,9 @@ const JWKS = ISSUER
   ? createRemoteJWKSet(new URL(`${ISSUER}/.well-known/jwks.json`))
   : null
 
-const PUBLIC_PREFIXES = ['/_next/', '/favicon.ico', '/logo.png', '/fonts/', '/preview/', '/deck/']
-const PUBLIC_EXACT    = ['/', '/signin', '/pricing', '/request-access', '/unsubscribe', '/privacy', '/preview-denied', '/deck-denied']
-const PUBLIC_API      = ['/api/auth/', '/api/health', '/api/request-access', '/api/unsubscribe', '/api/preview/', '/api/feedback/']
+const PUBLIC_PREFIXES = ['/_next/', '/favicon.ico', '/logo.png', '/fonts/', '/preview/', '/deck/', '/try/']
+const PUBLIC_EXACT    = ['/', '/signin', '/pricing', '/request-access', '/unsubscribe', '/privacy', '/preview-denied', '/deck-denied', '/try']
+const PUBLIC_API      = ['/api/auth/', '/api/health', '/api/request-access', '/api/unsubscribe', '/api/preview/', '/api/feedback/', '/api/demo/']
 
 // Exported so the auth-gate test suite can assert which paths are reachable
 // without a Cognito session. If you add a new public route, add it to the

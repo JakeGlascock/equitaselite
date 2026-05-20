@@ -50,11 +50,17 @@ function Hero() {
         </p>
         <div className="mt-10 flex flex-col sm:flex-row gap-3 justify-center">
           <Link
-            href="/request-access"
+            href="/try"
             className="btn-gold inline-flex items-center justify-center gap-2"
           >
-            Request access
+            See the platform
             <span className="material-symbols-outlined text-base">arrow_forward</span>
+          </Link>
+          <Link
+            href="/request-access"
+            className="btn-ghost inline-flex items-center justify-center"
+          >
+            Request access
           </Link>
           <Link
             href="/signin"
@@ -63,6 +69,10 @@ function Hero() {
             I have an account
           </Link>
         </div>
+        <p className="mt-4 text-[12px] text-ee-muted/80">
+          Walk through a private demo as any role — Angel, Family Office, Foundation, DAF, or Next Gen.
+          Demo content only; no real-member data.
+        </p>
       </div>
     </section>
   )

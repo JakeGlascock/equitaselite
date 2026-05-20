@@ -16,6 +16,7 @@ describe('middleware: isPublic', () => {
       '/privacy',
       '/preview-denied',
       '/deck-denied',
+      '/try',
     ])('treats %s as public', (path) => {
       expect(isPublic(path)).toBe(true)
     })
@@ -47,7 +48,19 @@ describe('middleware: isPublic', () => {
       '/api/unsubscribe',
       '/api/preview/clear',
       '/api/feedback/report',
+      '/api/demo/signup',
     ])('treats %s as public', (path) => {
+      expect(isPublic(path)).toBe(true)
+    })
+  })
+
+  describe('demo magic-link entry + interstitials', () => {
+    it.each([
+      '/try',
+      '/try/check-email',
+      '/try/expired',
+      '/try/start/0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
+    ])('treats %s as public (signup + magic-link round-trip)', (path) => {
       expect(isPublic(path)).toBe(true)
     })
   })
