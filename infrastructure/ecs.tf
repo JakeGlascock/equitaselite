@@ -61,6 +61,20 @@ resource "aws_ecs_task_definition" "app" {
       # to "the Equitas Elite concierge team" with this address as the
       # mailto target.
       { name = "DEFAULT_CONCIERGE_EMAIL", value = "chelsea@logictry.com" },
+
+      # ── Native push (Phase M2) ───────────────────────────────────
+      # PUSH_PROVIDER:
+      #   ""    / "stub" → lib/push.ts logs intent only (default;
+      #                    keeps the hook compiling pre-APNs setup)
+      #   "sns"          → real AWS SNS Mobile Push dispatch
+      # SNS_APNS_PLATFORM_APP_ARN is the Platform Application ARN
+      # created in the AWS Console after uploading the APNs .p8 key.
+      # See `push.tf` for the variable + IAM scoping.
+      { name = "PUSH_PROVIDER",             value = var.push_provider },
+      { name = "SNS_APNS_PLATFORM_APP_ARN", value = var.apns_platform_app_arn },
+      # Apple Team ID — pasted into the AASA payload at request time
+      # so Universal Links activate without redeploying source.
+      { name = "APPLE_TEAM_ID",             value = var.apple_team_id },
     ]
 
     secrets = [

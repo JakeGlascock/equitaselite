@@ -90,3 +90,25 @@ variable "github_repo" {
   type        = string
   default     = "JakeGlascock/equitaselite"
 }
+
+# ── iOS native push (Phase M2) + Universal Links (Phase M3) ─────────
+# These are all safely-empty by default so a fresh apply works without
+# Apple Developer setup. Fill in once the APNs key is uploaded and the
+# SNS Platform Application is created.
+variable "push_provider" {
+  description = "Push transport: '' / 'stub' (log-only, default) or 'sns' (AWS SNS Mobile Push)"
+  type        = string
+  default     = ""
+}
+
+variable "apns_platform_app_arn" {
+  description = "ARN of the SNS Platform Application created from the APNs .p8 key. Empty disables SNS dispatch."
+  type        = string
+  default     = ""
+}
+
+variable "apple_team_id" {
+  description = "Apple Developer Team ID. Composed with the iOS bundle id in the AASA file to activate Universal Links."
+  type        = string
+  default     = ""
+}

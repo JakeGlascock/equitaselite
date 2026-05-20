@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { query } from '@/lib/db'
+import { ensureSnsEndpoint } from '@/lib/push'
 
 // Token shape varies by platform but both APNs and FCM tokens are
 // short opaque strings well under 1KB. We bound conservatively to
@@ -29,16 +30,22 @@ export async function POST(req: NextRequest) {
 
   const { platform, token, app_version } = parsed.data
 
+  // Best-effort SNS endpoint creation. No-ops outside iOS or when
+  // PUSH_PROVIDER != 'sns'. A null result keeps the row registered;
+  // we'll retry the endpoint creation on the next register call.
+  const endpointArn = await ensureSnsEndpoint(platform, token)
+
   await query(
-    `INSERT INTO device_tokens (user_id, platform, token, app_version)
-          VALUES ($1, $2, $3, $4)
+    `INSERT INTO device_tokens (user_id, platform, token, app_version, sns_endpoint_arn)
+          VALUES ($1, $2, $3, $4, $5)
      ON CONFLICT (platform, token) DO UPDATE
-        SET user_id      = EXCLUDED.user_id,
-            app_version  = EXCLUDED.app_version,
-            updated_at   = NOW(),
-            last_seen_at = NOW(),
-            revoked_at   = NULL`,
-    [userId, platform, token, app_version ?? null],
+        SET user_id          = EXCLUDED.user_id,
+            app_version      = EXCLUDED.app_version,
+            sns_endpoint_arn = COALESCE(EXCLUDED.sns_endpoint_arn, device_tokens.sns_endpoint_arn),
+            updated_at       = NOW(),
+            last_seen_at     = NOW(),
+            revoked_at       = NULL`,
+    [userId, platform, token, app_version ?? null, endpointArn],
   )
 
   return NextResponse.json({ ok: true })
