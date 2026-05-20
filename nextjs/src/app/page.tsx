@@ -3,7 +3,7 @@ import Link from 'next/link'
 export const metadata = {
   title: 'Equitas Elite — Where institutional capital meets verified mandate',
   description:
-    'A private, invitation-only platform connecting angel investors and family offices through mandate-matched introductions.',
+    'A private, invitation-only platform connecting angels, family offices, foundations, DAFs, and next-gen allocators through mandate-matched introductions.',
 }
 
 function NavBar() {
@@ -42,11 +42,11 @@ function Hero() {
           Invitation only
         </p>
         <h1 className="font-display text-4xl sm:text-5xl md:text-6xl text-ee-primary leading-[1.1] max-w-3xl mx-auto">
-          Where angel investors and family offices find each other{' '}
+          Where allocators find each other{' '}
           <span className="text-ee-gold">on purpose, not by accident</span>.
         </h1>
         <p className="mt-6 text-ee-muted text-base sm:text-lg max-w-2xl mx-auto leading-relaxed">
-          A private, invitation-only platform that turns declared mandates into intentional introductions.
+          A private, invitation-only platform for angels, family offices, foundations, DAFs, and next-gen allocators &mdash; turning declared mandates into intentional introductions.
         </p>
         <div className="mt-10 flex flex-col sm:flex-row gap-3 justify-center">
           <Link
@@ -168,13 +168,13 @@ function ValueProps() {
     },
     {
       icon: 'tune',
-      title: 'Mandate-first scoring',
-      desc: 'Matches are ranked by sector, stage, check size, and geography overlap — not vanity metrics or paid placement.',
+      title: 'Six-pillar mandate scoring',
+      desc: 'Matches scored across strategic scope, capital mechanics, time and risk, governance, counterparty profile, and values — each weighted by your own mandate. The same counterparty can rank differently for each side.',
     },
     {
       icon: 'lock',
       title: 'Private by default',
-      desc: 'Your profile is visible only to opposite-role counterparties whose mandates you also match. Two-factor on every account.',
+      desc: 'Compatibility-matched counterparties only — angels see FOs, foundations, DAFs, and next-gen peers; FOs see the right opposite mix. Sovereign members can opt into Off-Market mode and stay invisible until they reach out. Two-factor on every account.',
     },
     {
       icon: 'support_agent',
@@ -217,9 +217,9 @@ function ValueProps() {
 
 function PricingTeaser() {
   const tiers = [
-    { name: 'Access',    price: '$1,200',  blurb: 'Curated deal flow' },
-    { name: 'Select',    price: '$3,000',  blurb: 'Active deployment',  featured: true },
-    { name: 'Sovereign', price: '$7,500',  blurb: 'White-glove service' },
+    { name: 'Access',    price: '$1,500',  blurb: 'Curated deal flow' },
+    { name: 'Select',    price: '$3,750',  blurb: 'Active deployment',  featured: true },
+    { name: 'Sovereign', price: '$9,500',  blurb: 'White-glove service' },
   ]
   return (
     <section className="py-20 md:py-24">
@@ -259,15 +259,15 @@ function FAQ() {
   const items = [
     {
       q: 'Who is Equitas Elite for?',
-      a: 'Active angel investors and family offices. Every account is approved before it joins the platform — we manually vet for institutional mandate, track record, and deployment cadence.',
+      a: 'Angels, family offices, family foundations, donor-advised funds, and next-gen allocators. Every account is approved before it joins the platform — we manually vet for institutional mandate, track record, and deployment cadence.',
     },
     {
       q: 'How does matching work?',
-      a: 'After onboarding you receive a fit score against every counterparty on the platform. The algorithm weights sector overlap (40%), stage overlap (30%), check-size compatibility (20%), and geographic alignment (10%). Strong fits surface first.',
+      a: 'After onboarding you receive a fit score against every compatible counterparty. The algorithm spans six pillars — strategic scope, capital mechanics, time and risk, governance, counterparty profile, and values — each weighted by your own mandate. Strong fits surface first; hard filters (anti-sectors, ESG, tier floors) hide counterparties from your view entirely.',
     },
     {
       q: 'Is my profile information private?',
-      a: 'Yes. Your profile is only visible to opposite-role counterparties (angels see family offices and vice-versa). All accounts require two-factor authentication. Data lives in private, encrypted infrastructure.',
+      a: 'Yes. Your profile is only visible to compatible counterparties (the platform follows an explicit who-matches-whom matrix — angels see FOs, foundations, DAFs, and next-gen peers; FOs see the corresponding opposite mix). Sovereign members can also opt into Off-Market mode, hiding entirely until they choose to reach out. All accounts require two-factor authentication; data lives in private, encrypted infrastructure.',
     },
     {
       q: 'What happens after an introduction is accepted?',
