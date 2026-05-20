@@ -133,7 +133,13 @@ export default function AppShell({
 
       {/* Acting-as banner */}
       {actingAs && !previewMode && (
-        <div className="fixed top-0 left-0 right-0 h-9 bg-ee-emerald/15 border-b border-ee-emerald/40 z-[60] flex items-center justify-between px-4 md:px-6 text-xs">
+        <div
+          className="fixed top-0 left-0 right-0 bg-ee-emerald/15 border-b border-ee-emerald/40 z-[60] flex items-center justify-between px-4 md:px-6 text-xs"
+          style={{
+            height: 'calc(36px + env(safe-area-inset-top))',
+            paddingTop: 'env(safe-area-inset-top)',
+          }}
+        >
           <span className="text-ee-emerald flex items-center gap-2 min-w-0">
             <span
               className="material-symbols-outlined text-base shrink-0"
@@ -155,10 +161,18 @@ export default function AppShell({
         </div>
       )}
 
-      {/* Top bar — shifted down when the acting-as banner is visible */}
+      {/* Top bar — shifted down when the acting-as banner is visible.
+          When no banner, the header itself absorbs the safe-area inset
+          so its navy backdrop-blur covers the area under the status
+          bar. With a banner, the banner already covers that area, so
+          the header sits at its bottom edge. */}
       <header
-        className="fixed left-0 right-0 h-14 bg-ee-surface-low/90 backdrop-blur-md border-b border-ee-outline/40 z-50 flex items-center justify-between px-4 md:px-6"
-        style={{ top: topBanner ? 36 : 0 }}
+        className="fixed left-0 right-0 bg-ee-surface-low/90 backdrop-blur-md border-b border-ee-outline/40 z-50 flex items-center justify-between px-4 md:px-6"
+        style={{
+          top: topBanner ? 'calc(36px + env(safe-area-inset-top))' : 0,
+          height: topBanner ? '56px' : 'calc(56px + env(safe-area-inset-top))',
+          paddingTop: topBanner ? 0 : 'env(safe-area-inset-top)',
+        }}
       >
         <div className="flex items-center gap-5 min-w-0">
           <button
@@ -239,7 +253,11 @@ export default function AppShell({
       {/* Left sidebar (desktop) */}
       <aside
         className="fixed left-0 bottom-0 w-60 bg-ee-surface-low border-r border-ee-outline/40 hidden lg:flex flex-col z-40"
-        style={{ top: topBanner ? 36 + 56 : 56 }}
+        style={{
+          top: topBanner
+            ? 'calc(36px + 56px + env(safe-area-inset-top))'
+            : 'calc(56px + env(safe-area-inset-top))',
+        }}
       >
         <div className="p-4 border-b border-ee-outline/30">
           <div className="flex items-center gap-3">
@@ -284,7 +302,11 @@ export default function AppShell({
           <div className="lg:hidden fixed inset-0 bg-black/60 z-40" onClick={() => setMobileOpen(false)} />
           <aside
             className="lg:hidden fixed left-0 bottom-0 w-72 bg-ee-surface-low border-r border-ee-outline/40 z-50 flex flex-col"
-            style={{ top: topBanner ? 36 + 56 : 56 }}
+            style={{
+              top: topBanner
+                ? 'calc(36px + 56px + env(safe-area-inset-top))'
+                : 'calc(56px + env(safe-area-inset-top))',
+            }}
           >
             <div className="p-4 border-b border-ee-outline/30">
               <p className="text-[13px] font-semibold text-ee-primary truncate">{user.fullName}</p>
@@ -327,7 +349,11 @@ export default function AppShell({
       {/* Main content */}
       <main
         className="lg:pl-60 min-h-screen"
-        style={{ paddingTop: topBanner ? 36 + 56 : 56 }}
+        style={{
+          paddingTop: topBanner
+            ? 'calc(36px + 56px + env(safe-area-inset-top))'
+            : 'calc(56px + env(safe-area-inset-top))',
+        }}
       >
         {children}
       </main>

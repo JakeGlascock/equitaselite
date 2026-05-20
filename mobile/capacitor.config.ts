@@ -26,11 +26,17 @@ const config: CapacitorConfig = {
   },
 
   ios: {
-    // Disable content scrolling inertia inside the WebView when the
-    // site already provides its own scroll containers (most of EE).
-    contentInset: 'always',
-    // The WKWebView's scrollIndicators stay visible in normal use.
+    // Edge-to-edge: the WKWebView fills the screen, body bg paints
+    // behind the status bar, and the top nav bars absorb the safe-area
+    // inset via `padding-top: env(safe-area-inset-top)`. `'always'`
+    // looked tidier at rest but didn't *clip* — content visibly
+    // scrolled into the inset region above the body.
+    contentInset: 'never',
     scrollEnabled: true,
+    // Belt-and-braces: paints the WKWebView navy so any rendering gap
+    // (e.g. before the body first paints) reads brand navy, not the
+    // dark-mode system black.
+    backgroundColor: '#031427',
   },
 }
 

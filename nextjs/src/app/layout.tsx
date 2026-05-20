@@ -1,4 +1,4 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import { Playfair_Display, Inter, IBM_Plex_Sans } from 'next/font/google'
 import './globals.css'
 
@@ -28,6 +28,15 @@ export const metadata: Metadata = {
   title: 'Equitas Elite',
   description: 'Institutional investor alignment platform',
   robots: { index: false, follow: false },
+}
+
+// `viewport-fit=cover` lets the page extend under the iOS status bar /
+// home indicator (so `env(safe-area-inset-*)` resolves to non-zero on
+// notched devices). `themeColor` sets the status-bar tint to brand navy
+// for the Capacitor wrapper and any "Add to Home Screen" PWA.
+export const viewport: Viewport = {
+  viewportFit: 'cover',
+  themeColor: '#031427',
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

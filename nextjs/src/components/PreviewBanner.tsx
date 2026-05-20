@@ -25,7 +25,13 @@ export default function PreviewBanner({ viewingAsName, viewingAsRole }: Props) {
   const roleLabel = viewingAsRole === 'angel' ? 'Angel investor' : 'Family office'
 
   return (
-    <div className="fixed top-0 left-0 right-0 h-9 bg-ee-gold/15 border-b border-ee-gold/40 z-[60] flex items-center justify-between px-4 md:px-6 text-xs">
+    <div
+      className="fixed top-0 left-0 right-0 bg-ee-gold/15 border-b border-ee-gold/40 z-[60] flex items-center justify-between px-4 md:px-6 text-xs"
+      style={{
+        height: 'calc(36px + env(safe-area-inset-top))',
+        paddingTop: 'env(safe-area-inset-top)',
+      }}
+    >
       <span className="text-ee-gold flex items-center gap-2 min-w-0">
         <span
           className="material-symbols-outlined text-base shrink-0"

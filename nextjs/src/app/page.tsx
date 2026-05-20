@@ -8,7 +8,10 @@ export const metadata = {
 
 function NavBar() {
   return (
-    <header className="sticky top-0 z-50 bg-ee-bg/80 backdrop-blur-md border-b border-ee-outline/30">
+    <header
+      className="sticky top-0 z-50 bg-ee-bg/80 backdrop-blur-md border-b border-ee-outline/30"
+      style={{ paddingTop: 'env(safe-area-inset-top)' }}
+    >
       <div className="max-w-6xl mx-auto px-5 md:px-8 h-16 flex items-center justify-between">
         <Link href="/" className="flex items-center gap-3">
           <img src="/logo.png" alt="Equitas Elite" className="h-9 w-auto rounded" />
