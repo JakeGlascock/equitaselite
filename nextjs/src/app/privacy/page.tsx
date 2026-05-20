@@ -5,7 +5,7 @@ export const metadata = {
   description: 'How Equitas Elite collects, uses, and protects your data.',
 }
 
-const LAST_UPDATED = '2026-05-15'
+const LAST_UPDATED = '2026-05-20'
 const CONTROLLER   = process.env.PRIVACY_CONTROLLER ?? 'Equitas Elite · 1209 N Orange St, Wilmington, DE 19801, USA'
 const CONTACT      = process.env.PRIVACY_CONTACT    ?? 'privacy@equitaselite.com'
 
@@ -28,28 +28,45 @@ export default function PrivacyPage() {
         <section className="glass-panel p-6 md:p-8 space-y-4 text-ee-primary leading-relaxed">
           <p>
             Equitas Elite is an invitation-only platform for institutional
-            investors. This page describes what data we collect from members
-            and visitors, how we use it, and the controls you have over it.
+            investors and allocators. This page describes what data we collect
+            from members, prospects, and visitors, how we use it, and the
+            controls you have over it.
           </p>
           <p className="text-ee-muted text-sm">
             We aim for plain English. If anything below is unclear, write to{' '}
             <a href={`mailto:${CONTACT}`} className="text-ee-gold hover:underline">{CONTACT}</a>.
           </p>
+          <div className="mt-3 px-4 py-3 rounded-md border border-ee-gold/30 bg-ee-gold/[0.06]">
+            <p className="text-[11px] font-data uppercase tracking-wider text-ee-gold">Boilerplate notice</p>
+            <p className="text-xs text-ee-muted mt-1 leading-relaxed">
+              This policy is a working draft maintained by the Equitas Elite team. It is not yet
+              counsel-reviewed and will be replaced with a lawyer-prepared version before the first
+              paying customer. The protections it describes are operational reality today; the
+              language will be tightened.
+            </p>
+          </div>
         </section>
 
         <Section title="What we collect">
-          <p>From you directly:</p>
+          <p>From members directly:</p>
           <List items={[
-            'Account: email, full name, firm name, title, and (for family offices) AUM range.',
-            'Mandate: sectors, stages, geography, check-size range, risk tolerance, role-specific return / horizon / mandate type / deal structure.',
-            'Activity: introduction requests you send or receive, RSVPs to events, in-app notifications you mark read.',
-            'Optional notes you submit through /request-access before you have an account.',
+            'Account: email, full name, firm or family office name, title, and (where applicable) AUM range.',
+            'Identity flags: any combination of Angel, Family Office, Family Foundation, DAF, Next Gen. Each investor-side role carries its own mandate.',
+            'Mandate (per role): sectors, stages, geography, check-size range, risk tolerance, return expectations, investment horizon, mandate type, deal-structure preference, plus extended pillar fields (sub-sectors, anti-sectors, ESG requirements, lead capacity, holding period, governance preferences).',
+            'Privacy state: Off-Market flag (Sovereign-only) and downgrade-grace timestamp where applicable.',
+            'Activity: introduction requests you send or receive, RSVPs to events, in-app notifications you mark read, concierge interactions.',
+          ]} />
+          <p>From prospects (before you have an account):</p>
+          <List items={[
+            'Waitlist application via /request-access: name, email, firm, role, optional mandate notes.',
+            'Demo signup via /try: name, email, firm, AUM range, intended use, role context for the walkthrough. A 30-minute magic-link token is emailed for email verification; once clicked, a 1-day demo session is started.',
           ]} />
           <p>Captured automatically:</p>
           <List items={[
             'Authentication state managed by AWS Cognito (a cookie-based session and a refresh token).',
             'Standard server logs (request path, response status, IP, user-agent) retained for security and operational debugging.',
             'CloudTrail audit logs of administrative actions in our AWS account.',
+            'Cloudflare Turnstile receives your IP and a challenge token strictly to confirm form submissions on /try aren’t scripted; we do not use it for tracking.',
           ]} />
           <p>
             We do <strong>not</strong> use third-party advertising trackers, share
@@ -59,8 +76,8 @@ export default function PrivacyPage() {
 
         <Section title="How we use it">
           <List items={[
-            'Match you to counterparties on the opposite side of the market using the algorithm in /lib/scoring.ts (sector, stage, check size, geography).',
-            'Send transactional emails (introduction requests, accept / decline notices, weekly digest of new counterparties) — every one of which carries a one-click unsubscribe.',
+            'Match you to compatible counterparties via a per-role compatibility matrix (e.g. Angels see Family Offices, Foundations, DAFs, and Next-Gen peers; Family Offices see the corresponding opposite mix). Scoring runs across six pillars — strategic scope, capital mechanics, time and risk, governance, counterparty profile, values — each weighted by your own mandate.',
+            'Send transactional emails (introduction requests, accept / decline notices, weekly digest of new counterparties, waitlist updates, demo magic-link verification) — every member-facing one carries a one-click unsubscribe.',
             'Operate the platform: serve the site, prevent abuse, debug issues, comply with legal obligations.',
           ]} />
         </Section>
@@ -95,9 +112,17 @@ export default function PrivacyPage() {
             between members; it requires explicit acceptance from the recipient.
           </p>
           <p>
-            We use AWS as our infrastructure provider and Cognito as our
-            identity provider; both process data on our behalf as sub-processors
-            under their standard terms. No data is shared with marketing
+            <strong className="text-ee-primary">Off-Market mode</strong> (a Sovereign-tier feature): when enabled, your profile is
+            invisible to other members in match results and on profile detail pages. Your assigned
+            relationship manager, EE admins, and any counterparty you&apos;ve accepted an introduction
+            with still see you. Sending an introduction outward reveals your identity to that one
+            recipient — that&apos;s the only path out for new connections while you&apos;re Off-Market.
+          </p>
+          <p>
+            <strong className="text-ee-primary">Sub-processors:</strong>{' '}
+            AWS (RDS, Cognito, S3, SES, CloudTrail) handles infrastructure, identity, storage, and
+            mail. Cloudflare Turnstile validates the /try demo signup form against scripted abuse.
+            All operate under their standard data-processing terms. No data is shared with marketing
             partners, ad networks, or data brokers.
           </p>
         </Section>

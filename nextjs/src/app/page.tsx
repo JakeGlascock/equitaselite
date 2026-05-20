@@ -356,10 +356,12 @@ function Footer() {
           <img src="/logo.png" alt="Equitas Elite" className="h-7 w-auto rounded" />
           <span className="font-display text-sm text-ee-gold">Equitas Elite</span>
         </div>
-        <nav className="flex items-center gap-6">
+        <nav className="flex items-center gap-x-6 gap-y-2 flex-wrap justify-center">
           <a href="#how-it-works" className="font-data text-[10px] tracking-widest uppercase text-ee-muted hover:text-ee-primary">How it works</a>
           <Link href="/pricing" className="font-data text-[10px] tracking-widest uppercase text-ee-muted hover:text-ee-primary">Pricing</Link>
           <Link href="/signin" className="font-data text-[10px] tracking-widest uppercase text-ee-muted hover:text-ee-primary">Sign in</Link>
+          <Link href="/privacy" className="font-data text-[10px] tracking-widest uppercase text-ee-muted hover:text-ee-primary">Privacy</Link>
+          <Link href="/terms" className="font-data text-[10px] tracking-widest uppercase text-ee-muted hover:text-ee-primary">Terms</Link>
           <a href="mailto:access@equitaselite.com" className="font-data text-[10px] tracking-widest uppercase text-ee-muted hover:text-ee-primary">Contact</a>
         </nav>
         <p className="font-data text-[10px] tracking-widest uppercase text-ee-muted/70">

@@ -128,6 +128,11 @@ export default function LoginPage() {
               <p className="text-center text-xs text-ee-muted">
                 <a href="/pricing" className="hover:text-ee-primary transition-colors">View membership plans →</a>
               </p>
+              <p className="text-center text-[11px] text-ee-muted/70 pt-2">
+                <Link href="/privacy" className="hover:text-ee-primary transition-colors">Privacy</Link>
+                <span className="mx-2">·</span>
+                <Link href="/terms" className="hover:text-ee-primary transition-colors">Terms</Link>
+              </p>
             </form>
           )}
 

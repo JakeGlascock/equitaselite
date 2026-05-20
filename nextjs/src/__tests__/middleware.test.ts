@@ -14,6 +14,7 @@ describe('middleware: isPublic', () => {
       '/request-access',
       '/unsubscribe',
       '/privacy',
+      '/terms',
       '/preview-denied',
       '/deck-denied',
       '/try',
