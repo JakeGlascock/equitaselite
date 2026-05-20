@@ -216,10 +216,14 @@ function ValueProps() {
 }
 
 function PricingTeaser() {
+  // Annual prices (monthly base × 0.80) so the teaser matches /pricing's
+  // default-annual tab. Source of truth lives in PricingClient.tsx; if
+  // tier monthlys move, update both. Annual base monthlys for reference:
+  // Access $1,500, Select $3,750, Sovereign $9,500.
   const tiers = [
-    { name: 'Access',    price: '$1,500',  blurb: 'Curated deal flow' },
-    { name: 'Select',    price: '$3,750',  blurb: 'Active deployment',  featured: true },
-    { name: 'Sovereign', price: '$9,500',  blurb: 'White-glove service' },
+    { name: 'Access',    price: '$1,200',  blurb: 'Curated deal flow' },
+    { name: 'Select',    price: '$3,000',  blurb: 'Active deployment',  featured: true },
+    { name: 'Sovereign', price: '$7,600',  blurb: 'White-glove service' },
   ]
   return (
     <section className="py-20 md:py-24">
@@ -229,7 +233,7 @@ function PricingTeaser() {
           <h2 className="font-display text-3xl md:text-4xl text-ee-primary">
             Three tiers of access.
           </h2>
-          <p className="text-ee-muted mt-3 text-sm">All prices /month, billed annually.</p>
+          <p className="text-ee-muted mt-3 text-sm">Billed annually &mdash; save 20% vs monthly.</p>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
@@ -239,7 +243,10 @@ function PricingTeaser() {
               className={`glass-panel p-6 text-center ${t.featured ? 'border-ee-gold/50' : ''}`}
             >
               <p className="font-data text-[10px] uppercase tracking-widest text-ee-muted mb-2">{t.name}</p>
-              <p className="font-display text-3xl text-ee-primary">{t.price}</p>
+              <p className="font-display text-3xl text-ee-primary">
+                {t.price}
+                <span className="text-ee-muted text-sm font-sans ml-0.5">/mo</span>
+              </p>
               <p className="text-ee-muted text-xs mt-2">{t.blurb}</p>
             </div>
           ))}
