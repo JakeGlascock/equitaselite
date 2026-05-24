@@ -8,14 +8,34 @@ import {
   AdminResetUserPasswordCommand,
   AssociateSoftwareTokenCommand,
   VerifySoftwareTokenCommand,
+  ConfirmDeviceCommand,
+  UpdateDeviceStatusCommand,
+  ForgetDeviceCommand,
   ListUsersCommand,
   type AuthenticationResultType,
+  type NewDeviceMetadataType,
   type UserType,
 } from '@aws-sdk/client-cognito-identity-provider'
+import {
+  createSrpSession,
+  signSrpSession,
+  signSrpSessionWithDevice,
+  wrapInitiateAuth,
+  wrapAuthChallenge,
+  createDeviceVerifier,
+} from 'cognito-srp-helper'
 import { cognitoClient } from './aws'
 
 // Server-side only — not exposed to the browser
 const CLIENT_ID = (process.env.COGNITO_CLIENT_ID ?? process.env.NEXT_PUBLIC_COGNITO_CLIENT_ID)!
+
+// cognito-srp-helper expects the pool ID *without* the region prefix
+// (e.g. "AbCdEfGhI" out of "us-east-1_AbCdEfGhI"). Computed lazily so
+// boot in environments without Cognito (CI, local dev without .env)
+// doesn't trip on the split.
+function poolIdShort(): string {
+  return (process.env.COGNITO_USER_POOL_ID ?? '').split('_').pop() ?? ''
+}
 
 export interface AuthTokens {
   accessToken: string
@@ -24,11 +44,26 @@ export interface AuthTokens {
   expiresIn: number
 }
 
-export async function signIn(email: string, password: string): Promise<{
-  tokens?: AuthTokens
-  challengeName?: string
-  session?: string
-}> {
+/**
+ * Cognito's NewDeviceMetadata, surfaced when the user signs in from
+ * a device that hasn't been confirmed yet. The signin handler stores
+ * these (plus the random device password we generate at confirm time)
+ * as HttpOnly cookies so future signins can take the device-trusted
+ * SRP path that skips MFA.
+ */
+export interface DeviceMetadata {
+  deviceKey:      string
+  deviceGroupKey: string
+}
+
+export interface SignInResult {
+  tokens?:           AuthTokens
+  challengeName?:   string
+  session?:         string
+  newDeviceMetadata?: DeviceMetadata
+}
+
+export async function signIn(email: string, password: string): Promise<SignInResult> {
   const { AuthenticationResult, ChallengeName, Session } = await cognitoClient.send(
     new InitiateAuthCommand({
       AuthFlow: 'USER_PASSWORD_AUTH',
@@ -41,14 +76,17 @@ export async function signIn(email: string, password: string): Promise<{
     return { challengeName: ChallengeName, session: Session }
   }
 
-  return { tokens: toTokens(AuthenticationResult!) }
+  return {
+    tokens:            toTokens(AuthenticationResult!),
+    newDeviceMetadata: toDeviceMetadata(AuthenticationResult?.NewDeviceMetadata),
+  }
 }
 
 export async function respondToMfaChallenge(
   email: string,
   code: string,
   session: string
-): Promise<AuthTokens> {
+): Promise<{ tokens: AuthTokens; newDeviceMetadata?: DeviceMetadata }> {
   const { AuthenticationResult } = await cognitoClient.send(
     new RespondToAuthChallengeCommand({
       ClientId: CLIENT_ID,
@@ -57,11 +95,141 @@ export async function respondToMfaChallenge(
       ChallengeResponses: { USERNAME: email, SOFTWARE_TOKEN_MFA_CODE: code },
     })
   )
-  return toTokens(AuthenticationResult!)
+  return {
+    tokens:            toTokens(AuthenticationResult!),
+    newDeviceMetadata: toDeviceMetadata(AuthenticationResult?.NewDeviceMetadata),
+  }
+}
+
+/**
+ * Confirm a freshly-issued device with Cognito and mark it remembered.
+ *
+ * Returns the device password we generated and persisted to Cognito as
+ * the SRP verifier. The CALLER must store deviceKey + deviceGroupKey +
+ * devicePassword (and the user's email/sub) in HttpOnly cookies — those
+ * three values together let `signInWithDevice` skip MFA on subsequent
+ * sign-ins. Without the password the device key is useless; without the
+ * device key the password is useless.
+ */
+export async function confirmAndRememberDevice(
+  accessToken:    string,
+  deviceKey:      string,
+  deviceGroupKey: string,
+  deviceName:     string,
+): Promise<{ devicePassword: string }> {
+  const { DeviceSecretVerifierConfig, DeviceRandomPassword } =
+    createDeviceVerifier(deviceKey, deviceGroupKey)
+
+  await cognitoClient.send(new ConfirmDeviceCommand({
+    AccessToken:                accessToken,
+    DeviceKey:                  deviceKey,
+    DeviceName:                 deviceName,
+    DeviceSecretVerifierConfig,
+  }))
+
+  await cognitoClient.send(new UpdateDeviceStatusCommand({
+    AccessToken:            accessToken,
+    DeviceKey:              deviceKey,
+    DeviceRememberedStatus: 'remembered',
+  }))
+
+  return { devicePassword: DeviceRandomPassword }
+}
+
+/**
+ * Sign in via USER_SRP_AUTH carrying a trusted device key. On
+ * success Cognito skips the SOFTWARE_TOKEN_MFA challenge and goes
+ * straight into DEVICE_SRP_AUTH → DEVICE_PASSWORD_VERIFIER, which
+ * the device password (stored locally) proves possession of without
+ * any user interaction.
+ *
+ * If Cognito ever rejects the device (rotated keys, server-side
+ * forget, etc.) it falls back to SOFTWARE_TOKEN_MFA — the caller
+ * surfaces that as the standard MFA challenge so the user re-pairs.
+ */
+export async function signInWithDevice(
+  email:          string,
+  password:       string,
+  deviceKey:      string,
+  deviceGroupKey: string,
+  devicePassword: string,
+): Promise<SignInResult> {
+  const srpSession = createSrpSession(email, password, poolIdShort(), false)
+
+  // Step 1: SRP_A
+  const initRes = await cognitoClient.send(new InitiateAuthCommand(
+    wrapInitiateAuth(srpSession, {
+      ClientId:       CLIENT_ID,
+      AuthFlow:       'USER_SRP_AUTH',
+      AuthParameters: { USERNAME: email, DEVICE_KEY: deviceKey },
+    }),
+  ))
+
+  // Step 2: PASSWORD_VERIFIER proof
+  const signed = signSrpSession(srpSession, initRes)
+  const passwordRes = await cognitoClient.send(new RespondToAuthChallengeCommand(
+    wrapAuthChallenge(signed, {
+      ClientId:           CLIENT_ID,
+      ChallengeName:      'PASSWORD_VERIFIER',
+      Session:            initRes.Session,
+      ChallengeResponses: { USERNAME: email, DEVICE_KEY: deviceKey },
+    }),
+  ))
+
+  // After password is accepted Cognito routes us through the device
+  // SRP challenge instead of MFA. If it does NOT (challenge name comes
+  // back as SOFTWARE_TOKEN_MFA), the device has been forgotten on the
+  // server — surface the MFA challenge so the user re-pairs.
+  if (passwordRes.ChallengeName === 'SOFTWARE_TOKEN_MFA') {
+    return { challengeName: 'SOFTWARE_TOKEN_MFA', session: passwordRes.Session }
+  }
+  if (passwordRes.ChallengeName !== 'DEVICE_SRP_AUTH') {
+    return {
+      tokens:            toTokens(passwordRes.AuthenticationResult!),
+      newDeviceMetadata: toDeviceMetadata(passwordRes.AuthenticationResult?.NewDeviceMetadata),
+    }
+  }
+
+  // Step 3: DEVICE_SRP_AUTH — re-send SRP_A (same ephemeral)
+  const deviceSrpRes = await cognitoClient.send(new RespondToAuthChallengeCommand(
+    wrapAuthChallenge(signed, {
+      ClientId:           CLIENT_ID,
+      ChallengeName:      'DEVICE_SRP_AUTH',
+      Session:            passwordRes.Session,
+      ChallengeResponses: { USERNAME: email, DEVICE_KEY: deviceKey },
+    }),
+  ))
+
+  // Step 4: DEVICE_PASSWORD_VERIFIER proof
+  const deviceSigned = signSrpSessionWithDevice(
+    srpSession, deviceSrpRes, deviceGroupKey, devicePassword,
+  )
+  const finalRes = await cognitoClient.send(new RespondToAuthChallengeCommand(
+    wrapAuthChallenge(deviceSigned, {
+      ClientId:           CLIENT_ID,
+      ChallengeName:      'DEVICE_PASSWORD_VERIFIER',
+      Session:            deviceSrpRes.Session,
+      ChallengeResponses: { USERNAME: email, DEVICE_KEY: deviceKey },
+    }),
+  ))
+
+  return { tokens: toTokens(finalRes.AuthenticationResult!) }
 }
 
 export async function signOut(accessToken: string): Promise<void> {
   await cognitoClient.send(new GlobalSignOutCommand({ AccessToken: accessToken }))
+}
+
+/**
+ * Tell Cognito to drop a confirmed device for the signed-in user. Used
+ * on explicit signout so the trust list doesn't accumulate, and so the
+ * next signin (without device cookies) starts a fresh MFA pair.
+ */
+export async function forgetDevice(accessToken: string, deviceKey: string): Promise<void> {
+  await cognitoClient.send(new ForgetDeviceCommand({
+    AccessToken: accessToken,
+    DeviceKey:   deviceKey,
+  }))
 }
 
 export async function getCurrentUser(accessToken: string) {
@@ -205,7 +373,7 @@ export async function respondToNewPassword(
   username: string,
   newPassword: string,
   session: string,
-): Promise<{ tokens?: AuthTokens; challengeName?: string; session?: string }> {
+): Promise<SignInResult> {
   const { AuthenticationResult, ChallengeName, Session } = await cognitoClient.send(
     new RespondToAuthChallengeCommand({
       ClientId: CLIENT_ID,
@@ -215,7 +383,10 @@ export async function respondToNewPassword(
     })
   )
   if (ChallengeName) return { challengeName: ChallengeName, session: Session }
-  return { tokens: toTokens(AuthenticationResult!) }
+  return {
+    tokens:            toTokens(AuthenticationResult!),
+    newDeviceMetadata: toDeviceMetadata(AuthenticationResult?.NewDeviceMetadata),
+  }
 }
 
 export async function getMfaSetupSecret(
@@ -254,7 +425,7 @@ export async function verifyMfaSetup(
 export async function completeMfaSetup(
   username: string,
   session: string,
-): Promise<AuthTokens> {
+): Promise<{ tokens: AuthTokens; newDeviceMetadata?: DeviceMetadata }> {
   const { AuthenticationResult } = await cognitoClient.send(
     new RespondToAuthChallengeCommand({
       ClientId:           CLIENT_ID,
@@ -263,7 +434,10 @@ export async function completeMfaSetup(
       ChallengeResponses: { USERNAME: username },
     })
   )
-  return toTokens(AuthenticationResult!)
+  return {
+    tokens:            toTokens(AuthenticationResult!),
+    newDeviceMetadata: toDeviceMetadata(AuthenticationResult?.NewDeviceMetadata),
+  }
 }
 
 function toTokens(result: AuthenticationResultType): AuthTokens {
@@ -273,4 +447,9 @@ function toTokens(result: AuthenticationResultType): AuthTokens {
     refreshToken: result.RefreshToken!,
     expiresIn:    result.ExpiresIn!,
   }
+}
+
+function toDeviceMetadata(meta: NewDeviceMetadataType | undefined): DeviceMetadata | undefined {
+  if (!meta?.DeviceKey || !meta?.DeviceGroupKey) return undefined
+  return { deviceKey: meta.DeviceKey, deviceGroupKey: meta.DeviceGroupKey }
 }

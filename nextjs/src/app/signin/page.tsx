@@ -20,6 +20,7 @@ export default function LoginPage() {
   const [setupCode, setSetupCode]     = useState('')
   const [mfaCode, setMfaCode]         = useState('')
   const [session, setSession]         = useState('')
+  const [trustDevice, setTrustDevice] = useState(true)
   const [error, setError]             = useState('')
   const [loading, setLoading]         = useState(false)
 
@@ -72,7 +73,7 @@ export default function LoginPage() {
   async function handleMfa(e: React.FormEvent) {
     e.preventDefault(); setError(''); setLoading(true)
     try {
-      await postSignin({ email, code: mfaCode, session })
+      await postSignin({ email, code: mfaCode, session, trustDevice })
       window.location.href = '/dashboard'
     } catch (err: unknown) { setError(err instanceof Error ? err.message : 'Invalid code') }
     finally { setLoading(false) }
@@ -258,6 +259,19 @@ export default function LoginPage() {
                   placeholder="000000" required autoComplete="one-time-code" autoFocus
                 />
               </div>
+
+              <label className="flex items-start gap-2.5 text-xs text-ee-muted cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={trustDevice}
+                  onChange={e => setTrustDevice(e.target.checked)}
+                  className="mt-0.5 accent-ee-gold"
+                />
+                <span>
+                  Trust this device for 30 days. Future sign-ins from this browser will
+                  skip the verification code.
+                </span>
+              </label>
 
               {error && <p className="text-red-400 text-sm">{error}</p>}
 

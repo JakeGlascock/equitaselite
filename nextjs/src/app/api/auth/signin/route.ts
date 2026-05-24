@@ -1,12 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import {
   signIn,
+  signInWithDevice,
   respondToMfaChallenge,
   respondToNewPassword,
+  confirmAndRememberDevice,
   getMfaSetupSecret,
   verifyMfaSetup,
   completeMfaSetup,
   type AuthTokens,
+  type DeviceMetadata,
 } from '@/lib/auth'
 
 const SECURE = process.env.NODE_ENV === 'production'
@@ -17,6 +20,11 @@ const COOKIE_OPTS = {
   path:     '/',
 }
 
+// 30-day device-trust window. After this, the device cookies expire and
+// the user re-pairs through normal MFA. Picked to match Cognito's
+// refresh-token validity so the two horizons collapse cleanly.
+const DEVICE_COOKIE_MAX_AGE = 30 * 24 * 3600
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
@@ -24,7 +32,7 @@ export async function POST(req: NextRequest) {
     // New-password step: { step, username, newPassword, session }
     if (body.step === 'new_password') {
       const result = await respondToNewPassword(body.username, body.newPassword, body.session)
-      if (result.tokens) return tokenResponse(result.tokens)
+      if (result.tokens) return tokenResponse(result.tokens, undefined, result.newDeviceMetadata)
       if (result.challengeName === 'MFA_SETUP') {
         const { secretCode, session } = await getMfaSetupSecret(result.session!)
         return NextResponse.json({ challenge: 'mfa_setup', secretCode, session })
@@ -47,20 +55,48 @@ export async function POST(req: NextRequest) {
     if (body.step === 'mfa_setup_verify') {
       const { session: nextSession } = await verifyMfaSetup(body.session, body.code)
       try {
-        const tokens = await completeMfaSetup(body.username, nextSession)
-        return tokenResponse(tokens)
+        const completed = await completeMfaSetup(body.username, nextSession)
+        return tokenResponse(completed.tokens, body.trustDevice ? body.username : undefined, completed.newDeviceMetadata)
       } catch {
         return NextResponse.json({ challenge: 'mfa', session: nextSession })
       }
     }
 
-    // MFA step (backward compat): { email, code, session }
+    // MFA step (backward compat): { email, code, session, trustDevice }
     if (body.session) {
-      const tokens = await respondToMfaChallenge(body.email, body.code, body.session)
-      return tokenResponse(tokens)
+      const mfa = await respondToMfaChallenge(body.email, body.code, body.session)
+      return tokenResponse(mfa.tokens, body.trustDevice ? body.email : undefined, mfa.newDeviceMetadata)
     }
 
-    // Credentials step: { email, password }
+    // Credentials step: { email, password }. If the client already has
+    // a confirmed device for this user, route through the device-trusted
+    // SRP flow which skips MFA entirely.
+    const deviceCookies = readDeviceCookies(req, body.email)
+    if (deviceCookies) {
+      try {
+        const result = await signInWithDevice(
+          body.email,
+          body.password,
+          deviceCookies.deviceKey,
+          deviceCookies.deviceGroupKey,
+          deviceCookies.devicePassword,
+        )
+        if (result.tokens) {
+          // No MFA challenge fired — pure device-trusted success.
+          return tokenResponse(result.tokens)
+        }
+        // Device flow ended in MFA (server forgot the device, key
+        // rotation, etc.) — fall through to the standard challenge UI.
+        if (result.challengeName === 'SOFTWARE_TOKEN_MFA') {
+          return NextResponse.json({ challenge: 'mfa', session: result.session })
+        }
+      } catch {
+        // Any device-flow failure (e.g. devicePassword stale) falls
+        // back to plain USER_PASSWORD_AUTH below so a single stuck
+        // device doesn't lock the user out.
+      }
+    }
+
     const result = await signIn(body.email, body.password)
 
     if (result.challengeName === 'NEW_PASSWORD_REQUIRED') {
@@ -74,17 +110,70 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ challenge: 'mfa_setup', secretCode, session })
     }
 
-    return tokenResponse(result.tokens!)
+    return tokenResponse(result.tokens!, undefined, result.newDeviceMetadata)
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Authentication failed'
     return NextResponse.json({ error: message }, { status: 401 })
   }
 }
 
-function tokenResponse(tokens: AuthTokens) {
+// Read the three device cookies (key + group key + password) along with
+// the bound email. Returns null if any are missing or if the cookies
+// were issued for a different user — a stale device cookie set for the
+// previous user must not be replayed against a new account.
+function readDeviceCookies(req: NextRequest, email: string): {
+  deviceKey: string
+  deviceGroupKey: string
+  devicePassword: string
+} | null {
+  const deviceKey       = req.cookies.get('ee_device_key')?.value
+  const deviceGroupKey  = req.cookies.get('ee_device_group')?.value
+  const devicePassword  = req.cookies.get('ee_device_password')?.value
+  const deviceUser      = req.cookies.get('ee_device_user')?.value
+  if (!deviceKey || !deviceGroupKey || !devicePassword || !deviceUser) return null
+  if (deviceUser.toLowerCase() !== email.toLowerCase())                return null
+  return { deviceKey, deviceGroupKey, devicePassword }
+}
+
+// Final response writer. Sets the standard session cookies and — if the
+// caller passed `trustEmail` and Cognito returned NewDeviceMetadata —
+// also calls ConfirmDevice + UpdateDeviceStatus and bakes the device
+// cookies. trustEmail is only set when the user ticked "Trust this
+// device" during MFA.
+async function tokenResponse(
+  tokens: AuthTokens,
+  trustEmail?: string,
+  meta?:       DeviceMetadata,
+) {
   const res = NextResponse.json({ ok: true })
   res.cookies.set('ee_access',  tokens.accessToken,  { ...COOKIE_OPTS, maxAge: tokens.expiresIn })
   res.cookies.set('ee_id',      tokens.idToken,      { ...COOKIE_OPTS, maxAge: tokens.expiresIn })
   res.cookies.set('ee_refresh', tokens.refreshToken, { ...COOKIE_OPTS, maxAge: 30 * 24 * 3600 })
+
+  if (trustEmail && meta) {
+    try {
+      const { devicePassword } = await confirmAndRememberDevice(
+        tokens.accessToken,
+        meta.deviceKey,
+        meta.deviceGroupKey,
+        deviceLabel(),
+      )
+      res.cookies.set('ee_device_key',      meta.deviceKey,      { ...COOKIE_OPTS, maxAge: DEVICE_COOKIE_MAX_AGE })
+      res.cookies.set('ee_device_group',    meta.deviceGroupKey, { ...COOKIE_OPTS, maxAge: DEVICE_COOKIE_MAX_AGE })
+      res.cookies.set('ee_device_password', devicePassword,      { ...COOKIE_OPTS, maxAge: DEVICE_COOKIE_MAX_AGE })
+      res.cookies.set('ee_device_user',     trustEmail,          { ...COOKIE_OPTS, maxAge: DEVICE_COOKIE_MAX_AGE })
+    } catch (err) {
+      // Device confirmation failing is non-fatal — user is signed in
+      // either way, they'll just see MFA again next time. Log so we
+      // notice if the SRP code regresses.
+      console.error('[auth] confirm-device failed', err)
+    }
+  }
   return res
+}
+
+function deviceLabel(): string {
+  // Cognito stores this as the human-friendly device name in the user
+  // pool. Fixed string for now; future: derive from User-Agent.
+  return 'Equitas Elite trusted device'
 }

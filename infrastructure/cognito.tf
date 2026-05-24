@@ -9,6 +9,18 @@ resource "aws_cognito_user_pool" "main" {
     enabled = true
   }
 
+  # Device tracking — lets users opt into "Trust this device for 30 days"
+  # during MFA. Subsequent signins from a confirmed + remembered device
+  # take the DEVICE_SRP_AUTH path and skip the TOTP challenge.
+  # `device_only_remembered_on_user_prompt = true` means devices stay
+  # untrusted until the user explicitly opts in — without the checkbox
+  # tick we ConfirmDevice but do NOT call UpdateDeviceStatus(remembered),
+  # so MFA still fires next time. Mirrors standard B2B SaaS UX.
+  device_configuration {
+    challenge_required_on_new_device      = true
+    device_only_remembered_on_user_prompt = true
+  }
+
   password_policy {
     minimum_length                   = 16
     require_lowercase                = true
