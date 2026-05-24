@@ -20,6 +20,12 @@ CVE-2026-42338
 # Bundled inside npm CLI; never invoked at container runtime.
 CVE-2026-33750
 
+# CVE-2026-45149: brace-expansion 5.0.5 — successor advisory to the
+# 33750 issue, fixed in 5.0.6. Same path: bundled inside npm CLI
+# (usr/local/lib/node_modules/npm/node_modules/brace-expansion). npm
+# isn't invoked at container runtime.
+CVE-2026-45149
+
 # CVE-2026-41305: postcss XSS via improper escaping of style closing tags
 # (app/node_modules/next/node_modules/postcss 8.4.31).
 # postcss is bundled inside the 'next' package itself — upgrading our direct

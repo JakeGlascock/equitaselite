@@ -56,6 +56,27 @@ export default defineConfig({
         'src/app/api/preview/**',
         // User-feedback report — DB-backed + SES; integration-tested only
         'src/app/api/feedback/**',
+        // Demo magic-link mail — SES sender, like email.ts
+        'src/lib/demo-mail.ts',
+        // Mandate sub-table — DB queries only
+        'src/lib/mandates.ts',
+        // Turnstile verify — network call to Cloudflare
+        'src/lib/turnstile.ts',
+        // Push dispatch — AWS SNS + DB
+        'src/lib/push.ts',
+        // Native client helpers — browser-only Capacitor wrappers
+        'src/lib/native.ts',
+        // Device-token endpoints — DB-backed + AWS SNS via lib/push
+        'src/app/api/devices/**',
+        // Public demo signup — DB-backed + Turnstile + SES
+        'src/app/api/demo/**',
+        // Unsubscribe + events RSVP — DB-backed
+        'src/app/api/unsubscribe/**',
+        // Forgot/reset-password — thin Cognito wrappers from lib/auth
+        'src/app/api/auth/forgot-password/**',
+        'src/app/api/auth/reset-password/**',
+        // Session endpoint — calls into excluded lib/session.ts
+        'src/app/api/auth/session/**',
       ],
       // Ratcheted up from 80/75 — current measured coverage on the included
       // scope (src/lib/** + src/app/api/**, minus the AWS/DB-backed excludes)

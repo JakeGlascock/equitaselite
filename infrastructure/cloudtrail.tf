@@ -1,4 +1,5 @@
 # CloudTrail captures all API calls — required for SOC 2 CC7 / ISO 27001 A.12.4
+# checkov:skip=CKV_AWS_252:CloudTrail's built-in SNS fires on every file delivery (~5 min); pure noise without a Lambda processor. Real security signals come from the targeted CloudWatch metric alarms below (console-no-mfa, root-login, kms-key-deletion, cloudtrail-disabled, iam-policy-change), not from file-delivery notifications.
 resource "aws_cloudtrail" "main" {
   name                          = "${var.app_name}-${var.environment}"
   s3_bucket_name                = aws_s3_bucket.cloudtrail.id
