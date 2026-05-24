@@ -48,6 +48,17 @@
     color-scheme: dark;
   }
 
+  /* iOS auto-zooms the WKWebView whenever a form control with
+     font-size < 16px gains focus, and the wrapper doesn't allow
+     pinch-to-zoom out, which leaves the user stuck at 1.3x. Bumping
+     the font-size to 16px on touch devices defeats the auto-zoom
+     without affecting desktop typography. */
+  @media (hover: none) and (pointer: coarse) {
+    input, textarea, select {
+      font-size: 16px;
+    }
+  }
+
   body {
     background-color: var(--ee-bg);
     color: var(--ee-primary);
