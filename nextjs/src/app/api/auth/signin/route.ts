@@ -90,10 +90,13 @@ export async function POST(req: NextRequest) {
         if (result.challengeName === 'SOFTWARE_TOKEN_MFA') {
           return NextResponse.json({ challenge: 'mfa', session: result.session })
         }
-      } catch {
+      } catch (err) {
         // Any device-flow failure (e.g. devicePassword stale) falls
         // back to plain USER_PASSWORD_AUTH below so a single stuck
-        // device doesn't lock the user out.
+        // device doesn't lock the user out — but log so a real
+        // regression in the SRP code is visible in CloudWatch
+        // instead of hiding behind the MFA fallback path.
+        console.error('[signin] device-trust flow failed, falling back to USER_PASSWORD_AUTH', err)
       }
     }
 

@@ -28,12 +28,16 @@ import { cognitoClient } from './aws'
 // Server-side only — not exposed to the browser
 const CLIENT_ID = (process.env.COGNITO_CLIENT_ID ?? process.env.NEXT_PUBLIC_COGNITO_CLIENT_ID)!
 
-// cognito-srp-helper expects the pool ID *without* the region prefix
-// (e.g. "AbCdEfGhI" out of "us-east-1_AbCdEfGhI"). Computed lazily so
-// boot in environments without Cognito (CI, local dev without .env)
-// doesn't trip on the split.
-function poolIdShort(): string {
-  return (process.env.COGNITO_USER_POOL_ID ?? '').split('_').pop() ?? ''
+// cognito-srp-helper's createSrpSession expects the FULL pool ID
+// (e.g. "us-east-1_AbCdEfGhI") — it internally splits on "_" and
+// takes index [1] to derive the pool abbreviation for the SRP
+// password-hash input. Passing just the abbreviation silently breaks
+// SRP because [1] of a one-element split is undefined, which then
+// hashes as "undefined<user>:<password>" — Cognito rejects the
+// password verifier, signInWithDevice throws, and the signin route
+// falls back to plain USER_PASSWORD_AUTH (MFA prompts again).
+function fullPoolId(): string {
+  return process.env.COGNITO_USER_POOL_ID ?? ''
 }
 
 export interface AuthTokens {
@@ -153,7 +157,7 @@ export async function signInWithDevice(
   deviceGroupKey: string,
   devicePassword: string,
 ): Promise<SignInResult> {
-  const srpSession = createSrpSession(email, password, poolIdShort(), false)
+  const srpSession = createSrpSession(email, password, fullPoolId(), false)
 
   // Step 1: SRP_A
   const initRes = await cognitoClient.send(new InitiateAuthCommand(
