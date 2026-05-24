@@ -11,7 +11,6 @@ import PreviewBanner from './PreviewBanner'
 import PreviewWalkthroughDriver from './PreviewWalkthroughDriver'
 import PreviewWalkthroughMobile from './PreviewWalkthroughMobile'
 import CapacitorBridge from './CapacitorBridge'
-import BiometricLock from './BiometricLock'
 
 type Tier = 'access' | 'select' | 'sovereign'
 
@@ -133,11 +132,13 @@ export default function AppShell({
           Skipped in preview mode (demo sessions have no real user). */}
       {!previewMode && <CapacitorBridge />}
 
-      {/* Face ID lock — no-op on web; inside the iOS wrapper this
-          overlays the app until biometric authentication succeeds, and
-          re-locks on every background→foreground transition. Skipped
-          in preview mode (no real account to protect). */}
-      {!previewMode && <BiometricLock />}
+      {/* Face ID lock (BiometricLock) temporarily removed — the
+          @aparajita/capacitor-biometric-auth + @capacitor/app combo
+          was crashing the WKWebView content process in a loop on
+          iPhone (WKErrorDomain 5 "unsupported type" + repeated
+          WebProcessProxy::didClose Crash). Will re-add when we find
+          a more stable lock mechanism. Auto-refresh + Phase A device
+          trust still cover the daily-friction case. */}
 
       {/* Investor-preview banner — takes precedence in the unlikely case both flags are set */}
       {previewMode && (
