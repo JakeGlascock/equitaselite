@@ -76,6 +76,13 @@ const CHECKS = [
   { name: 'gate-devices-register',   path: '/api/devices/register',   method: 'POST', body: '', status: [302, 307, 308], redirectContains: '/signin', followRedirect: false },
   { name: 'gate-devices-unregister', path: '/api/devices/unregister', method: 'POST', body: '', status: [302, 307, 308], redirectContains: '/signin', followRedirect: false },
 
+  // Auto-refresh path — /api/auth/refresh must stay public so the
+  // middleware can hit it via internal fetch when ee_id has expired
+  // but ee_refresh is still valid. A regression that protected this
+  // route would break auto-refresh and force every user back through
+  // MFA after one hour.
+  { name: 'auth-refresh-public', path: '/api/auth/refresh', method: 'POST', body: '', status: 401, contains: 'No refresh token' },
+
   // ───── Public demo (migration 036 / Phase F) ─────
   // /try is publicly accessible — no auth required.
   { name: 'try-public', path: '/try', status: 200, contains: 'Walk through the platform' },

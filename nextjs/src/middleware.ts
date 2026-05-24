@@ -56,6 +56,11 @@ export async function middleware(req: NextRequest) {
       headers.set('x-preview-mode', '1')
       return NextResponse.next({ request: { headers } })
     }
+    // Try silent refresh before sending the user back to /signin. Covers
+    // the common case where a browser tab sits idle past the 1-hour ID
+    // token expiry but the user still has a valid 30-day refresh token.
+    const refreshed = await tryRefresh(req)
+    if (refreshed) return refreshed
     return redirectToLogin(req)
   }
 
@@ -66,7 +71,61 @@ export async function middleware(req: NextRequest) {
     if (typeof payload.email === 'string') headers.set('x-user-email', payload.email)
     return NextResponse.next({ request: { headers } })
   } catch {
+    // ID token failed verification (most often: expired). Try silent
+    // refresh — same path as the missing-cookie branch above.
+    const refreshed = await tryRefresh(req)
+    if (refreshed) return refreshed
     return redirectToLogin(req)
+  }
+}
+
+// Silent re-issue of the ID + access cookies using the 30-day refresh
+// token. Returns a NextResponse that lets the original request through
+// with the new cookies attached, or null on any failure (in which case
+// the caller redirects to /signin).
+//
+// Middleware runs in the edge runtime where the AWS SDK isn't loadable,
+// so we delegate to /api/auth/refresh (which runs in node and owns the
+// Cognito SDK call) via internal fetch. The refresh route sets two
+// Set-Cookie headers (ee_id, ee_access) which we forward verbatim, and
+// we also parse the new ee_id out of the Set-Cookie so we can verify
+// the JWT and thread x-user-id into the downstream request — otherwise
+// the page sees the new cookies but no x-user-id header.
+async function tryRefresh(req: NextRequest): Promise<NextResponse | null> {
+  const refreshToken = req.cookies.get('ee_refresh')?.value
+  if (!refreshToken || !JWKS || !ISSUER) return null
+
+  try {
+    const refreshUrl = new URL('/api/auth/refresh', req.url)
+    const refreshRes = await fetch(refreshUrl, {
+      method:  'POST',
+      headers: { cookie: `ee_refresh=${refreshToken}` },
+    })
+    if (!refreshRes.ok) return null
+
+    const setCookies = refreshRes.headers.getSetCookie()
+    let newIdToken: string | null = null
+    for (const c of setCookies) {
+      if (c.startsWith('ee_id=')) {
+        const end = c.indexOf(';', 6)
+        newIdToken = c.substring(6, end === -1 ? c.length : end)
+        break
+      }
+    }
+    if (!newIdToken) return null
+
+    const { payload } = await jwtVerify(newIdToken, JWKS, { issuer: ISSUER })
+    const headers = new Headers(req.headers)
+    headers.set('x-user-id', payload.sub!)
+    if (typeof payload.email === 'string') headers.set('x-user-email', payload.email)
+
+    const response = NextResponse.next({ request: { headers } })
+    for (const cookie of setCookies) {
+      response.headers.append('set-cookie', cookie)
+    }
+    return response
+  } catch {
+    return null
   }
 }
 
