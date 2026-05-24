@@ -27,7 +27,13 @@ function isNative(): boolean {
 }
 
 export default function BiometricLock() {
-  const [locked, setLocked]       = useState<boolean>(isNative())
+  // SSR-safe initial state: `false` on both the server (no window) and
+  // the client's first render (hydration matches). The useEffect below
+  // flips it to `true` on the next tick if we're inside Capacitor, so
+  // the lock screen slams down right after hydration. Initialising
+  // with `isNative()` would render the overlay on the client but
+  // nothing on the server — React hydration error #418.
+  const [locked, setLocked]       = useState<boolean>(false)
   const [error, setError]         = useState<string>('')
   const [tryAuthFn, setTryAuthFn] = useState<(() => Promise<void>) | null>(null)
 
@@ -37,10 +43,11 @@ export default function BiometricLock() {
   const authInFlight   = useRef<boolean>(false)
 
   useEffect(() => {
-    if (!isNative()) {
-      setLocked(false)
-      return
-    }
+    if (!isNative()) return
+
+    // Lock immediately on the client (post-hydration) so the WebView
+    // content doesn't flash before Face ID prompts.
+    setLocked(true)
 
     let cancelled = false
     let appListenerRemove: (() => void) | null = null
