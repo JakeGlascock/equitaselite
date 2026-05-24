@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import PasswordField from '@/components/PasswordField'
 
 type Step = 'request' | 'confirm' | 'done'
 
@@ -100,16 +101,16 @@ export default function ForgotPasswordPage() {
                 </div>
                 <div>
                   <label className="block text-xs text-ee-muted mb-1.5 font-data uppercase tracking-wider">New password</label>
-                  <input
-                    type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)}
-                    className="input-field" placeholder="At least 16 characters" required autoComplete="new-password"
+                  <PasswordField
+                    value={newPassword} onChange={e => setNewPassword(e.target.value)}
+                    placeholder="At least 16 characters" required autoComplete="new-password"
                   />
                 </div>
                 <div>
                   <label className="block text-xs text-ee-muted mb-1.5 font-data uppercase tracking-wider">Confirm new password</label>
-                  <input
-                    type="password" value={confirmPassword} onChange={e => setConfirm(e.target.value)}
-                    className="input-field" placeholder="Same again" required autoComplete="new-password"
+                  <PasswordField
+                    value={confirmPassword} onChange={e => setConfirm(e.target.value)}
+                    placeholder="Same again" required autoComplete="new-password"
                   />
                 </div>
               </div>

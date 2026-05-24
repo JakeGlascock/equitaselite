@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { QRCodeSVG } from 'qrcode.react'
+import PasswordField from '@/components/PasswordField'
 
 type Step = 'credentials' | 'new_password' | 'mfa_setup' | 'mfa'
 
@@ -151,9 +152,9 @@ export default function LoginPage({ poolId }: { poolId: string }) {
                 </div>
                 <div>
                   <label className="block text-xs text-ee-muted mb-1.5 font-data uppercase tracking-wider">Password</label>
-                  <input
-                    type="password" value={password} onChange={e => setPassword(e.target.value)}
-                    className="input-field" placeholder="••••••••••••••••" required autoComplete="current-password"
+                  <PasswordField
+                    value={password} onChange={e => setPassword(e.target.value)}
+                    placeholder="••••••••••••••••" required autoComplete="current-password"
                   />
                 </div>
               </div>
@@ -197,16 +198,16 @@ export default function LoginPage({ poolId }: { poolId: string }) {
               <div className="space-y-4">
                 <div>
                   <label className="block text-xs text-ee-muted mb-1.5 font-data uppercase tracking-wider">New password</label>
-                  <input
-                    type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)}
-                    className="input-field" required autoComplete="new-password" autoFocus
+                  <PasswordField
+                    value={newPassword} onChange={e => setNewPassword(e.target.value)}
+                    required autoComplete="new-password" autoFocus
                   />
                 </div>
                 <div>
                   <label className="block text-xs text-ee-muted mb-1.5 font-data uppercase tracking-wider">Confirm password</label>
-                  <input
-                    type="password" value={confirmPassword} onChange={e => setConfirm(e.target.value)}
-                    className="input-field" required autoComplete="new-password"
+                  <PasswordField
+                    value={confirmPassword} onChange={e => setConfirm(e.target.value)}
+                    required autoComplete="new-password"
                   />
                 </div>
                 <p className="text-xs text-ee-muted">
