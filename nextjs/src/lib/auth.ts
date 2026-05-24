@@ -10,7 +10,6 @@ import {
   VerifySoftwareTokenCommand,
   ConfirmDeviceCommand,
   UpdateDeviceStatusCommand,
-  ForgetDeviceCommand,
   ListUsersCommand,
   type AuthenticationResultType,
   type NewDeviceMetadataType,
@@ -218,18 +217,6 @@ export async function signInWithDevice(
 
 export async function signOut(accessToken: string): Promise<void> {
   await cognitoClient.send(new GlobalSignOutCommand({ AccessToken: accessToken }))
-}
-
-/**
- * Tell Cognito to drop a confirmed device for the signed-in user. Used
- * on explicit signout so the trust list doesn't accumulate, and so the
- * next signin (without device cookies) starts a fresh MFA pair.
- */
-export async function forgetDevice(accessToken: string, deviceKey: string): Promise<void> {
-  await cognitoClient.send(new ForgetDeviceCommand({
-    AccessToken: accessToken,
-    DeviceKey:   deviceKey,
-  }))
 }
 
 export async function getCurrentUser(accessToken: string) {
