@@ -111,6 +111,60 @@ resource "aws_cognito_user_pool" "main" {
     from_email_address    = "Equitas Elite <system@${var.domain_name}>"
   }
 
+  # Branded password-reset email. Cognito sends this when the user
+  # initiates ForgotPassword. The default Cognito template is plain
+  # text and unbranded ("Your verification code is ####"); this matches
+  # the invite_message_template above. {####} is substituted with the
+  # one-time reset code at send time.
+  verification_message_template {
+    default_email_option = "CONFIRM_WITH_CODE"
+    email_subject        = "Reset your Equitas Elite password"
+    email_message        = <<-EOT
+      <!DOCTYPE html>
+      <html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Reset your Equitas Elite password</title></head>
+      <body style="margin:0;padding:0;background:#031427;font-family:Inter,-apple-system,Segoe UI,Helvetica,Arial,sans-serif;color:#bec6e0;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#031427;padding:32px 16px;">
+          <tr><td align="center">
+            <table role="presentation" width="100%" style="max-width:540px;background:rgba(16,32,52,0.8);border:1px solid rgba(69,70,77,0.5);border-radius:12px;">
+              <tr><td style="padding:32px 32px 8px 32px;">
+                <p style="margin:0;font-family:'IBM Plex Sans',monospace;font-size:11px;letter-spacing:0.15em;text-transform:uppercase;color:#8892a4;">Equitas Elite · Password reset</p>
+              </td></tr>
+              <tr><td style="padding:8px 32px 0 32px;">
+                <h1 style="margin:0 0 16px 0;font-family:'Playfair Display',Georgia,serif;font-size:24px;font-weight:600;color:#e9c176;">Reset your password</h1>
+                <p style="margin:0 0 12px 0;color:#bec6e0;font-size:15px;line-height:1.5;">
+                  We received a request to reset the password on your Equitas
+                  Elite account. Enter the code below on the reset page to
+                  finish.
+                </p>
+                <table role="presentation" cellpadding="0" cellspacing="0" style="margin:16px 0;background:rgba(255,255,255,0.04);border:1px solid rgba(69,70,77,0.5);border-radius:8px;width:100%;">
+                  <tr><td style="padding:12px 16px;color:#8892a4;font-family:'IBM Plex Sans',monospace;font-size:11px;letter-spacing:0.1em;text-transform:uppercase;">Reset code</td><td style="padding:12px 16px 12px 0;color:#e9c176;font-family:'IBM Plex Mono',monospace;font-size:18px;letter-spacing:0.15em;text-align:right;">{####}</td></tr>
+                </table>
+                <p style="margin:0 0 12px 0;color:#8892a4;font-size:13px;line-height:1.5;">
+                  The code expires in 1 hour. If you didn't request a reset,
+                  you can ignore this email — your password won't change.
+                </p>
+              </td></tr>
+              <tr><td align="center" style="padding:24px 32px 32px 32px;">
+                <a href="https://${var.domain_name}/forgot-password"
+                   style="display:inline-block;background:#e9c176;color:#031427;text-decoration:none;font-weight:600;font-size:14px;padding:12px 24px;border-radius:8px;">
+                  Continue on Equitas Elite
+                </a>
+              </td></tr>
+              <tr><td style="padding:0 32px 24px 32px;border-top:1px solid rgba(69,70,77,0.4);">
+                <p style="margin:16px 0 6px 0;font-size:11px;color:#8892a4;line-height:1.6;">
+                  <a style="color:#8892a4;text-decoration:underline;" href="https://${var.domain_name}/privacy">Privacy</a>
+                </p>
+                <p style="margin:0;font-size:10px;color:#5a6378;line-height:1.6;">
+                  Equitas Elite · 1209 N Orange St, Wilmington, DE 19801, USA
+                </p>
+              </td></tr>
+            </table>
+          </td></tr>
+        </table>
+      </body></html>
+      EOT
+  }
+
   user_attribute_update_settings {
     attributes_require_verification_before_update = ["email"]
   }
