@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { haptic } from '@/lib/native'
 
 export default function RespondButtons({ introId }: { introId: string }) {
   const [loading, setLoading] = useState(false)
@@ -17,6 +18,7 @@ export default function RespondButtons({ introId }: { introId: string }) {
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? 'Failed')
+      void haptic(status === 'accepted' ? 'success' : 'light')
       setDone(status)
       window.location.reload()
     } catch (err: unknown) {

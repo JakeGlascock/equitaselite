@@ -19,6 +19,7 @@
     "@aws-sdk/client-sesv2": "^3.0.0",
     "@aws-sdk/client-sns": "^3.1050.0",
     "@aws-sdk/s3-request-presigner": "^3.0.0",
+    "@capacitor-community/contacts": "^7.2.0",
     "@capacitor/core": "^8.3.4",
     "@capacitor/haptics": "^8.0.2",
     "@capacitor/push-notifications": "^8.1.1",

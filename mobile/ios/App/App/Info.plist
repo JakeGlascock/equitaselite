@@ -51,5 +51,11 @@
 	<string>UIStatusBarStyleLightContent</string>
 	<key>UIUserInterfaceStyle</key>
 	<string>Dark</string>
+	<!-- Shown in the iOS permission prompt the first time the user
+	     taps "Save to Contacts" on an accepted introduction. Required
+	     by iOS — apps that touch Contacts without this string crash
+	     on first call. Keep terse + user-facing. -->
+	<key>NSContactsUsageDescription</key>
+	<string>Equitas Elite saves accepted introductions to your iPhone Contacts so you can reach connections from anywhere.</string>
 </dict>
 </plist>

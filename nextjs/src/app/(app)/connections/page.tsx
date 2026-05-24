@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import { query } from '@/lib/db'
 import { getActingAsState } from '@/lib/acting-as'
 import RespondButtons from './RespondButtons'
+import AcceptedActions from './AcceptedActions'
 
 interface IntroRow {
   id: string
@@ -85,12 +86,7 @@ export default async function ConnectionsPage() {
         {isIncoming && i.status === 'pending' ? (
           <RespondButtons introId={i.id} />
         ) : i.status === 'accepted' ? (
-          <a
-            href={`mailto:${them.email}`}
-            className="text-xs px-3 py-1.5 rounded-full border border-ee-emerald/40 bg-ee-emerald/10 text-ee-emerald hover:brightness-110 whitespace-nowrap"
-          >
-            Email {them.name.split(' ')[0]}
-          </a>
+          <AcceptedActions name={them.name} firm={them.firm} email={them.email} />
         ) : (
           statusBadge(i.status)
         )}

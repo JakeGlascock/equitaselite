@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import type { Tier } from '@/types'
+import { haptic } from '@/lib/native'
 
 // Off-Market mode is Sovereign-only. The toggle is always rendered so
 // lower-tier members can see what they'd unlock at Sovereign, but it's
@@ -45,6 +46,7 @@ export default function OffMarketToggle({
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? 'Failed')
+      void haptic('success')
       setEnabled(next)
       setConfirmingReveal(false)
     } catch (err: unknown) {

@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { useState } from 'react'
+import { haptic } from '@/lib/native'
 
 interface IntroState {
   status:       'pending' | 'accepted' | 'declined' | null
@@ -45,6 +46,7 @@ export default function IntroActionClient({
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? 'Failed')
+      void haptic('success')
       setIntro({ status: 'pending', direction: 'outgoing', contactEmail: null })
       setComposing(false)
       setMessage('')
@@ -165,7 +167,7 @@ export default function IntroActionClient({
   return (
     <button
       type="button"
-      onClick={() => setComposing(true)}
+      onClick={() => { void haptic('light'); setComposing(true) }}
       className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full bg-ee-gold text-ee-bg font-semibold hover:brightness-110 text-sm"
     >
       <span className="material-symbols-outlined text-base">handshake</span>
