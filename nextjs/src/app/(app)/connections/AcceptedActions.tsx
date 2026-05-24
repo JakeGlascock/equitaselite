@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { haptic, saveContact } from '@/lib/native'
 
 interface Props {
@@ -14,15 +14,22 @@ interface Props {
 // only renders inside the Capacitor wrapper. Detection is sync via
 // window.Capacitor — same guard as lib/native — so SSR + plain web
 // see only the email button and the bundle stays tiny.
-function isNativeSync(): boolean {
+function detectNative(): boolean {
   if (typeof window === 'undefined') return false
   type Cap = { isNativePlatform?: () => boolean }
   return (window as unknown as { Capacitor?: Cap }).Capacitor?.isNativePlatform?.() === true
 }
 
 export default function AcceptedActions({ name, firm, email }: Props) {
+  // SSR-safe: both server and the client's first render see `false`
+  // (matches), then we flip to the real value inside useEffect. Reading
+  // window.Capacitor during render produced React hydration error #418
+  // ("HTML mismatch") inside the iOS wrapper.
+  const [isNative, setIsNative]     = useState<boolean>(false)
   const [savedState, setSavedState] = useState<'idle' | 'saving' | 'saved' | 'denied'>('idle')
   const firstName = name.split(' ')[0] || name
+
+  useEffect(() => { setIsNative(detectNative()) }, [])
 
   async function onSave() {
     if (savedState === 'saving' || savedState === 'saved') return
@@ -50,7 +57,7 @@ export default function AcceptedActions({ name, firm, email }: Props) {
       >
         Email {firstName}
       </a>
-      {isNativeSync() && (
+      {isNative && (
         <button
           type="button"
           onClick={onSave}
