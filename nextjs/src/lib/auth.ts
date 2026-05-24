@@ -111,6 +111,19 @@ export async function srpInit(
   }))
 
   if (!res.Session) {
+    // Diagnostic dump — USER_SRP_AUTH should always return Session +
+    // PASSWORD_VERIFIER challenge. Anything else means Cognito treated
+    // our request as something unexpected (returned tokens directly,
+    // an unknown challenge, etc.). Log shape so we can act on it.
+    console.error('[srpInit] missing Session in response', {
+      challengeName:         res.ChallengeName,
+      hasChallengeParameters: !!res.ChallengeParameters,
+      challengeParameterKeys: Object.keys(res.ChallengeParameters ?? {}),
+      hasAuthResult:         !!res.AuthenticationResult,
+      authResultKeys:        Object.keys(res.AuthenticationResult ?? {}),
+      srpALen:               srpA.length,
+      hasDeviceKey:          !!deviceKey,
+    })
     throw new Error('Cognito SRP init did not return a session')
   }
   return {
