@@ -10,6 +10,8 @@ import {
   VerifySoftwareTokenCommand,
   ConfirmDeviceCommand,
   UpdateDeviceStatusCommand,
+  ForgotPasswordCommand,
+  ConfirmForgotPasswordCommand,
   ListUsersCommand,
   type AuthenticationResultType,
   type NewDeviceMetadataType,
@@ -374,6 +376,36 @@ export async function signInWithDevice(
 
 export async function signOut(accessToken: string): Promise<void> {
   await cognitoClient.send(new GlobalSignOutCommand({ AccessToken: accessToken }))
+}
+
+/**
+ * User-initiated password reset (step 1). Cognito emails the user a
+ * one-time confirmation code. Throws on rate-limit / unknown errors;
+ * NEVER throws on unknown-user to avoid email enumeration — Cognito
+ * silently returns success.
+ */
+export async function forgotPassword(email: string): Promise<void> {
+  await cognitoClient.send(new ForgotPasswordCommand({
+    ClientId: CLIENT_ID,
+    Username: email,
+  }))
+}
+
+/**
+ * User-initiated password reset (step 2). Sets the new password if
+ * the confirmation code from the email matches.
+ */
+export async function confirmForgotPassword(
+  email:       string,
+  code:        string,
+  newPassword: string,
+): Promise<void> {
+  await cognitoClient.send(new ConfirmForgotPasswordCommand({
+    ClientId:         CLIENT_ID,
+    Username:         email,
+    ConfirmationCode: code,
+    Password:         newPassword,
+  }))
 }
 
 export async function getCurrentUser(accessToken: string) {

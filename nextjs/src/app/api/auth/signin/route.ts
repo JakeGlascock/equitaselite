@@ -171,9 +171,45 @@ export async function POST(req: NextRequest) {
 
     return tokenResponse(result.tokens!, undefined, result.newDeviceMetadata)
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : 'Authentication failed'
-    return NextResponse.json({ error: message }, { status: 401 })
+    const { message, status } = userFacingError(err)
+    return NextResponse.json({ error: message }, { status })
   }
+}
+
+// Map AWS/Cognito error names to short user-facing strings. Server-side
+// jargon (e.g. "Cognito SRP init did not return a session") never reaches
+// the signin form. Anything we don't recognise falls back to a generic
+// "Sign in failed" — surface details to CloudWatch via the calling code's
+// own logging if needed.
+function userFacingError(err: unknown): { message: string; status: number } {
+  if (err instanceof Error) {
+    const name = (err as { name?: string }).name ?? ''
+    const msg  = err.message ?? ''
+    if (name === 'NotAuthorizedException' ||
+        name === 'UserNotFoundException'  ||
+        msg.includes('Incorrect username or password')) {
+      return { message: 'Incorrect email or password.', status: 401 }
+    }
+    if (name === 'PasswordResetRequiredException') {
+      return { message: 'Your password needs to be reset — use "Forgot password" below.', status: 401 }
+    }
+    if (name === 'UserNotConfirmedException') {
+      return { message: 'Please verify your email before signing in.', status: 401 }
+    }
+    if (name === 'CodeMismatchException') {
+      return { message: 'Incorrect verification code.', status: 401 }
+    }
+    if (name === 'ExpiredCodeException') {
+      return { message: 'Verification code expired. Request a new one.', status: 401 }
+    }
+    if (name === 'LimitExceededException' || name === 'TooManyRequestsException') {
+      return { message: 'Too many attempts. Please wait a moment and try again.', status: 429 }
+    }
+    if (name === 'InvalidPasswordException') {
+      return { message: msg || 'Password does not meet the policy requirements.', status: 400 }
+    }
+  }
+  return { message: 'Sign in failed. Please try again.', status: 401 }
 }
 
 // Read the three device cookies (key + group key + password) along with

@@ -10,6 +10,7 @@ describe('middleware: isPublic', () => {
     it.each([
       '/',
       '/signin',
+      '/forgot-password',
       '/pricing',
       '/request-access',
       '/unsubscribe',

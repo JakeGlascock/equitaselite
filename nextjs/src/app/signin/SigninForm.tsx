@@ -160,6 +160,12 @@ export default function LoginPage({ poolId }: { poolId: string }) {
 
               {error && <p className="text-red-400 text-sm">{error}</p>}
 
+              <div className="text-right -mt-2">
+                <Link href="/forgot-password" className="text-xs text-ee-muted hover:text-ee-primary">
+                  Forgot password?
+                </Link>
+              </div>
+
               <button type="submit" disabled={loading} className="btn-gold w-full justify-center">
                 {loading ? 'Signing in…' : 'Sign In'}
               </button>
