@@ -110,25 +110,20 @@ export async function srpInit(
     AuthParameters: authParameters,
   }))
 
-  if (!res.Session) {
-    // Diagnostic dump — USER_SRP_AUTH should always return Session +
-    // PASSWORD_VERIFIER challenge. Anything else means Cognito treated
-    // our request as something unexpected (returned tokens directly,
-    // an unknown challenge, etc.). Log shape so we can act on it.
-    console.error('[srpInit] missing Session in response', {
-      challengeName:         res.ChallengeName,
-      hasChallengeParameters: !!res.ChallengeParameters,
-      challengeParameterKeys: Object.keys(res.ChallengeParameters ?? {}),
-      hasAuthResult:         !!res.AuthenticationResult,
-      authResultKeys:        Object.keys(res.AuthenticationResult ?? {}),
-      srpALen:               srpA.length,
-      hasDeviceKey:          !!deviceKey,
-    })
-    throw new Error('Cognito SRP init did not return a session')
+  // Cognito under specific configurations (observed on the FIPS
+  // endpoint, with prevent_user_existence_errors enabled) omits the
+  // Session field on the PASSWORD_VERIFIER challenge and re-derives
+  // state from SRP_A + USERNAME on the follow-up RespondToAuthChallenge.
+  // The SDK types mark Session as optional for exactly this case. We
+  // forward the empty string and let srpVerify send the request
+  // without a Session — Cognito stitches the exchange back together
+  // from the ChallengeResponses.
+  if (!res.ChallengeParameters) {
+    throw new Error('Cognito SRP init did not return challenge parameters')
   }
   return {
-    session:             res.Session,
-    challengeParameters: (res.ChallengeParameters ?? {}) as Record<string, string>,
+    session:             res.Session ?? '',
+    challengeParameters: res.ChallengeParameters as Record<string, string>,
   }
 }
 
@@ -171,7 +166,10 @@ export async function srpVerify(
   const passwordRes = await cognitoClient.send(new RespondToAuthChallengeCommand({
     ClientId:           CLIENT_ID,
     ChallengeName:      'PASSWORD_VERIFIER',
-    Session:            session,
+    // Empty session string means "no session" — see srpInit's note on
+    // the FIPS-endpoint behaviour. Cognito reconstructs state from
+    // SRP_A + ChallengeResponses when Session is absent.
+    ...(session ? { Session: session } : {}),
     ChallengeResponses: challengeResponses,
   }))
 
