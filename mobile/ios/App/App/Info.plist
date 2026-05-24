@@ -78,5 +78,10 @@
 	     on first call. Keep terse + user-facing. -->
 	<key>NSContactsUsageDescription</key>
 	<string>Equitas Elite saves accepted introductions to your iPhone Contacts so you can reach connections from anywhere.</string>
+	<!-- Shown in the Face ID prompt that gates app-open after the
+	     first Face ID success. Required when LocalAuthentication is
+	     linked. Same crash-on-missing rule as Contacts. -->
+	<key>NSFaceIDUsageDescription</key>
+	<string>Equitas Elite uses Face ID to unlock the app, so your introductions and mandates stay private even if your iPhone is unlocked.</string>
 </dict>
 </plist>
