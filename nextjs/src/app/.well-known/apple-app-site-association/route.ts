@@ -31,10 +31,14 @@ export const dynamic = 'force-static'
 
 export function GET() {
   const teamId = process.env.APPLE_TEAM_ID
-  const details = teamId
+  const appID  = teamId ? `${teamId}.${BUNDLE_ID}` : null
+
+  // Universal Links — taps on /signin /try/start /introductions /connections
+  // re-open the installed app instead of Safari.
+  const applinksDetails = appID
     ? [
         {
-          appID: `${teamId}.${BUNDLE_ID}`,
+          appID,
           paths: [
             '/signin',
             '/signin/*',
@@ -48,8 +52,20 @@ export function GET() {
       ]
     : []
 
+  // Passkey auto-fill (Phase C). iOS shares passkeys created in Safari
+  // with the bundled app — and vice versa — when the relying-party id
+  // (Cognito's web_authn_configuration) matches a domain listed under
+  // the matching appID's webcredentials section. Without this, a
+  // passkey registered on the website won't surface in the iOS app's
+  // signin sheet (and the reverse), defeating the whole point of
+  // the cross-surface experience.
+  const webcredentialsApps = appID ? [appID] : []
+
   return NextResponse.json(
-    { applinks: { apps: [], details } },
+    {
+      applinks:       { apps: [], details: applinksDetails },
+      webcredentials: { apps: webcredentialsApps },
+    },
     {
       headers: {
         'Content-Type':  'application/json',

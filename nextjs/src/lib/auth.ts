@@ -12,7 +12,12 @@ import {
   UpdateDeviceStatusCommand,
   ForgotPasswordCommand,
   ConfirmForgotPasswordCommand,
+  StartWebAuthnRegistrationCommand,
+  CompleteWebAuthnRegistrationCommand,
+  ListWebAuthnCredentialsCommand,
+  DeleteWebAuthnCredentialCommand,
   ListUsersCommand,
+  type WebAuthnCredentialDescription,
   type AuthenticationResultType,
   type NewDeviceMetadataType,
   type UserType,
@@ -400,6 +405,132 @@ export async function signInWithDevice(
 
 export async function signOut(accessToken: string): Promise<void> {
   await cognitoClient.send(new GlobalSignOutCommand({ AccessToken: accessToken }))
+}
+
+// ── Passkeys / WebAuthn (Phase C) ──────────────────────────────────
+//
+// Browser flow:
+//   register: client GET options from startPasskeyRegistration →
+//     navigator.credentials.create(options) →
+//     POST result to completePasskeyRegistration.
+//   signin:   client POST email to passkeySigninInit →
+//     navigator.credentials.get(options) →
+//     POST {credential, session} to passkeySigninVerify → tokens.
+//
+// All Credential payloads are W3C-spec JSON (RegistrationResponseJSON /
+// AuthenticationResponseJSON). cognito-srp-helper isn't involved.
+
+export interface PasskeyDescription {
+  credentialId:           string
+  friendlyCredentialName: string
+  relyingPartyId:         string
+  createdAt:              string  // ISO
+  authenticatorAttachment: string | undefined
+}
+
+/**
+ * Start registering a new passkey for the signed-in user. Returns the
+ * W3C CredentialCreationOptions JSON that the browser feeds to
+ * navigator.credentials.create().
+ */
+export async function startPasskeyRegistration(accessToken: string): Promise<unknown> {
+  const res = await cognitoClient.send(new StartWebAuthnRegistrationCommand({
+    AccessToken: accessToken,
+  }))
+  return res.CredentialCreationOptions
+}
+
+/**
+ * Finish passkey registration with the attestation response from the
+ * browser's navigator.credentials.create() call.
+ */
+export async function completePasskeyRegistration(
+  accessToken: string,
+  credential:  unknown,
+): Promise<void> {
+  // Cognito's Credential parameter is typed as @smithy/types DocumentType
+  // (recursive JSON-like). The browser hands us a real RegistrationResponseJSON
+  // object — runtime-equivalent but TypeScript can't prove it without
+  // walking the type, so cast at the boundary.
+  await cognitoClient.send(new CompleteWebAuthnRegistrationCommand({
+    AccessToken: accessToken,
+    Credential:  credential as never,
+  }))
+}
+
+export async function listPasskeys(accessToken: string): Promise<PasskeyDescription[]> {
+  const out: PasskeyDescription[] = []
+  let nextToken: string | undefined
+  do {
+    const res = await cognitoClient.send(new ListWebAuthnCredentialsCommand({
+      AccessToken: accessToken,
+      NextToken:   nextToken,
+      MaxResults:  20,
+    }))
+    for (const c of (res.Credentials ?? []) as WebAuthnCredentialDescription[]) {
+      if (!c.CredentialId) continue
+      out.push({
+        credentialId:            c.CredentialId,
+        friendlyCredentialName:  c.FriendlyCredentialName ?? 'Passkey',
+        relyingPartyId:          c.RelyingPartyId ?? '',
+        createdAt:               c.CreatedAt?.toISOString() ?? '',
+        authenticatorAttachment: c.AuthenticatorAttachment,
+      })
+    }
+    nextToken = res.NextToken
+  } while (nextToken)
+  return out
+}
+
+export async function deletePasskey(accessToken: string, credentialId: string): Promise<void> {
+  await cognitoClient.send(new DeleteWebAuthnCredentialCommand({
+    AccessToken:  accessToken,
+    CredentialId: credentialId,
+  }))
+}
+
+/**
+ * Start a passkey-based signin. Cognito returns a WEB_AUTHN challenge
+ * with credential request options the browser feeds to
+ * navigator.credentials.get().
+ */
+export async function passkeySigninInit(email: string): Promise<{ session: string; challengeParameters: Record<string, string> }> {
+  const res = await cognitoClient.send(new InitiateAuthCommand({
+    AuthFlow:       'USER_AUTH',
+    ClientId:       CLIENT_ID,
+    AuthParameters: { USERNAME: email, PREFERRED_CHALLENGE: 'WEB_AUTHN' },
+  }))
+  if (res.ChallengeName !== 'WEB_AUTHN' || !res.ChallengeParameters) {
+    throw new Error(`Expected WEB_AUTHN challenge, got ${res.ChallengeName ?? 'no challenge'}`)
+  }
+  return {
+    session:             res.Session ?? '',
+    challengeParameters: res.ChallengeParameters as Record<string, string>,
+  }
+}
+
+/**
+ * Finish a passkey signin with the assertion from the browser's
+ * navigator.credentials.get() call. Returns the standard token bundle.
+ */
+export async function passkeySigninVerify(
+  email:      string,
+  session:    string,
+  credential: unknown,
+): Promise<{ tokens: AuthTokens; newDeviceMetadata?: DeviceMetadata }> {
+  const res = await cognitoClient.send(new RespondToAuthChallengeCommand({
+    ClientId:           CLIENT_ID,
+    ChallengeName:      'WEB_AUTHN',
+    ...(session ? { Session: session } : {}),
+    ChallengeResponses: {
+      USERNAME:   email,
+      CREDENTIAL: JSON.stringify(credential),
+    },
+  }))
+  return {
+    tokens:            toTokens(res.AuthenticationResult!),
+    newDeviceMetadata: toDeviceMetadata(res.AuthenticationResult?.NewDeviceMetadata),
+  }
 }
 
 /**

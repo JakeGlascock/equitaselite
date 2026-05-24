@@ -122,6 +122,52 @@ export default function LoginPage({ poolId }: { poolId: string }) {
     finally { setLoading(false) }
   }
 
+  // Passkey signin path. Skips email + password + MFA — the WebAuthn
+  // ceremony IS the auth. Requires the user to have registered at
+  // least one passkey from /profile beforehand.
+  async function handlePasskey() {
+    if (!email) { setError('Enter your email first.'); return }
+    setError(''); setLoading(true)
+    try {
+      const { startAuthentication } = await import('@simplewebauthn/browser')
+
+      const initRes  = await fetch('/api/auth/passkey/signin', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ step: 'init', email }),
+      })
+      const initData = await initRes.json()
+      if (!initRes.ok) throw new Error(initData.error ?? 'Passkey signin failed.')
+
+      // Cognito's WEB_AUTHN challenge ships the CredentialRequestOptions
+      // as a JSON string inside ChallengeParameters.CREDENTIAL_REQUEST_OPTIONS.
+      const optionsJSON = JSON.parse(initData.challengeParameters.CREDENTIAL_REQUEST_OPTIONS)
+      const credential  = await startAuthentication({ optionsJSON })
+
+      const verifyRes  = await fetch('/api/auth/passkey/signin', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({
+          step:       'verify',
+          email,
+          session:    initData.session,
+          credential,
+        }),
+      })
+      const verifyData = await verifyRes.json()
+      if (!verifyRes.ok) throw new Error(verifyData.error ?? 'Passkey signin failed.')
+
+      window.location.href = '/dashboard'
+    } catch (err: unknown) {
+      const name = (err as { name?: string })?.name ?? ''
+      if (name === 'NotAllowedError' || name === 'AbortError') {
+        setError('Cancelled.')
+      } else {
+        setError(err instanceof Error ? err.message : 'Passkey signin failed.')
+      }
+    } finally { setLoading(false) }
+  }
+
   const otpauthUri = secretCode
     ? `otpauth://totp/${encodeURIComponent('Equitas Elite')}:${encodeURIComponent(email)}?secret=${secretCode}&issuer=${encodeURIComponent('Equitas Elite')}`
     : ''
@@ -169,6 +215,19 @@ export default function LoginPage({ poolId }: { poolId: string }) {
 
               <button type="submit" disabled={loading} className="btn-gold w-full justify-center">
                 {loading ? 'Signing in…' : 'Sign In'}
+              </button>
+
+              {/* Passkey alternative — enter email above, then this
+                  button runs the WebAuthn ceremony. Face ID / Touch
+                  ID / hardware key — whatever the browser surfaces
+                  for credentials bound to equitaselite.com. */}
+              <button
+                type="button"
+                disabled={loading || !email}
+                onClick={() => void handlePasskey()}
+                className="w-full text-center text-xs text-ee-muted hover:text-ee-primary disabled:opacity-40 disabled:hover:text-ee-muted"
+              >
+                Sign in with a passkey instead
               </button>
 
               <p className="text-center text-xs text-ee-muted">

@@ -21,6 +21,18 @@ resource "aws_cognito_user_pool" "main" {
     device_only_remembered_on_user_prompt = true
   }
 
+  # Passkey / WebAuthn support (Phase C). `relying_party_id` is the
+  # domain the credential is bound to — must match the domain the
+  # signin happens on (equitaselite.com) AND the `webcredentials`
+  # entry in the AASA file for Capacitor wrapper auto-fill.
+  # `user_verification = "required"` forces Face ID / Touch ID / PIN
+  # rather than just possession — matches the security posture we
+  # want for institutional capital.
+  web_authn_configuration {
+    relying_party_id   = var.domain_name
+    user_verification  = "required"
+  }
+
   password_policy {
     minimum_length                   = 16
     require_lowercase                = true
@@ -217,6 +229,7 @@ resource "aws_cognito_user_pool_client" "web" {
   explicit_auth_flows = [
     "ALLOW_USER_SRP_AUTH",
     "ALLOW_USER_PASSWORD_AUTH",
+    "ALLOW_USER_AUTH",            # USER_AUTH flow enables WEB_AUTHN signin (Phase C)
     "ALLOW_REFRESH_TOKEN_AUTH",
   ]
 

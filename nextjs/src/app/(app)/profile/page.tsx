@@ -6,6 +6,7 @@ import { getMandate, type Role } from '@/lib/mandates'
 import OnboardingForm from '@/app/onboarding/OnboardingForm'
 import EmailPrefToggle from './EmailPrefToggle'
 import OffMarketToggle from './OffMarketToggle'
+import PasskeysSection from './PasskeysSection'
 import IdentityPanel from './IdentityPanel'
 import WalkthroughReplay from './WalkthroughReplay'
 import MandatePillarsForm from './MandatePillarsForm'
@@ -188,6 +189,12 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
         />
 
         <WalkthroughReplay />
+
+        {/* Passkeys management — Face ID / Touch ID / hardware key
+            registration + listing + removal. When at least one passkey
+            is registered, /signin shows a "Sign in with passkey"
+            button alongside email+password. */}
+        <PasskeysSection />
 
         {/* Multi-role: tabs choose which mandate the form below edits.
             URL-driven (?role=) so the choice round-trips through the
