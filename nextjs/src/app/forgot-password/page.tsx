@@ -133,7 +133,10 @@ export default function ForgotPasswordPage() {
               <p className="text-ee-muted text-sm">
                 Your new password is set. You can now sign in.
               </p>
-              <Link href="/signin" className="btn-gold w-full justify-center">
+              <Link
+                href="/signin"
+                className="btn-gold w-full inline-flex items-center justify-center"
+              >
                 Back to sign in
               </Link>
             </div>
