@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import {
   signIn,
   signInWithDevice,
+  srpInit,
+  srpVerify,
   respondToMfaChallenge,
   respondToNewPassword,
   confirmAndRememberDevice,
@@ -60,6 +62,60 @@ export async function POST(req: NextRequest) {
       } catch {
         return NextResponse.json({ challenge: 'mfa', session: nextSession })
       }
+    }
+
+    // Client-side SRP — init step (Phase D).
+    // Body: { step: 'srp_init', email, srpA }
+    // The client has already done createSrpSession() locally; we
+    // just relay SRP_A to Cognito's USER_SRP_AUTH flow and bubble
+    // back the PASSWORD_VERIFIER challenge parameters.
+    if (body.step === 'srp_init') {
+      const deviceCookies = readDeviceCookies(req, body.email)
+      const { session, challengeParameters } = await srpInit(
+        body.email,
+        body.srpA,
+        deviceCookies?.deviceKey,
+      )
+      return NextResponse.json({ session, challengeParameters })
+    }
+
+    // Client-side SRP — verify step (Phase D).
+    // Body: { step: 'srp_verify', email, session, srpA, srpSmallA,
+    //         passwordClaimSignature, passwordClaimSecretBlock,
+    //         timestamp, trustDevice }
+    // The client computed the password proof from the challenge
+    // parameters returned by srp_init. We forward it to Cognito.
+    // If the user has a confirmed device, the same SRP ephemeral
+    // (smallA/largeA/timestamp) is used to finish the device-SRP
+    // dance server-side using the cookie-stored device password.
+    if (body.step === 'srp_verify') {
+      const deviceCookies = readDeviceCookies(req, body.email)
+      const result = await srpVerify(
+        body.email,
+        body.session,
+        {
+          signature:   body.passwordClaimSignature,
+          secretBlock: body.passwordClaimSecretBlock,
+          timestamp:   body.timestamp,
+          largeA:      body.srpA,
+          smallA:      body.srpSmallA,
+        },
+        deviceCookies?.deviceKey,
+        deviceCookies?.deviceGroupKey,
+        deviceCookies?.devicePassword,
+      )
+      if (result.tokens) return tokenResponse(result.tokens, undefined, result.newDeviceMetadata)
+      if (result.challengeName === 'SOFTWARE_TOKEN_MFA') {
+        return NextResponse.json({ challenge: 'mfa', session: result.session })
+      }
+      if (result.challengeName === 'MFA_SETUP') {
+        const { secretCode, session } = await getMfaSetupSecret(result.session!)
+        return NextResponse.json({ challenge: 'mfa_setup', secretCode, session })
+      }
+      if (result.challengeName === 'NEW_PASSWORD_REQUIRED') {
+        return NextResponse.json({ challenge: 'new_password', session: result.session })
+      }
+      return NextResponse.json({ error: `Unexpected challenge: ${result.challengeName}` }, { status: 400 })
     }
 
     // MFA step (backward compat): { email, code, session, trustDevice }

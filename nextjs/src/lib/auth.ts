@@ -85,6 +85,159 @@ export async function signIn(email: string, password: string): Promise<SignInRes
   }
 }
 
+/**
+ * Browser-driven SRP signin (Phase D).
+ *
+ * The client owns the password and computes the SRP_A ephemeral
+ * locally before calling us, so the password never leaves the browser
+ * in any form — even encrypted inside an HTTPS body. We relay the
+ * SRP_A to Cognito's USER_SRP_AUTH flow and return the resulting
+ * PASSWORD_VERIFIER challenge for the client to finish.
+ */
+export async function srpInit(
+  email:     string,
+  srpA:      string,
+  deviceKey: string | undefined,
+): Promise<{ session: string; challengeParameters: Record<string, string> }> {
+  const authParameters: Record<string, string> = { USERNAME: email, SRP_A: srpA }
+  if (deviceKey) authParameters.DEVICE_KEY = deviceKey
+
+  const res = await cognitoClient.send(new InitiateAuthCommand({
+    AuthFlow:       'USER_SRP_AUTH',
+    ClientId:       CLIENT_ID,
+    AuthParameters: authParameters,
+  }))
+
+  if (!res.Session) {
+    throw new Error('Cognito SRP init did not return a session')
+  }
+  return {
+    session:             res.Session,
+    challengeParameters: (res.ChallengeParameters ?? {}) as Record<string, string>,
+  }
+}
+
+/**
+ * Complete the SRP signin by relaying the client-computed password
+ * proof to Cognito. If the device is confirmed and the cookie-stored
+ * device password is supplied, Cognito skips MFA — we then drive the
+ * DEVICE_SRP_AUTH dance server-side because the device password lives
+ * in HttpOnly cookies the browser can't read.
+ */
+export interface SrpVerifyClaim {
+  signature:   string  // PASSWORD_CLAIM_SIGNATURE (HMAC base64)
+  secretBlock: string  // PASSWORD_CLAIM_SECRET_BLOCK (passthrough from init)
+  timestamp:   string  // TIMESTAMP used in the signature
+  largeA:      string  // SRP_A (public, hex) — same value sent to srp_init
+  smallA:      string  // srp_a (private ephemeral, hex). Sharing this is fine —
+                       // it's a one-time random value, not the password. Needed
+                       // server-side only when the user has device cookies, so
+                       // we can drive the DEVICE_SRP_AUTH dance whose math
+                       // requires the same ephemeral that signed PASSWORD_VERIFIER.
+}
+
+export async function srpVerify(
+  email:          string,
+  session:        string,
+  claim:          SrpVerifyClaim,
+  deviceKey:      string | undefined,
+  deviceGroupKey: string | undefined,
+  devicePassword: string | undefined,
+): Promise<SignInResult> {
+  const challengeResponses: Record<string, string> = {
+    USERNAME:                       email,
+    PASSWORD_CLAIM_SECRET_BLOCK:    claim.secretBlock,
+    PASSWORD_CLAIM_SIGNATURE:       claim.signature,
+    TIMESTAMP:                      claim.timestamp,
+    SRP_A:                          claim.largeA,
+  }
+  if (deviceKey) challengeResponses.DEVICE_KEY = deviceKey
+
+  const passwordRes = await cognitoClient.send(new RespondToAuthChallengeCommand({
+    ClientId:           CLIENT_ID,
+    ChallengeName:      'PASSWORD_VERIFIER',
+    Session:            session,
+    ChallengeResponses: challengeResponses,
+  }))
+
+  // No further challenge — tokens immediately.
+  if (!passwordRes.ChallengeName) {
+    return {
+      tokens:            toTokens(passwordRes.AuthenticationResult!),
+      newDeviceMetadata: toDeviceMetadata(passwordRes.AuthenticationResult?.NewDeviceMetadata),
+    }
+  }
+
+  // Device-trusted path: finish the device-SRP exchange server-side
+  // using the cookie-stored device password. The client never sees
+  // the device password.
+  if (passwordRes.ChallengeName === 'DEVICE_SRP_AUTH'
+      && deviceKey && deviceGroupKey && devicePassword) {
+    return finishDeviceSrp(email, passwordRes.Session!, claim, deviceKey, deviceGroupKey, devicePassword)
+  }
+
+  // MFA, new-password, or any other challenge — bubble up so the
+  // signin route surfaces the right UI step.
+  return { challengeName: passwordRes.ChallengeName, session: passwordRes.Session }
+}
+
+/**
+ * Finish the DEVICE_SRP_AUTH → DEVICE_PASSWORD_VERIFIER exchange after
+ * the user proved their password. The device password lives in the
+ * HttpOnly cookie set at confirm-time, so the SRP proof for the
+ * device step lives server-side. The same SRP ephemeral (smallA +
+ * largeA + timestamp) from the user-SRP step is reused — Cognito ties
+ * password-verifier and device-srp together via SRP_A under one Session.
+ */
+async function finishDeviceSrp(
+  email:           string,
+  challengeSession: string,
+  claim:           SrpVerifyClaim,
+  deviceKey:       string,
+  deviceGroupKey:  string,
+  devicePassword:  string,
+): Promise<SignInResult> {
+  const deviceSrpRes = await cognitoClient.send(new RespondToAuthChallengeCommand({
+    ClientId:           CLIENT_ID,
+    ChallengeName:      'DEVICE_SRP_AUTH',
+    Session:            challengeSession,
+    ChallengeResponses: { USERNAME: email, DEVICE_KEY: deviceKey, SRP_A: claim.largeA },
+  }))
+
+  // Rebuild a minimal SrpSession from the client-supplied ephemeral so
+  // signSrpSessionWithDevice() has the smallA/largeA/timestamp inputs
+  // it needs. The session's `password`/`username`/`poolId` fields are
+  // unused on the device path (the device password + group key are
+  // what feed the SRP math).
+  const rebuiltSession = {
+    username:     email,
+    password:     '',
+    poolId:       fullPoolId(),
+    poolIdAbbr:   fullPoolId().split('_')[1] ?? '',
+    isHashed:     true,
+    timestamp:    claim.timestamp,
+    smallA:       claim.smallA,
+    largeA:       claim.largeA,
+  }
+  const signed = signSrpSessionWithDevice(rebuiltSession, deviceSrpRes, deviceGroupKey, devicePassword)
+
+  const finalRes = await cognitoClient.send(new RespondToAuthChallengeCommand({
+    ClientId:           CLIENT_ID,
+    ChallengeName:      'DEVICE_PASSWORD_VERIFIER',
+    Session:            deviceSrpRes.Session,
+    ChallengeResponses: {
+      USERNAME:                    email,
+      DEVICE_KEY:                  deviceKey,
+      PASSWORD_CLAIM_SECRET_BLOCK: signed.secret,
+      PASSWORD_CLAIM_SIGNATURE:    signed.passwordSignature,
+      TIMESTAMP:                   signed.timestamp,
+      SRP_A:                       signed.largeA,
+    },
+  }))
+
+  return { tokens: toTokens(finalRes.AuthenticationResult!) }
+}
+
 export async function respondToMfaChallenge(
   email: string,
   code: string,
