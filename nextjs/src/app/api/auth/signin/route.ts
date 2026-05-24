@@ -171,6 +171,13 @@ export async function POST(req: NextRequest) {
 
     return tokenResponse(result.tokens!, undefined, result.newDeviceMetadata)
   } catch (err: unknown) {
+    // Log every failure with its name + message so CloudWatch surfaces
+    // which class of error fired (SRP lib internals, Cognito rejection,
+    // schema error, etc.) — userFacingError below intentionally hides
+    // detail from the user.
+    const name = (err as { name?: string })?.name ?? 'UnknownError'
+    const msg  = err instanceof Error ? err.message : String(err)
+    console.error(`[signin] ${name}: ${msg}`)
     const { message, status } = userFacingError(err)
     return NextResponse.json({ error: message }, { status })
   }

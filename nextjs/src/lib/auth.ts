@@ -221,7 +221,20 @@ async function finishDeviceSrp(
     smallA:       claim.smallA,
     largeA:       claim.largeA,
   }
-  const signed = signSrpSessionWithDevice(rebuiltSession, deviceSrpRes, deviceGroupKey, devicePassword)
+  // cognito-srp-helper.signSrpSessionWithDevice() throws
+  // MissingDeviceKeyError if ChallengeParameters.DEVICE_KEY isn't
+  // present. Cognito's docs say it returns DEVICE_KEY in the
+  // DEVICE_PASSWORD_VERIFIER challenge, but real-world responses
+  // sometimes omit it — and we already have the value from the cookie.
+  // Inject it defensively so the lib's check is satisfied either way.
+  const augmentedRes = {
+    ...deviceSrpRes,
+    ChallengeParameters: {
+      ...(deviceSrpRes.ChallengeParameters ?? {}),
+      DEVICE_KEY: deviceSrpRes.ChallengeParameters?.DEVICE_KEY ?? deviceKey,
+    },
+  }
+  const signed = signSrpSessionWithDevice(rebuiltSession, augmentedRes, deviceGroupKey, devicePassword)
 
   const finalRes = await cognitoClient.send(new RespondToAuthChallengeCommand({
     ClientId:           CLIENT_ID,
