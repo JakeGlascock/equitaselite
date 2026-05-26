@@ -24,8 +24,8 @@ export default defineConfig({
         'src/lib/db.ts',
         // SES sender — requires live AWS credentials + verified domain identity
         'src/lib/email.ts',
-        // Admin check helper — requires live DB
-        'src/lib/admin.ts',
+        // Admin check helper — env-fallback vs DB-column precedence
+        // covered in T2 lib/__tests__/admin.test.ts.
         // Session helper — calls jose JWKS over the network; integration-tested
         'src/lib/session.ts',
         // Reports lib — thin pg query wrappers + a small pure helper;
@@ -45,16 +45,17 @@ export default defineConfig({
         'src/app/api/auth/refresh/**',
         // Trivial 3-line health endpoint
         'src/app/api/health/**',
-        // DB-backed routes — require live DB; tested via integration tests
-        'src/app/api/me/**',
-        'src/app/api/onboarding/**',
-        'src/app/api/matches/**',
-        // introductions/** moved into scope in Phase T1 (tier quota enforcement
-        // is load-bearing for revenue; user_id scoping is security-shaped).
-        'src/app/api/notifications/**',
+        // DB-backed routes — require live DB; tested via integration tests.
+        // me/**, onboarding/**, matches/**, notifications/** moved into scope
+        // in Phase T2. concierge/act-as/** also covered in T2.
         'src/app/api/request-access/**',
-        'src/app/api/concierge/**',
+        'src/app/api/concierge/annotations/**',
+        'src/app/api/concierge/profiles/**',
+        'src/app/api/concierge/requests/**',
+        'src/app/api/concierge/welcome/**',
         'src/app/api/walkthrough/**',
+        'src/app/api/me/mandate-pillars/**',
+        'src/app/api/me/mandate-weights/**',
         // Admin route calls Cognito Admin API; tested via integration tests.
         // Specific subpaths covered in T1:
         //   - admin/users/[id] (self-revoke lockout + demo blocks)
@@ -86,8 +87,7 @@ export default defineConfig({
         'src/lib/push.ts',
         // Native client helpers — browser-only Capacitor wrappers
         'src/lib/native.ts',
-        // Device-token endpoints — DB-backed + AWS SNS via lib/push
-        'src/app/api/devices/**',
+        // Device-token endpoints — covered in T2.
         // Member-facing deal-flow endpoints — DB-backed.
         // /api/deals/[id]/respond moved into scope in Phase T1 (user_id
         // scoping is security-shaped). The list route stays excluded for T2.
