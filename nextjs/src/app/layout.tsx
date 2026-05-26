@@ -24,10 +24,23 @@ const plexSans = IBM_Plex_Sans({
   display:  'swap',
 })
 
+// metadataBase makes per-page `alternates.canonical` resolve to
+// absolute URLs (Google + Lighthouse prefer absolute canonicals).
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://equitaselite.com'
+
 export const metadata: Metadata = {
-  title: 'Equitas Elite',
-  description: 'Institutional investor alignment platform',
-  robots: { index: false, follow: false },
+  metadataBase: new URL(APP_URL),
+  title: {
+    default:  'Equitas Elite',
+    template: '%s · Equitas Elite',
+  },
+  description: 'Institutional investor alignment platform.',
+  // Public marketing surfaces (/, /signin, /pricing, /privacy, /terms,
+  // /request-access) inherit index: true from this default. Authed
+  // pages override to noindex in src/app/(app)/layout.tsx so the
+  // members-only product surface never gets crawled.
+  robots: { index: true, follow: true },
+  alternates: { canonical: '/' },
 }
 
 // `viewport-fit=cover` lets the page extend under the iOS status bar /

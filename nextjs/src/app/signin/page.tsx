@@ -1,4 +1,11 @@
+import type { Metadata } from 'next'
 import SigninForm from './SigninForm'
+
+export const metadata: Metadata = {
+  title:       'Sign in',
+  description: 'Sign in to your Equitas Elite account.',
+  alternates:  { canonical: '/signin' },
+}
 
 // Without this, Next.js statically renders /signin at `next build` time
 // (the page has no dynamic data sources to opt itself out). The Docker

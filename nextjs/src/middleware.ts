@@ -14,7 +14,7 @@ const JWKS = ISSUER
   : null
 
 const PUBLIC_PREFIXES = ['/_next/', '/favicon.ico', '/logo.png', '/fonts/', '/preview/', '/deck/', '/try/', '/.well-known/']
-const PUBLIC_EXACT    = ['/', '/signin', '/forgot-password', '/pricing', '/request-access', '/unsubscribe', '/privacy', '/terms', '/preview-denied', '/deck-denied', '/try']
+const PUBLIC_EXACT    = ['/', '/signin', '/forgot-password', '/pricing', '/request-access', '/unsubscribe', '/privacy', '/terms', '/preview-denied', '/deck-denied', '/try', '/robots.txt', '/sitemap.xml']
 // Note: `/api/auth/` is NOT a public prefix because the passkey
 // management endpoints (register/start, register/complete, list, [id])
 // live under `/api/auth/passkey/...` and DO require the middleware

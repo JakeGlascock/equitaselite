@@ -33,6 +33,10 @@ const CHECKS = [
   // install to enable Universal Links. Must return 200 + JSON with no
   // redirects. Always reachable without auth.
   { name: 'aasa',            path: '/.well-known/apple-app-site-association', status: 200, contains: 'applinks' },
+  // SEO metadata routes. Must return 200 (not the middleware 307 to /signin)
+  // so search engines and Lighthouse can index the public marketing surface.
+  { name: 'robots-txt',      path: '/robots.txt',  status: 200, contains: 'User-Agent' },
+  { name: 'sitemap-xml',     path: '/sitemap.xml', status: 200, contains: '<urlset' },
   { name: 'landing',         path: '/',                status: 200, contains: 'Equitas Elite' },
   { name: 'signin',          path: '/signin',          status: 200, contains: 'Welcome back' },
   { name: 'pricing',         path: '/pricing',         status: 200, contains: 'Sovereign' },

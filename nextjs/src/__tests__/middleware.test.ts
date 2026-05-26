@@ -19,6 +19,11 @@ describe('middleware: isPublic', () => {
       '/preview-denied',
       '/deck-denied',
       '/try',
+      // SEO metadata routes (Next 15 generates these via src/app/robots.ts
+      // and src/app/sitemap.ts). Must be reachable without auth or
+      // search engines + Lighthouse get a 307 to /signin.
+      '/robots.txt',
+      '/sitemap.xml',
     ])('treats %s as public', (path) => {
       expect(isPublic(path)).toBe(true)
     })

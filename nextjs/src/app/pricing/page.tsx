@@ -1,6 +1,13 @@
+import type { Metadata } from 'next'
 import { getTier, type Tier } from '@/lib/membership'
 import { tryGetUserId } from '@/lib/session'
 import PricingClient from './PricingClient'
+
+export const metadata: Metadata = {
+  title:       'Pricing',
+  description: 'Equitas Elite membership tiers — Access, Select, and Sovereign. Mandate-matched introductions, concierge support, exclusive deal flow.',
+  alternates:  { canonical: '/pricing' },
+}
 
 // Force per-request rendering. Without this, Next.js statically
 // pre-generates /pricing at build time with currentTier=null baked in

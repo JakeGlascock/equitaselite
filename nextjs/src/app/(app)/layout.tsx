@@ -1,3 +1,4 @@
+import type { Metadata } from 'next'
 import { headers } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { queryOne } from '@/lib/db'
@@ -5,6 +6,14 @@ import { isUserAdmin } from '@/lib/admin'
 import { getActingAsState, type ManagedProfileLite } from '@/lib/acting-as'
 import { getTier } from '@/lib/membership'
 import AppShell from '@/components/AppShell'
+
+// Every authed surface under (app)/ inherits this — dashboard, profile,
+// admin, concierge, etc. Public marketing pages (/, /signin, /pricing,
+// /privacy, /terms, /request-access) live OUTSIDE this layout group and
+// inherit the indexable default from src/app/layout.tsx.
+export const metadata: Metadata = {
+  robots: { index: false, follow: false },
+}
 
 interface ShellProfile {
   full_name: string
