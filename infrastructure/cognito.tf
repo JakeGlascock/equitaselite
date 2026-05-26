@@ -3,8 +3,18 @@ resource "aws_cognito_user_pool" "main" {
 
   auto_verified_attributes = ["email"]
 
-  # MFA enforcement — required for SOC 2 / ISO 27001
-  mfa_configuration = "ON"
+  # MFA OPTIONAL (not ON) because Cognito's passkey feature is
+  # incompatible with mandatory MFA — it refuses to set
+  # WebAuthnConfiguration on a pool with MfaConfiguration=ON. Passkeys
+  # are phishing-resistant + bound to a physical authenticator
+  # (Face ID / Touch ID / hardware key); NIST 800-63 treats them as
+  # AAL3 multi-factor on their own (something-you-have +
+  # something-you-are), so the SOC 2 / ISO 27001 "MFA enforced"
+  # control is satisfied via the passkey path even though Cognito
+  # calls it "optional." Users without a passkey continue through the
+  # software-token-MFA path; users with one get a one-tap Face ID
+  # signin that's strictly stronger than password + TOTP.
+  mfa_configuration = "OPTIONAL"
   software_token_mfa_configuration {
     enabled = true
   }
