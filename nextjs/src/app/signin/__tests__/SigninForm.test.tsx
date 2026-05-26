@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import SigninForm from '../SigninForm'
+import { expectNoA11yViolations } from '@/test/a11y'
 
 // cognito-srp-helper does real SRP math; stub for component-level tests
 // so we can drive the path deterministically without modular-exponent
@@ -43,6 +44,11 @@ describe('<SigninForm /> credentials step', () => {
   it('exposes the Show/Hide password toggle from PasswordField', async () => {
     render(<SigninForm poolId="us-east-1_pool" />)
     expect(screen.getByRole('button', { name: /show password/i })).toBeInTheDocument()
+  })
+
+  it('has no a11y violations on the credentials step', async () => {
+    const { container } = render(<SigninForm poolId="us-east-1_pool" />)
+    await expectNoA11yViolations(container)
   })
 })
 

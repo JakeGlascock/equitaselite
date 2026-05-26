@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import DealResponseControls from '../DealResponseControls'
+import { expectNoA11yViolations } from '@/test/a11y'
 
 const mockRefresh = vi.fn()
 vi.mock('next/navigation', () => ({
@@ -78,5 +79,10 @@ describe('<DealResponseControls />', () => {
     await userEvent.click(screen.getByRole('button', { name: /^pass$/i }))
 
     await waitFor(() => expect(screen.getByText(/Failed/i)).toBeInTheDocument())
+  })
+
+  it('has no a11y violations', async () => {
+    const { container } = render(<DealResponseControls invitationId="inv-1" />)
+    await expectNoA11yViolations(container)
   })
 })

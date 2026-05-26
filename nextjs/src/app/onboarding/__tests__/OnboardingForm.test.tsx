@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import OnboardingForm from '../OnboardingForm'
+import { expectNoA11yViolations } from '@/test/a11y'
 
 const fetchMock = vi.fn()
 vi.stubGlobal('fetch', fetchMock)
@@ -53,6 +54,11 @@ describe('<OnboardingForm /> — multi-role identity gate (Step 1)', () => {
       .toHaveAttribute('aria-pressed', 'false')
     expect(screen.getByRole('button', { name: /Next Gen/i }))
       .toHaveAttribute('aria-pressed', 'false')
+  })
+
+  it('has no a11y violations on Step 1 (identity)', async () => {
+    const { container } = render(<OnboardingForm email="a@x.com" />)
+    await expectNoA11yViolations(container)
   })
 })
 

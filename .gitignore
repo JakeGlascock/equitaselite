@@ -5,6 +5,7 @@ nextjs/.next/
 nextjs/node_modules/
 nextjs/.env.local
 nextjs/coverage/
+nextjs/.lighthouseci/
 
 # Terraform
 **/.terraform/

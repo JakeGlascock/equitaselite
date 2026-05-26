@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import PasswordField from '../PasswordField'
+import { expectNoA11yViolations } from '@/test/a11y'
 
 describe('<PasswordField />', () => {
   it('renders as type=password by default', () => {
@@ -41,5 +42,15 @@ describe('<PasswordField />', () => {
     expect(input).toHaveAttribute('autocomplete', 'new-password')
     expect(input).toHaveAttribute('placeholder', 'enter pw')
     expect(input).toBeRequired()
+  })
+
+  it('has no a11y violations when used with an associated <label>', async () => {
+    const { container } = render(
+      <form aria-label="signin">
+        <label htmlFor="pw-test">Password</label>
+        <PasswordField id="pw-test" defaultValue="" autoComplete="current-password" />
+      </form>,
+    )
+    await expectNoA11yViolations(container)
   })
 })

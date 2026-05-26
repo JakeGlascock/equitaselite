@@ -1,0 +1,51 @@
+name: Lighthouse
+
+# Lighthouse CI baseline (Phase T5). Runs against the deployed prod URLs
+# after every successful Deploy + on-demand from the Actions tab. The
+# assertions are split between "error" (block on a regression) and
+# "warn" (visible in PR comments / artifacts, but non-blocking).
+#
+# Reports are uploaded to Lighthouse's temporary-public-storage bucket
+# so we don't need to host an LHCI server — links live for 7 days in
+# the action summary. Long-term trend storage can be added later if
+# needed (would require a hosted LHCI server, not free).
+
+on:
+  workflow_run:
+    workflows: ["Deploy"]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  lighthouse:
+    name: Lighthouse baseline
+    runs-on: ubuntu-latest
+    # Don't audit a known-bad rollout.
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+
+      - name: Install deps
+        working-directory: nextjs
+        # Repo doesn't track package-lock.json (see existing ci.yml jobs)
+        # so `npm install` is the install command of record.
+        run: npm install --no-audit
+
+      - name: Run Lighthouse CI
+        id: lhci
+        working-directory: nextjs
+        # autorun reads .lighthouserc.json from the working directory and
+        # exits non-zero when any "error"-level assertion fails. Reports
+        # upload to temporary-public-storage (URLs land in the run log).
+        run: npx --no -- lhci autorun
