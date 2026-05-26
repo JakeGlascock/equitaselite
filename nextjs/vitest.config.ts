@@ -38,24 +38,13 @@ export default defineConfig({
         'src/lib/deals.ts',
         // Analytics — pure SQL aggregations over real prod data; integration only
         'src/lib/analytics.ts',
-        // Thin Cognito proxy routes — call signIn/signOut/refreshTokens from lib/auth.
-        // signin/** moved into the measured scope as the Phase T0 reference test;
-        // signout + refresh stay excluded until Phase T1 lands tests for them.
-        'src/app/api/auth/signout/**',
-        'src/app/api/auth/refresh/**',
+        // Thin Cognito proxy routes — moved into scope in T0/T1/T2.
         // Trivial 3-line health endpoint
         'src/app/api/health/**',
         // DB-backed routes — require live DB; tested via integration tests.
         // me/**, onboarding/**, matches/**, notifications/** moved into scope
         // in Phase T2. concierge/act-as/** also covered in T2.
         'src/app/api/request-access/**',
-        'src/app/api/concierge/annotations/**',
-        'src/app/api/concierge/profiles/**',
-        'src/app/api/concierge/requests/**',
-        'src/app/api/concierge/welcome/**',
-        'src/app/api/walkthrough/**',
-        'src/app/api/me/mandate-pillars/**',
-        'src/app/api/me/mandate-weights/**',
         // Admin route calls Cognito Admin API; tested via integration tests.
         // Specific subpaths covered in T1:
         //   - admin/users/[id] (self-revoke lockout + demo blocks)
@@ -96,17 +85,7 @@ export default defineConfig({
         'src/app/api/demo/**',
         // Unsubscribe + events RSVP — DB-backed
         'src/app/api/unsubscribe/**',
-        // Forgot/reset-password — thin Cognito wrappers from lib/auth
-        'src/app/api/auth/forgot-password/**',
-        'src/app/api/auth/reset-password/**',
-        // Session endpoint — calls into excluded lib/session.ts
-        'src/app/api/auth/session/**',
-        // Passkey ceremony + management routes — Cognito Admin WebAuthn
-        // API + the WebAuthnConfig pool quirk make these integration-only.
-        // signin + register/complete moved into scope in Phase T1.
-        'src/app/api/auth/passkey/list/**',
-        'src/app/api/auth/passkey/register/start/**',
-        'src/app/api/auth/passkey/[id]/**',
+        // Auth wrappers + passkey routes — all moved into scope in T0/T1/T2.
       ],
       // Ratcheted up from 80/75 — current measured coverage on the included
       // scope (src/lib/** + src/app/api/**, minus the AWS/DB-backed excludes)
