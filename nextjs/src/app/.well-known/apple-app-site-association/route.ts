@@ -27,7 +27,12 @@ import { NextResponse } from 'next/server'
 
 const BUNDLE_ID = 'com.equitaselite.app'
 
-export const dynamic = 'force-static'
+// MUST be force-dynamic, not force-static — APPLE_TEAM_ID is a
+// runtime ECS env var. force-static would bake the response at
+// `next build` time when the var is empty in CI, leaving applinks +
+// webcredentials forever stubbed regardless of what gets set on
+// the live task definition.
+export const dynamic = 'force-dynamic'
 
 export function GET() {
   const teamId = process.env.APPLE_TEAM_ID
