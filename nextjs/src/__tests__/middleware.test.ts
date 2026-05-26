@@ -45,6 +45,9 @@ describe('middleware: isPublic', () => {
       '/api/auth/signout',
       '/api/auth/refresh',
       '/api/auth/session',
+      '/api/auth/forgot-password',
+      '/api/auth/reset-password',
+      '/api/auth/passkey/signin',  // The WebAuthn ceremony IS the auth — no JWT yet.
       '/api/health',
       '/api/request-access',
       '/api/unsubscribe',
@@ -53,6 +56,22 @@ describe('middleware: isPublic', () => {
       '/api/demo/signup',
     ])('treats %s as public', (path) => {
       expect(isPublic(path)).toBe(true)
+    })
+  })
+
+  describe('passkey management routes are NOT public', () => {
+    // These all require an authenticated user (the middleware sets
+    // x-user-id from the JWT). When previously listed under the
+    // `/api/auth/` prefix in PUBLIC_API, the route handlers returned
+    // a bare 401 instead of letting the middleware do auto-refresh +
+    // redirect to /signin like the rest of the authed API surface.
+    it.each([
+      '/api/auth/passkey/register/start',
+      '/api/auth/passkey/register/complete',
+      '/api/auth/passkey/list',
+      '/api/auth/passkey/abc-123',
+    ])('treats %s as auth-required', (path) => {
+      expect(isPublic(path)).toBe(false)
     })
   })
 

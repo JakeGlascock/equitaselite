@@ -84,14 +84,14 @@ const CHECKS = [
   // MFA after one hour.
   { name: 'auth-refresh-public', path: '/api/auth/refresh', method: 'POST', body: '', status: 401, contains: 'No refresh token' },
 
-  // Phase C — passkey management endpoints must reject unauth callers
-  // (they look up the user's access token from the ee_access cookie
-  // and call Cognito's WebAuthn admin APIs).
-  { name: 'gate-passkey-list',          path: '/api/auth/passkey/list',              status: 401 },
-  { name: 'gate-passkey-register-start', path: '/api/auth/passkey/register/start',   method: 'POST', body: '', status: 401 },
+  // Phase C — passkey management endpoints must redirect unauth
+  // callers to /signin like the rest of the authed API surface
+  // (they're under /api/auth/ but explicitly NOT in PUBLIC_API).
+  { name: 'gate-passkey-list',           path: '/api/auth/passkey/list',            status: [302, 307, 308], redirectContains: '/signin', followRedirect: false },
+  { name: 'gate-passkey-register-start', path: '/api/auth/passkey/register/start',  method: 'POST', body: '', status: [302, 307, 308], redirectContains: '/signin', followRedirect: false },
   // Passkey signin is the unauth entry point itself (the WebAuthn
   // ceremony IS the auth) — bad payload should 400, not 401.
-  { name: 'passkey-signin-bad-body',    path: '/api/auth/passkey/signin', method: 'POST',
+  { name: 'passkey-signin-bad-body',     path: '/api/auth/passkey/signin', method: 'POST',
     headers: { 'Content-Type': 'application/json' }, body: '{}', status: 400 },
 
   // ───── Public demo (migration 036 / Phase F) ─────

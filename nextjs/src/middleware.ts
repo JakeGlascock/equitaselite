@@ -15,7 +15,25 @@ const JWKS = ISSUER
 
 const PUBLIC_PREFIXES = ['/_next/', '/favicon.ico', '/logo.png', '/fonts/', '/preview/', '/deck/', '/try/', '/.well-known/']
 const PUBLIC_EXACT    = ['/', '/signin', '/forgot-password', '/pricing', '/request-access', '/unsubscribe', '/privacy', '/terms', '/preview-denied', '/deck-denied', '/try']
-const PUBLIC_API      = ['/api/auth/', '/api/health', '/api/request-access', '/api/unsubscribe', '/api/preview/', '/api/feedback/', '/api/demo/']
+// Note: `/api/auth/` is NOT a public prefix because the passkey
+// management endpoints (register/start, register/complete, list, [id])
+// live under `/api/auth/passkey/...` and DO require the middleware
+// to set x-user-id from the JWT. Public entries listed explicitly.
+const PUBLIC_API      = [
+  '/api/auth/signin',
+  '/api/auth/signout',
+  '/api/auth/refresh',
+  '/api/auth/session',
+  '/api/auth/forgot-password',
+  '/api/auth/reset-password',
+  '/api/auth/passkey/signin',  // The passkey signin flow IS the auth — no JWT yet.
+  '/api/health',
+  '/api/request-access',
+  '/api/unsubscribe',
+  '/api/preview/',
+  '/api/feedback/',
+  '/api/demo/',
+]
 
 // Exported so the auth-gate test suite can assert which paths are reachable
 // without a Cognito session. If you add a new public route, add it to the
