@@ -232,12 +232,19 @@ export default function LoginPage({ poolId }: { poolId: string }) {
 
               <p className="text-center text-xs text-ee-muted">
                 Access is by invitation only.{' '}
-                <Link href="/request-access" className="text-ee-gold hover:underline">Join the waitlist</Link>
+                {/* underline at rest, not only on hover — WCAG 1.4.1
+                    (use of color): gold-on-muted alone is 1.84:1 contrast,
+                    below the 3:1 link-distinguishability threshold. */}
+                <Link href="/request-access" className="text-ee-gold underline">Join the waitlist</Link>
               </p>
               <p className="text-center text-xs text-ee-muted">
                 <a href="/pricing" className="hover:text-ee-primary transition-colors">View membership plans →</a>
               </p>
-              <p className="text-center text-[11px] text-ee-muted/70 pt-2">
+              {/* Footer link colour bumped from /70 (3.35:1) to ee-muted
+                  proper, which clears WCAG AA 4.5:1 against the panel
+                  background. The visual hierarchy is preserved by the
+                  smaller text size + padding, not by lower contrast. */}
+              <p className="text-center text-[11px] text-ee-muted pt-2">
                 <Link href="/privacy" className="hover:text-ee-primary transition-colors">Privacy</Link>
                 <span className="mx-2">·</span>
                 <Link href="/terms" className="hover:text-ee-primary transition-colors">Terms</Link>
