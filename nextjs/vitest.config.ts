@@ -49,13 +49,29 @@ export default defineConfig({
         'src/app/api/me/**',
         'src/app/api/onboarding/**',
         'src/app/api/matches/**',
-        'src/app/api/introductions/**',
+        // introductions/** moved into scope in Phase T1 (tier quota enforcement
+        // is load-bearing for revenue; user_id scoping is security-shaped).
         'src/app/api/notifications/**',
         'src/app/api/request-access/**',
         'src/app/api/concierge/**',
         'src/app/api/walkthrough/**',
-        // Admin route calls Cognito Admin API; tested via integration tests
-        'src/app/api/admin/**',
+        // Admin route calls Cognito Admin API; tested via integration tests.
+        // Specific subpaths covered in T1:
+        //   - admin/users/[id] (self-revoke lockout + demo blocks)
+        //   - admin/deals/[id]/invitations (Sovereign-only filter)
+        // Keep the broad exclude for the rest; pull more in during T2.
+        'src/app/api/admin/access-requests/**',
+        'src/app/api/admin/backfill-placeholders/**',
+        'src/app/api/admin/deck-tokens/**',
+        'src/app/api/admin/deals/route.ts',
+        'src/app/api/admin/events/**',
+        'src/app/api/admin/invite/**',
+        'src/app/api/admin/managed/**',
+        'src/app/api/admin/portfolio-reports/**',
+        'src/app/api/admin/preview-tokens/**',
+        'src/app/api/admin/reports/**',
+        'src/app/api/admin/seed-demo-data/**',
+        'src/app/api/admin/test-fixtures/**',
         // Investor-preview cookie clear; trivial DB-less wrapper
         'src/app/api/preview/**',
         // User-feedback report — DB-backed + SES; integration-tested only
@@ -72,8 +88,10 @@ export default defineConfig({
         'src/lib/native.ts',
         // Device-token endpoints — DB-backed + AWS SNS via lib/push
         'src/app/api/devices/**',
-        // Member-facing deal-flow endpoints — DB-backed, integration-tested
-        'src/app/api/deals/**',
+        // Member-facing deal-flow endpoints — DB-backed.
+        // /api/deals/[id]/respond moved into scope in Phase T1 (user_id
+        // scoping is security-shaped). The list route stays excluded for T2.
+        'src/app/api/deals/route.ts',
         // Public demo signup — DB-backed + Turnstile + SES
         'src/app/api/demo/**',
         // Unsubscribe + events RSVP — DB-backed
@@ -85,7 +103,10 @@ export default defineConfig({
         'src/app/api/auth/session/**',
         // Passkey ceremony + management routes — Cognito Admin WebAuthn
         // API + the WebAuthnConfig pool quirk make these integration-only.
-        'src/app/api/auth/passkey/**',
+        // signin + register/complete moved into scope in Phase T1.
+        'src/app/api/auth/passkey/list/**',
+        'src/app/api/auth/passkey/register/start/**',
+        'src/app/api/auth/passkey/[id]/**',
       ],
       // Ratcheted up from 80/75 — current measured coverage on the included
       // scope (src/lib/** + src/app/api/**, minus the AWS/DB-backed excludes)
