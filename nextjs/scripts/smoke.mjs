@@ -59,6 +59,16 @@ const CHECKS = [
   { name: 'gate-insights',     path: '/insights',           status: [302, 307, 308], redirectContains: '/signin', followRedirect: false },
   { name: 'gate-network',      path: '/network',            status: [302, 307, 308], redirectContains: '/signin', followRedirect: false },
   { name: 'gate-reports',      path: '/reports',            status: [302, 307, 308], redirectContains: '/signin', followRedirect: false },
+  // Sovereign-only deal flow. Unauth must redirect; the tier gate runs
+  // post-auth so we can't exercise it from CI without a Sovereign session.
+  { name: 'gate-deals',        path: '/deals',              status: [302, 307, 308], redirectContains: '/signin', followRedirect: false },
+  { name: 'gate-deals-list',   path: '/api/deals',          status: [302, 307, 308], redirectContains: '/signin', followRedirect: false },
+  { name: 'gate-deals-respond', path: '/api/deals/x/respond', method: 'POST', body: '', status: [302, 307, 308], redirectContains: '/signin', followRedirect: false },
+  // Admin write surface — both base + per-id + invitations subroute must
+  // gate. A leak here lets any visitor read or seed deal records.
+  { name: 'gate-admin-deals',         path: '/api/admin/deals',                                       status: [302, 307, 308], redirectContains: '/signin', followRedirect: false },
+  { name: 'gate-admin-deals-create',  path: '/api/admin/deals',                method: 'POST', body: '', status: [302, 307, 308], redirectContains: '/signin', followRedirect: false },
+  { name: 'gate-admin-deals-invite',  path: '/api/admin/deals/x/invitations',  method: 'POST', body: '', status: [302, 307, 308], redirectContains: '/signin', followRedirect: false },
   { name: 'gate-discovery',    path: '/discovery',          status: [302, 307, 308], redirectContains: '/signin', followRedirect: false },
   { name: 'gate-portfolio',    path: '/portfolio',          status: [302, 307, 308], redirectContains: '/signin', followRedirect: false },
   { name: 'gate-connections',  path: '/connections',        status: [302, 307, 308], redirectContains: '/signin', followRedirect: false },

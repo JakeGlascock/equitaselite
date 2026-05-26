@@ -132,6 +132,15 @@ describe('middleware: isPublic', () => {
       '/api/admin/users/abc',
       '/api/admin/seed-demo-data',
       '/api/concierge/profiles',
+      // Sovereign deal flow — every surface is auth-gated. /deals is
+      // Sovereign-only and the API mirrors that. A leak here surfaces
+      // private opportunities to anyone hitting the route.
+      '/deals',
+      '/api/deals',
+      '/api/deals/abc-123/respond',
+      '/api/admin/deals',
+      '/api/admin/deals/abc-123',
+      '/api/admin/deals/abc-123/invitations',
     ])('treats %s as private (requires auth)', (path) => {
       expect(isPublic(path)).toBe(false)
     })

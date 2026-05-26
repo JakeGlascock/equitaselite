@@ -46,6 +46,10 @@ const NAV_ITEMS: NavItem[] = [
   { href: '/reports',     icon: 'bar_chart',              label: 'Reports'    },
 ]
 
+// Sovereign-only nav extension. Spliced after Deal Room so curated
+// invitations sit next to the member's own deal pipeline.
+const SOVEREIGN_NAV_ITEM: NavItem = { href: '/deals', icon: 'workspace_premium', label: 'Deal Flow' }
+
 // Top bar — the broader platform (content + service)
 const TOP_NAV_ITEMS: NavItem[] = [
   { href: '/insights',  icon: 'insights',       label: 'Insights'  },
@@ -106,6 +110,16 @@ export default function AppShell({
 }) {
   const pathname = usePathname()
   const [mobileOpen, setMobileOpen] = useState(false)
+
+  // Only Sovereigns see /deals in the nav. Inserted right after
+  // /connections (Deal Room) so the two related surfaces stay adjacent.
+  const navItems: NavItem[] = user.tier === 'sovereign'
+    ? [
+        ...NAV_ITEMS.slice(0, 3),
+        SOVEREIGN_NAV_ITEM,
+        ...NAV_ITEMS.slice(3),
+      ]
+    : NAV_ITEMS
 
   // When actively impersonating a managed profile, swap the role badge to
   // reflect the profile (not the concierge's own label) so the UX matches
@@ -290,7 +304,7 @@ export default function AppShell({
           </div>
         </div>
         <nav className="flex flex-col gap-0.5 p-3 flex-grow">
-          {NAV_ITEMS.map(item => (
+          {navItems.map(item => (
             <NavLink key={item.href} item={item} active={pathname === item.href} />
           ))}
         </nav>
@@ -337,7 +351,7 @@ export default function AppShell({
               </div>
             </div>
             <nav className="flex flex-col gap-0.5 p-3 flex-grow overflow-y-auto">
-              {NAV_ITEMS.map(item => (
+              {navItems.map(item => (
                 <div key={item.href} onClick={() => setMobileOpen(false)}>
                   <NavLink item={item} active={pathname === item.href} />
                 </div>

@@ -33,6 +33,9 @@ export default defineConfig({
         'src/lib/reports.ts',
         // Portfolio-reports (bespoke briefings) — same pattern
         'src/lib/portfolio-reports.ts',
+        // Deal-flow lib — thin pg query wrappers; integration-tested via
+        // the admin CMS + /deals member flow
+        'src/lib/deals.ts',
         // Analytics — pure SQL aggregations over real prod data; integration only
         'src/lib/analytics.ts',
         // Thin Cognito proxy routes — call signIn/signOut/refreshTokens from lib/auth
@@ -68,6 +71,8 @@ export default defineConfig({
         'src/lib/native.ts',
         // Device-token endpoints — DB-backed + AWS SNS via lib/push
         'src/app/api/devices/**',
+        // Member-facing deal-flow endpoints — DB-backed, integration-tested
+        'src/app/api/deals/**',
         // Public demo signup — DB-backed + Turnstile + SES
         'src/app/api/demo/**',
         // Unsubscribe + events RSVP — DB-backed
@@ -77,6 +82,9 @@ export default defineConfig({
         'src/app/api/auth/reset-password/**',
         // Session endpoint — calls into excluded lib/session.ts
         'src/app/api/auth/session/**',
+        // Passkey ceremony + management routes — Cognito Admin WebAuthn
+        // API + the WebAuthnConfig pool quirk make these integration-only.
+        'src/app/api/auth/passkey/**',
       ],
       // Ratcheted up from 80/75 — current measured coverage on the included
       // scope (src/lib/** + src/app/api/**, minus the AWS/DB-backed excludes)

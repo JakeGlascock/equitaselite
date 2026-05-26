@@ -13,6 +13,7 @@ import PreviewTokensPanel from './PreviewTokensPanel'
 import DeckTokensPanel from './DeckTokensPanel'
 import ReportsPanel from './ReportsPanel'
 import PortfolioReportsPanel from './PortfolioReportsPanel'
+import DealsPanel from './DealsPanel'
 import StartOnboardingTestButton from './StartOnboardingTestButton'
 
 interface ProfileRow {
@@ -549,6 +550,23 @@ export default async function AdminPage() {
           </summary>
           <div className="px-6 pb-6 pt-2 border-t border-ee-border">
             <PortfolioReportsPanel sovereigns={sovereignProfiles} />
+          </div>
+        </details>
+
+        <details className="glass-panel group">
+          <summary className="px-6 py-4 cursor-pointer list-none flex items-center justify-between gap-4 select-none">
+            <div>
+              <h2 className="font-display text-base text-ee-primary">Exclusive deal flow</h2>
+              <p className="text-xs text-ee-muted mt-0.5">
+                Curated investment opportunities, per-member invitations. Only Sovereigns invited to a specific deal can see it on /deals.
+              </p>
+            </div>
+            <span className="material-symbols-outlined text-ee-muted transition-transform group-open:rotate-180">
+              expand_more
+            </span>
+          </summary>
+          <div className="px-6 pb-6 pt-2 border-t border-ee-border">
+            <DealsPanel sovereigns={sovereignProfiles} />
           </div>
         </details>
 

@@ -217,6 +217,30 @@ export async function emailIntroDeclined(
   })
 }
 
+export async function emailDealInvitation(
+  recipientId: string,
+  dealTitle:   string,
+  dealSummary: string,
+): Promise<void> {
+  const recipient = await getRecipient(recipientId)
+  if (!recipient?.email_notifications_enabled) return
+
+  // Strip markdown to a one-paragraph preview for the email body.
+  // We deliberately don't render the full description here — keep the
+  // CTA strong; the full deal page is the place to read details.
+  const preview = dealSummary.replace(/[#>*_`~\\-]/g, '').trim().slice(0, 240)
+
+  await send(recipient, {
+    subject:  `New deal flow: ${dealTitle}`,
+    preview:  preview || 'A curated opportunity is waiting for you on Equitas Elite.',
+    heading:  'A curated opportunity for you',
+    bodyHtml: `You've been invited to review a vetted opportunity: <strong>${escapeHtml(dealTitle)}</strong>.${preview ? `<p style="margin:12px 0 0 0;color:#bec6e0;font-size:14px;">${escapeHtml(preview)}</p>` : ''}`,
+    bodyText: `You've been invited to review a vetted opportunity: ${dealTitle}.${preview ? `\n\n${preview}` : ''}`,
+    ctaLabel: 'Review opportunity',
+    ctaPath:  '/deals',
+  })
+}
+
 function escapeHtml(s: string): string {
   return s
     .replaceAll('&', '&amp;')
