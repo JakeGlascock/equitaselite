@@ -38,8 +38,9 @@ export default defineConfig({
         'src/lib/deals.ts',
         // Analytics — pure SQL aggregations over real prod data; integration only
         'src/lib/analytics.ts',
-        // Thin Cognito proxy routes — call signIn/signOut/refreshTokens from lib/auth
-        'src/app/api/auth/signin/**',
+        // Thin Cognito proxy routes — call signIn/signOut/refreshTokens from lib/auth.
+        // signin/** moved into the measured scope as the Phase T0 reference test;
+        // signout + refresh stay excluded until Phase T1 lands tests for them.
         'src/app/api/auth/signout/**',
         'src/app/api/auth/refresh/**',
         // Trivial 3-line health endpoint
