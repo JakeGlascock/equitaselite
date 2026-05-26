@@ -17,53 +17,24 @@ export default defineConfig({
       include: ['src/lib/**', 'src/app/api/**'],
       exclude: [
         'src/test/**',
-        // AWS SDK wrappers — require live AWS credentials; tested via integration tests
-        'src/lib/auth.ts',
-        'src/lib/aws.ts',
-        // pg Pool singleton — requires live DB; tested via integration tests
+        // pg Pool singleton — requires live DB; integration-tested
         'src/lib/db.ts',
-        // SES sender — requires live AWS credentials + verified domain identity
-        'src/lib/email.ts',
-        // Admin check helper — env-fallback vs DB-column precedence
-        // covered in T2 lib/__tests__/admin.test.ts.
+        // AWS SDK client singletons — pure construction, no logic to cover
+        'src/lib/aws.ts',
         // Session helper — calls jose JWKS over the network; integration-tested
         'src/lib/session.ts',
-        // Reports lib — thin pg query wrappers + a small pure helper;
-        // integration-tested via the admin CMS + /reports flow
+        // Thin DB query wrappers — integration-tested via their callers
         'src/lib/reports.ts',
-        // Portfolio-reports (bespoke briefings) — same pattern
         'src/lib/portfolio-reports.ts',
-        // Deal-flow lib — thin pg query wrappers; integration-tested via
-        // the admin CMS + /deals member flow
         'src/lib/deals.ts',
-        // Analytics — pure SQL aggregations over real prod data; integration only
+        // Pure SQL aggregations over prod data; integration-only
         'src/lib/analytics.ts',
-        // Thin Cognito proxy routes — moved into scope in T0/T1/T2.
-        // Trivial 3-line health endpoint
-        'src/app/api/health/**',
-        // DB-backed routes — require live DB; tested via integration tests.
-        // me/**, onboarding/**, matches/**, notifications/** moved into scope
-        // in Phase T2. concierge/act-as/** also covered in T2.
-        // Admin CRUD routes — bulk pulled into scope in T2 (part 3). The
-        // two largest (deck-tokens, seed-demo-data) stay excluded — they're
-        // mostly boilerplate that benefits less from coverage measurement.
-        'src/app/api/admin/deck-tokens/**',
-        'src/app/api/admin/seed-demo-data/**',
-        // Investor-preview cookie clear; trivial DB-less wrapper
-        'src/app/api/preview/**',
-        // Demo magic-link mail — SES sender, like email.ts
-        'src/lib/demo-mail.ts',
-        // Mandate sub-table — DB queries only
-        'src/lib/mandates.ts',
-        // Turnstile verify — network call to Cloudflare
-        'src/lib/turnstile.ts',
-        // Push dispatch — AWS SNS + DB
-        'src/lib/push.ts',
         // Native client helpers — browser-only Capacitor wrappers
         'src/lib/native.ts',
-        // Unsubscribe + events RSVP — existing tests cover them; pull the
-        // route into the measured scope now.
-        'src/app/api/unsubscribe/legacy-exclude-noop/**',
+        // Trivial 3-line health endpoint
+        'src/app/api/health/**',
+        // Investor-preview cookie clear; trivial DB-less wrapper
+        'src/app/api/preview/**',
       ],
       // Ratcheted up from 80/75 — current measured coverage on the included
       // scope (src/lib/** + src/app/api/**, minus the AWS/DB-backed excludes)
