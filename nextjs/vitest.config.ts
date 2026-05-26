@@ -2,6 +2,11 @@ import { defineConfig } from 'vitest/config'
 import path from 'path'
 
 export default defineConfig({
+  // Next.js sets tsconfig.jsx to "preserve" so its own toolchain owns the
+  // transform; vitest uses esbuild which needs an explicit JSX runtime
+  // for component (.tsx) tests. "automatic" matches the React 19 runtime
+  // — no `import React` needed at the top of each test file.
+  esbuild: { jsx: 'automatic' },
   test: {
     environment: 'jsdom',
     globals: true,
