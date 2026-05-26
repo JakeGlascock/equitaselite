@@ -44,28 +44,13 @@ export default defineConfig({
         // DB-backed routes — require live DB; tested via integration tests.
         // me/**, onboarding/**, matches/**, notifications/** moved into scope
         // in Phase T2. concierge/act-as/** also covered in T2.
-        'src/app/api/request-access/**',
-        // Admin route calls Cognito Admin API; tested via integration tests.
-        // Specific subpaths covered in T1:
-        //   - admin/users/[id] (self-revoke lockout + demo blocks)
-        //   - admin/deals/[id]/invitations (Sovereign-only filter)
-        // Keep the broad exclude for the rest; pull more in during T2.
-        'src/app/api/admin/access-requests/**',
-        'src/app/api/admin/backfill-placeholders/**',
+        // Admin CRUD routes — bulk pulled into scope in T2 (part 3). The
+        // two largest (deck-tokens, seed-demo-data) stay excluded — they're
+        // mostly boilerplate that benefits less from coverage measurement.
         'src/app/api/admin/deck-tokens/**',
-        'src/app/api/admin/deals/route.ts',
-        'src/app/api/admin/events/**',
-        'src/app/api/admin/invite/**',
-        'src/app/api/admin/managed/**',
-        'src/app/api/admin/portfolio-reports/**',
-        'src/app/api/admin/preview-tokens/**',
-        'src/app/api/admin/reports/**',
         'src/app/api/admin/seed-demo-data/**',
-        'src/app/api/admin/test-fixtures/**',
         // Investor-preview cookie clear; trivial DB-less wrapper
         'src/app/api/preview/**',
-        // User-feedback report — DB-backed + SES; integration-tested only
-        'src/app/api/feedback/**',
         // Demo magic-link mail — SES sender, like email.ts
         'src/lib/demo-mail.ts',
         // Mandate sub-table — DB queries only
@@ -76,16 +61,9 @@ export default defineConfig({
         'src/lib/push.ts',
         // Native client helpers — browser-only Capacitor wrappers
         'src/lib/native.ts',
-        // Device-token endpoints — covered in T2.
-        // Member-facing deal-flow endpoints — DB-backed.
-        // /api/deals/[id]/respond moved into scope in Phase T1 (user_id
-        // scoping is security-shaped). The list route stays excluded for T2.
-        'src/app/api/deals/route.ts',
-        // Public demo signup — DB-backed + Turnstile + SES
-        'src/app/api/demo/**',
-        // Unsubscribe + events RSVP — DB-backed
-        'src/app/api/unsubscribe/**',
-        // Auth wrappers + passkey routes — all moved into scope in T0/T1/T2.
+        // Unsubscribe + events RSVP — existing tests cover them; pull the
+        // route into the measured scope now.
+        'src/app/api/unsubscribe/legacy-exclude-noop/**',
       ],
       // Ratcheted up from 80/75 — current measured coverage on the included
       // scope (src/lib/** + src/app/api/**, minus the AWS/DB-backed excludes)
