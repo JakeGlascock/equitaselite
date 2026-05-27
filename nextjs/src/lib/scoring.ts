@@ -80,6 +80,14 @@ function scopePillar(u: UserProfile | Candidate, c: Candidate | UserProfile): Sc
   if (u.thematicFocus?.length || c.thematicFocus?.length) {
     parts.push({ weight: 0.10, score: overlapScore(u.thematicFocus, c.thematicFocus) })
   }
+  // P1: asset-class affinity (Private Credit, Infrastructure, etc.).
+  // Conditional contribution — declared on either side = scored,
+  // both empty = skipped. Weight 0.20 reflects BlackRock 2025's
+  // signal that asset-class allocation is the strongest 2025 movement
+  // (higher than sub-sector, below the core sector/stage/geo triad).
+  if (u.assetClasses?.length || c.assetClasses?.length) {
+    parts.push({ weight: 0.20, score: overlapScore(u.assetClasses, c.assetClasses) })
+  }
   const totalW = parts.reduce((s, p) => s + p.weight, 0)
   const sum    = parts.reduce((s, p) => s + p.weight * p.score, 0)
   const composite = totalW > 0 ? sum / totalW : 0

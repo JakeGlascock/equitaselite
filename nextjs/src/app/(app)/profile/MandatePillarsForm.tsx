@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
+import { ASSET_CLASSES } from '@/lib/asset-classes'
 
 type LeadCapacity   = 'lead' | 'follow' | 'either'
 type LossAppetite   = 'low' | 'moderate' | 'high'
@@ -13,6 +14,8 @@ export interface MandatePillarsInitial {
   sub_sectors:    string[]
   anti_sectors:   string[]
   thematic_focus: string[]
+  /** P1 / migration 040 — asset-class affinity (Private Credit, etc.) */
+  asset_classes:  string[]
   lead_capacity:  LeadCapacity | null
   holding_period_target_years: number | null
   loss_appetite:  LossAppetite | null
@@ -80,6 +83,52 @@ function ChipInput({
         />
       </div>
       {hint && <p className="text-[10px] text-ee-muted/80">{hint}</p>}
+    </div>
+  )
+}
+
+// P1 — asset-class picker. Multi-select grid of toggle chips against
+// the canonical ASSET_CLASSES list (not free-form like sub-sectors)
+// because asset class is structured taxonomy that matcher weights are
+// indexed on. Selecting/clearing a chip toggles the key in the array.
+function AssetClassPicker({
+  value, onChange,
+}: { value: string[]; onChange: (next: string[]) => void }) {
+  function toggle(key: string) {
+    onChange(value.includes(key)
+      ? value.filter(k => k !== key)
+      : [...value, key])
+  }
+  return (
+    <div className="space-y-1.5">
+      <label className="block text-xs font-data uppercase tracking-widest text-ee-muted">
+        Asset class affinity
+      </label>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+        {ASSET_CLASSES.map(ac => {
+          const on = value.includes(ac.key)
+          return (
+            <button
+              key={ac.key}
+              type="button"
+              onClick={() => toggle(ac.key)}
+              aria-pressed={on}
+              className={`text-left p-3 rounded-lg border transition-all ${
+                on
+                  ? 'border-ee-gold bg-ee-gold/10 text-ee-gold'
+                  : 'border-ee-border text-ee-primary hover:border-ee-gold/40'
+              }`}
+            >
+              <p className="font-semibold text-sm">{ac.label}</p>
+              <p className="text-[11px] text-ee-muted mt-0.5">{ac.hint}</p>
+            </button>
+          )
+        })}
+      </div>
+      <p className="text-[10px] text-ee-muted">
+        Pick all that apply. The matcher up-weights counterparties whose
+        asset-class affinity overlaps with yours.
+      </p>
     </div>
   )
 }
@@ -200,6 +249,10 @@ export default function MandatePillarsForm({ initial }: { initial: MandatePillar
           hint="Hard exclusions. Counterparties operating in these sectors are hidden from your match list."
           value={data.anti_sectors}
           onChange={v => update('anti_sectors', v)}
+        />
+        <AssetClassPicker
+          value={data.asset_classes}
+          onChange={v => update('asset_classes', v)}
         />
       </Section>
 

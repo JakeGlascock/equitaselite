@@ -56,6 +56,7 @@ interface DbProfile {
   sub_sectors:    string[] | null
   anti_sectors:   string[] | null
   thematic_focus: string[] | null
+  asset_classes:  string[] | null
   lead_capacity:  'lead' | 'follow' | 'either' | null
   holding_period_target_years: string | number | null
   loss_appetite:  'low' | 'moderate' | 'high' | null
@@ -271,6 +272,7 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
             sub_sectors:    profile.sub_sectors    ?? [],
             anti_sectors:   profile.anti_sectors   ?? [],
             thematic_focus: profile.thematic_focus ?? [],
+            asset_classes:  profile.asset_classes  ?? [],
             lead_capacity:  profile.lead_capacity ?? null,
             holding_period_target_years: profile.holding_period_target_years != null
               ? Number(profile.holding_period_target_years)

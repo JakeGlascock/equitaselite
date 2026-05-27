@@ -352,4 +352,52 @@ describe('computeMatchScore — pillar breakdown', () => {
     ).pillars!.scope
     expect(withMismatch).toBeLessThan(baseline)
   })
+
+  // P1: asset-class affinity. Same conditional-contribution pattern as
+  // sub_sectors; weighted at 0.20 (highest of the optional sub-components)
+  // because BlackRock 2025 flags asset-class as the strongest 2025 signal.
+  it('legacy profiles (no asset_classes declared) score same as baseline', () => {
+    const baseline = computeMatchScore(makeUser(), makeCandidate()).pillars!.scope
+    const withEmpty = computeMatchScore(
+      makeUser({ assetClasses: [] }),
+      makeCandidate({ assetClasses: [] }),
+    ).pillars!.scope
+    expect(withEmpty).toBe(baseline)   // no-op when both empty
+  })
+
+  it('a matching asset_classes pick contributes to a positive baseline', () => {
+    // Perfect sector/stage/geo baseline; asset_classes alignment shouldn't
+    // pull it down.
+    const score = computeMatchScore(
+      makeUser({ assetClasses: ['PRIVATE_CREDIT'] }),
+      makeCandidate({ assetClasses: ['PRIVATE_CREDIT'] }),
+    )
+    expect(score.pillars!.scope).toBeGreaterThanOrEqual(95)
+  })
+
+  it('an asset_classes mismatch lowers the scope score from baseline', () => {
+    const baseline = computeMatchScore(makeUser(), makeCandidate()).pillars!.scope
+    const withMismatch = computeMatchScore(
+      makeUser({ assetClasses: ['PRIVATE_CREDIT'] }),
+      makeCandidate({ assetClasses: ['VENTURE'] }),
+    ).pillars!.scope
+    expect(withMismatch).toBeLessThan(baseline)
+  })
+
+  it('partial asset_classes overlap scores between full match and full mismatch', () => {
+    const fullMatch    = computeMatchScore(
+      makeUser({ assetClasses: ['PRIVATE_CREDIT', 'INFRASTRUCTURE'] }),
+      makeCandidate({ assetClasses: ['PRIVATE_CREDIT', 'INFRASTRUCTURE'] }),
+    ).pillars!.scope
+    const fullMismatch = computeMatchScore(
+      makeUser({ assetClasses: ['PRIVATE_CREDIT'] }),
+      makeCandidate({ assetClasses: ['VENTURE'] }),
+    ).pillars!.scope
+    const partial      = computeMatchScore(
+      makeUser({ assetClasses: ['PRIVATE_CREDIT', 'INFRASTRUCTURE'] }),
+      makeCandidate({ assetClasses: ['PRIVATE_CREDIT', 'VENTURE'] }),
+    ).pillars!.scope
+    expect(partial).toBeLessThan(fullMatch)
+    expect(partial).toBeGreaterThan(fullMismatch)
+  })
 })

@@ -33,6 +33,8 @@ export interface DbProfile {
   sub_sectors?:    string[]
   anti_sectors?:   string[]
   thematic_focus?: string[]
+  /** Asset-class affinity (P1 / migration 040). */
+  asset_classes?:  string[]
 
   // Pillar 2
   check_size_min:           number
@@ -114,6 +116,7 @@ export interface MatchView {
 const PROFILE_COLUMNS = `
   id, email, full_name, title, firm_name, location, aum, role,
   sectors, stages, geography, sub_sectors, anti_sectors, thematic_focus,
+  asset_classes,
   check_size_min, check_size_max, check_size_target, deals_per_year,
   max_concentration_pct, lead_capacity, co_invest_appetite,
   holding_period_target_years, loss_appetite,
@@ -138,6 +141,7 @@ function toScoringProfile(p: DbProfile): UserProfile {
     subSectors:    p.sub_sectors    ?? [],
     antiSectors:   p.anti_sectors   ?? [],
     thematicFocus: p.thematic_focus ?? [],
+    assetClasses:  p.asset_classes  ?? [],
     checkSizeMin:        Number(p.check_size_min),
     checkSizeMax:        Number(p.check_size_max),
     checkSizeTarget:     p.check_size_target != null ? Number(p.check_size_target) : null,
@@ -188,6 +192,7 @@ export function applyMandateToProfile(me: DbProfile, mandate: Mandate | null): D
     sectors:                     mandate.sectors,
     sub_sectors:                 mandate.sub_sectors,
     anti_sectors:                mandate.anti_sectors,
+    asset_classes:               mandate.asset_classes,
     stages:                      mandate.stages,
     geography:                   mandate.geography,
     thematic_focus:              mandate.thematic_focus,
@@ -283,6 +288,7 @@ export async function getCandidates(me: DbProfile, viewerRole?: CompatRole): Pro
     COALESCE(m.sub_sectors,                  p.sub_sectors)                  AS sub_sectors,
     COALESCE(m.anti_sectors,                 p.anti_sectors)                 AS anti_sectors,
     COALESCE(m.thematic_focus,               p.thematic_focus)               AS thematic_focus,
+    COALESCE(m.asset_classes,                p.asset_classes)                AS asset_classes,
     COALESCE(m.check_size_min,               p.check_size_min)               AS check_size_min,
     COALESCE(m.check_size_max,               p.check_size_max)               AS check_size_max,
     COALESCE(m.check_size_target,            p.check_size_target)            AS check_size_target,

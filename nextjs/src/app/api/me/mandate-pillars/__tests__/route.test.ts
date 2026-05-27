@@ -62,4 +62,18 @@ describe('PATCH /api/me/mandate-pillars', () => {
     const res = await PATCH(patchReq({ lead_capacity: null }))
     expect(res.status).toBe(200)
   })
+
+  it('accepts asset_classes (P1) — persists to the asset_classes column', async () => {
+    mockQueryOne.mockResolvedValueOnce({
+      id: 'u-1', asset_classes: ['PRIVATE_CREDIT', 'INFRASTRUCTURE'],
+    })
+    const res = await PATCH(patchReq({
+      asset_classes: ['PRIVATE_CREDIT', 'INFRASTRUCTURE'],
+    }))
+    expect(res.status).toBe(200)
+    expect((await res.json()).asset_classes).toEqual(['PRIVATE_CREDIT', 'INFRASTRUCTURE'])
+    // Last bound param is asset_classes (param $20 in the SQL).
+    const args = mockQueryOne.mock.calls[0][1] as unknown[]
+    expect(args[args.length - 1]).toEqual(['PRIVATE_CREDIT', 'INFRASTRUCTURE'])
+  })
 })

@@ -19,6 +19,11 @@ const PillarPatchSchema = z.object({
   sub_sectors:    ArrayField.optional(),
   anti_sectors:   ArrayField.optional(),
   thematic_focus: ArrayField.optional(),
+  // Asset-class affinity (P1 / migration 040). Canonical values come
+  // from src/lib/asset-classes.ts but we don't enforce a CHECK here
+  // so the list can iterate without a schema change. Empty array =
+  // no preference; matcher skips the sub-score.
+  asset_classes:  ArrayField.optional(),
 
   // Pillar 2 — Capital mechanics
   lead_capacity: z.enum(['lead', 'follow', 'either']).nullable().optional(),
@@ -73,12 +78,14 @@ export async function PATCH(req: NextRequest) {
        min_counterparty_tier       = CASE WHEN $15::boolean THEN $16::text    ELSE min_counterparty_tier       END,
        esg_required                = COALESCE($17, esg_required),
        impact_themes               = COALESCE($18, impact_themes),
-       values_exclusions           = COALESCE($19, values_exclusions)
+       values_exclusions           = COALESCE($19, values_exclusions),
+       asset_classes               = COALESCE($20, asset_classes)
      WHERE id = $1
      RETURNING id, sub_sectors, anti_sectors, thematic_focus,
                lead_capacity, holding_period_target_years, loss_appetite,
                engagement_style, diligence_depth, min_counterparty_tier,
-               esg_required, impact_themes, values_exclusions`,
+               esg_required, impact_themes, values_exclusions,
+               asset_classes`,
     [
       userId,
       d.sub_sectors    ?? null,
@@ -95,6 +102,7 @@ export async function PATCH(req: NextRequest) {
       d.esg_required      ?? null,
       d.impact_themes     ?? null,
       d.values_exclusions ?? null,
+      d.asset_classes     ?? null,
     ]
   )
 

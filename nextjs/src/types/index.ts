@@ -50,6 +50,10 @@ export interface UserProfile {
   subSectors?:    string[]
   antiSectors?:   string[]
   thematicFocus?: string[]
+  // Asset-class affinity (migration 040 / P1). Matcher up-weights
+  // overlap so a Private-Credit-focused FO surfaces above peers
+  // who only declared the same sectors.
+  assetClasses?:  string[]
   // Pillar 2 — Capital mechanics
   checkSizeMin: number
   checkSizeMax: number
@@ -95,6 +99,7 @@ export interface Candidate {
   subSectors?:    string[]
   antiSectors?:   string[]
   thematicFocus?: string[]
+  assetClasses?:  string[]
   checkSizeMin: number
   checkSizeMax: number
   checkSizeTarget?:     number | null

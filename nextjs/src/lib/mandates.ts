@@ -24,6 +24,8 @@ export interface Mandate {
   stages:         string[]
   geography:      string[]
   thematic_focus: string[]
+  /** Asset-class affinity (P1 / migration 040). */
+  asset_classes:  string[]
 
   // Pillar 2: Capital mechanics
   check_size_min:        number
@@ -67,6 +69,7 @@ export interface Mandate {
 const MANDATE_COLUMNS = `
   profile_id, role,
   sectors, sub_sectors, anti_sectors, stages, geography, thematic_focus,
+  asset_classes,
   check_size_min, check_size_max, check_size_target, deals_per_year,
   max_concentration_pct, lead_capacity, co_invest_appetite,
   risk_tolerance, expected_return, timeline,
