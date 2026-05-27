@@ -29,7 +29,11 @@ export default function ViewingAsDropdown({
         const next = e.target.value
         router.replace(next ? `/dashboard?role=${next}` : '/dashboard', { scroll: false })
       }}
-      className="bg-ee-bg border border-ee-border rounded-full px-3 py-1.5 text-ee-primary text-xs font-semibold focus:outline-none focus:border-ee-gold/60 cursor-pointer"
+      // Asymmetric padding: 12px left, 28px right. Native <select>
+      // renders the arrow inside the right padding area, and on a
+      // rounded-full shape the right curve eats some of that space —
+      // pr-7 gives the arrow real breathing room from the edge.
+      className="bg-ee-bg border border-ee-border rounded-full pl-3 pr-7 py-1.5 text-ee-primary text-xs font-semibold focus:outline-none focus:border-ee-gold/60 cursor-pointer"
       aria-label="Viewing as which role"
     >
       {options.map(r => (
