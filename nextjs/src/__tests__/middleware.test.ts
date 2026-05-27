@@ -146,6 +146,10 @@ describe('middleware: isPublic', () => {
       '/api/admin/deals',
       '/api/admin/deals/abc-123',
       '/api/admin/deals/abc-123/invitations',
+      // P4 co-invest rooms — full surface is auth-gated.
+      '/deals/abc-123',
+      '/api/deals/abc-123/messages',
+      '/api/deals/abc-123/messages/m-1',
     ])('treats %s as private (requires auth)', (path) => {
       expect(isPublic(path)).toBe(false)
     })

@@ -68,6 +68,11 @@ const CHECKS = [
   { name: 'gate-deals',        path: '/deals',              status: [302, 307, 308], redirectContains: '/signin', followRedirect: false },
   { name: 'gate-deals-list',   path: '/api/deals',          status: [302, 307, 308], redirectContains: '/signin', followRedirect: false },
   { name: 'gate-deals-respond', path: '/api/deals/x/respond', method: 'POST', body: '', status: [302, 307, 308], redirectContains: '/signin', followRedirect: false },
+  // P4 co-invest rooms — every messages route must auth-gate.
+  { name: 'gate-deals-room',          path: '/deals/00000000-0000-0000-0000-000000000000',         status: [302, 307, 308], redirectContains: '/signin', followRedirect: false },
+  { name: 'gate-deals-messages-list', path: '/api/deals/x/messages',                              status: [302, 307, 308], redirectContains: '/signin', followRedirect: false },
+  { name: 'gate-deals-messages-post', path: '/api/deals/x/messages', method: 'POST', body: '',    status: [302, 307, 308], redirectContains: '/signin', followRedirect: false },
+  { name: 'gate-deals-msg-moderate',  path: '/api/deals/x/messages/y', method: 'PATCH', body: '', status: [302, 307, 308], redirectContains: '/signin', followRedirect: false },
   // Admin write surface — both base + per-id + invitations subroute must
   // gate. A leak here lets any visitor read or seed deal records.
   { name: 'gate-admin-deals',         path: '/api/admin/deals',                                       status: [302, 307, 308], redirectContains: '/signin', followRedirect: false },

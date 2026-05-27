@@ -69,9 +69,17 @@ export default async function DealsPage() {
                 <article key={inv.id} className="glass-panel p-6 space-y-4">
                   <div className="flex items-start justify-between gap-4 flex-wrap">
                     <div>
-                      <h2 className="font-display text-xl text-ee-primary">{d.title}</h2>
+                      <h2 className="font-display text-xl text-ee-primary">
+                        <Link href={`/deals/${d.id}`} className="hover:text-ee-gold transition-colors">
+                          {d.title}
+                        </Link>
+                      </h2>
                       <p className="text-[10px] font-data uppercase tracking-widest text-ee-muted mt-1.5">
                         Invited {fmtDate(inv.invited_at)}
+                        <Link
+                          href={`/deals/${d.id}`}
+                          className="text-ee-gold hover:underline normal-case tracking-normal ml-3"
+                        >Open room →</Link>
                       </p>
                     </div>
                     {inv.status !== 'pending' && (

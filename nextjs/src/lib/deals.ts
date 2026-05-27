@@ -221,3 +221,117 @@ export async function respondToInvitation(
 export async function getInvitation(invitationId: string): Promise<DealInvitation | null> {
   return queryOne<DealInvitation>(`SELECT * FROM deal_invitations WHERE id = $1`, [invitationId])
 }
+
+/** P4 — is this caller permitted to read/post in this deal's room?
+ *  Returns true iff they have an invitation to the deal OR they
+ *  authored it. Used by the messages routes for the auth gate. */
+export async function isMemberOfDealRoom(dealId: string, userId: string): Promise<boolean> {
+  const row = await queryOne<{ ok: boolean }>(
+    `SELECT EXISTS (
+       SELECT 1 FROM deal_invitations WHERE deal_id = $1 AND user_id = $2
+       UNION
+       SELECT 1 FROM deals             WHERE id      = $1 AND created_by = $2
+     ) AS ok`,
+    [dealId, userId],
+  ).catch(() => null)
+  return !!row?.ok
+}
+
+// ─── Deal messages (P4) ───────────────────────────────────────────
+
+export interface DealMessage {
+  id:                   string
+  deal_id:              string
+  user_id:              string
+  /** Joined author name + firm, so the UI can render without an extra fetch. */
+  user_name:            string | null
+  user_firm:            string | null
+  body:                 string
+  pinned_by_concierge:  boolean
+  removed_at:           string | null
+  created_at:           string
+}
+
+export async function postDealMessage(
+  dealId: string,
+  userId: string,
+  body:   string,
+): Promise<DealMessage> {
+  // Re-fetch with the profile JOIN so the response includes author
+  // metadata. Single round-trip via CTE.
+  const row = await queryOne<DealMessage>(
+    `WITH ins AS (
+       INSERT INTO deal_messages (deal_id, user_id, body)
+            VALUES ($1, $2, $3)
+         RETURNING *
+     )
+     SELECT ins.*, p.full_name AS user_name, p.firm_name AS user_firm
+       FROM ins LEFT JOIN profiles p ON p.id = ins.user_id`,
+    [dealId, userId, body],
+  )
+  if (!row) throw new Error('postDealMessage returned no row')
+  return row
+}
+
+export async function listDealMessages(dealId: string): Promise<DealMessage[]> {
+  return query<DealMessage>(
+    `SELECT m.id, m.deal_id, m.user_id, m.body,
+            m.pinned_by_concierge, m.removed_at, m.created_at,
+            p.full_name AS user_name,
+            p.firm_name AS user_firm
+       FROM deal_messages m
+       LEFT JOIN profiles p ON p.id = m.user_id
+      WHERE m.deal_id    = $1
+        AND m.removed_at IS NULL
+      ORDER BY m.pinned_by_concierge DESC, m.created_at ASC`,
+    [dealId],
+  )
+}
+
+export async function getDealMessage(messageId: string): Promise<DealMessage | null> {
+  return queryOne<DealMessage>(
+    `SELECT m.id, m.deal_id, m.user_id, m.body,
+            m.pinned_by_concierge, m.removed_at, m.created_at,
+            p.full_name AS user_name, p.firm_name AS user_firm
+       FROM deal_messages m
+       LEFT JOIN profiles p ON p.id = m.user_id
+      WHERE m.id = $1`,
+    [messageId],
+  )
+}
+
+export async function setDealMessagePinned(
+  messageId: string,
+  pinned:    boolean,
+): Promise<void> {
+  await query(
+    `UPDATE deal_messages SET pinned_by_concierge = $2 WHERE id = $1`,
+    [messageId, pinned],
+  )
+}
+
+export async function removeDealMessage(
+  messageId: string,
+  removedBy: string,
+): Promise<void> {
+  await query(
+    `UPDATE deal_messages
+        SET removed_at = NOW(),
+            removed_by = $2
+      WHERE id = $1
+        AND removed_at IS NULL`,
+    [messageId, removedBy],
+  )
+}
+
+/** Invited members of a deal room — for fan-out notifications when
+ *  a new message lands. Excludes the poster (handled at call site). */
+export async function listDealRoomUserIds(dealId: string): Promise<string[]> {
+  const rows = await query<{ user_id: string }>(
+    `SELECT user_id FROM deal_invitations WHERE deal_id = $1
+       UNION
+     SELECT created_by AS user_id FROM deals WHERE id = $1 AND created_by IS NOT NULL`,
+    [dealId],
+  ).catch(() => [])
+  return rows.map(r => r.user_id)
+}
