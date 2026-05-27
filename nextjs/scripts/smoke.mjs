@@ -78,6 +78,10 @@ const CHECKS = [
   { name: 'gate-admin-deals',         path: '/api/admin/deals',                                       status: [302, 307, 308], redirectContains: '/signin', followRedirect: false },
   { name: 'gate-admin-deals-create',  path: '/api/admin/deals',                method: 'POST', body: '', status: [302, 307, 308], redirectContains: '/signin', followRedirect: false },
   { name: 'gate-admin-deals-invite',  path: '/api/admin/deals/x/invitations',  method: 'POST', body: '', status: [302, 307, 308], redirectContains: '/signin', followRedirect: false },
+  // P5 v1 — admin sets / clears a next-gen seat's parent link. Same
+  // /signin redirect as the rest of /api/admin/*. A leak would let
+  // any visitor reparent an existing next-gen to an arbitrary seat.
+  { name: 'gate-admin-user-parent',   path: '/api/admin/users/u/parent',       method: 'PUT',  body: '', status: [302, 307, 308], redirectContains: '/signin', followRedirect: false },
   { name: 'gate-discovery',    path: '/discovery',          status: [302, 307, 308], redirectContains: '/signin', followRedirect: false },
   { name: 'gate-portfolio',    path: '/portfolio',          status: [302, 307, 308], redirectContains: '/signin', followRedirect: false },
   { name: 'gate-connections',  path: '/connections',        status: [302, 307, 308], redirectContains: '/signin', followRedirect: false },

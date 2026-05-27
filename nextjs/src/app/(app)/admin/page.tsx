@@ -37,6 +37,9 @@ interface ProfileRow {
   membership: 'access' | 'select' | 'sovereign' | null
   relationship_manager_id: string | null
   is_off_market: boolean | null
+  // P5 v1 — parent seat link for next-gen rows. Defaulted to null
+  // on pre-043 environments so the rest of the row still renders.
+  parent_profile_id: string | null
   created_at: Date | string
 }
 
@@ -76,16 +79,34 @@ export default async function AdminPage() {
               is_angel, is_family_office,
               is_next_gen, is_family_foundation, is_daf,
               managed_by, membership,
-              relationship_manager_id, is_off_market, created_at
+              relationship_manager_id, is_off_market,
+              parent_profile_id,
+              created_at
        FROM profiles
        ORDER BY created_at DESC`
     )
   } catch {
+    // Pre-043 fallback: parent_profile_id missing. Retry without it
+    // and null-default. Older column drops are handled by the deeper
+    // nested catches below.
+    try {
+      type Without043 = Omit<ProfileRow, 'parent_profile_id'>
+      profiles = (await query<Without043>(
+        `SELECT id, email, full_name, firm_name, role, onboarding_completed,
+                is_admin, is_concierge,
+                is_angel, is_family_office,
+                is_next_gen, is_family_foundation, is_daf,
+                managed_by, membership,
+                relationship_manager_id, is_off_market, created_at
+         FROM profiles
+         ORDER BY created_at DESC`
+      )).map(p => ({ ...p, parent_profile_id: null }))
+    } catch {
     try {
       // Pre-035 fallback: load the 034 columns; default the 035 flags
       // to null. Catches the case where 034 is live but 035 hasn't
       // landed yet.
-      type Without035 = Omit<ProfileRow, 'is_next_gen' | 'is_family_foundation' | 'is_daf'>
+      type Without035 = Omit<ProfileRow, 'is_next_gen' | 'is_family_foundation' | 'is_daf' | 'parent_profile_id'>
       profiles = (await query<Without035>(
         `SELECT id, email, full_name, firm_name, role, onboarding_completed,
                 is_admin, is_concierge, is_angel, is_family_office,
@@ -93,12 +114,12 @@ export default async function AdminPage() {
                 relationship_manager_id, is_off_market, created_at
          FROM profiles
          ORDER BY created_at DESC`
-      )).map(p => ({ ...p, ...ROLE_035_DEFAULTS }))
+      )).map(p => ({ ...p, ...ROLE_035_DEFAULTS, parent_profile_id: null }))
     } catch {
     try {
       // Pre-034 fallback: is_angel/is_family_office not yet migrated.
       // Backfill the flags inline from `role` so badges still render.
-      type WithoutMultiRole = Omit<ProfileRow, 'is_angel' | 'is_family_office' | 'is_next_gen' | 'is_family_foundation' | 'is_daf'>
+      type WithoutMultiRole = Omit<ProfileRow, 'is_angel' | 'is_family_office' | 'is_next_gen' | 'is_family_foundation' | 'is_daf' | 'parent_profile_id'>
       profiles = (await query<WithoutMultiRole>(
         `SELECT id, email, full_name, firm_name, role, onboarding_completed,
                 is_admin, is_concierge, managed_by, membership,
@@ -110,11 +131,12 @@ export default async function AdminPage() {
         is_angel:         p.role === 'angel',
         is_family_office: p.role === 'family_office',
         ...ROLE_035_DEFAULTS,
+        parent_profile_id: null,
       }))
     } catch {
-    type Pre034 = Omit<ProfileRow, 'is_angel' | 'is_family_office' | 'is_next_gen' | 'is_family_foundation' | 'is_daf'>
+    type Pre034 = Omit<ProfileRow, 'is_angel' | 'is_family_office' | 'is_next_gen' | 'is_family_foundation' | 'is_daf' | 'parent_profile_id'>
     try {
-      profiles = (await query<Omit<ProfileRow, 'is_off_market' | 'is_angel' | 'is_family_office' | 'is_next_gen' | 'is_family_foundation' | 'is_daf'>>(
+      profiles = (await query<Omit<ProfileRow, 'is_off_market' | 'is_angel' | 'is_family_office' | 'is_next_gen' | 'is_family_foundation' | 'is_daf' | 'parent_profile_id'>>(
         `SELECT id, email, full_name, firm_name, role, onboarding_completed,
                 is_admin, is_concierge, managed_by, membership,
                 relationship_manager_id, created_at
@@ -126,6 +148,7 @@ export default async function AdminPage() {
         is_angel:         p.role === 'angel',
         is_family_office: p.role === 'family_office',
         ...ROLE_035_DEFAULTS,
+        parent_profile_id: null,
       }))
     } catch {
     try {
@@ -134,7 +157,7 @@ export default async function AdminPage() {
                 is_admin, is_concierge, managed_by, membership, created_at
          FROM profiles
          ORDER BY created_at DESC`
-      )).map(p => ({ ...p, relationship_manager_id: null, is_off_market: null, is_angel: p.role === 'angel', is_family_office: p.role === 'family_office', ...ROLE_035_DEFAULTS }))
+      )).map(p => ({ ...p, relationship_manager_id: null, is_off_market: null, is_angel: p.role === 'angel', is_family_office: p.role === 'family_office', ...ROLE_035_DEFAULTS, parent_profile_id: null }))
     } catch {
       try {
         profiles = (await query<Omit<Pre034, 'membership' | 'relationship_manager_id' | 'is_off_market'>>(
@@ -142,7 +165,7 @@ export default async function AdminPage() {
                   is_admin, is_concierge, managed_by, created_at
            FROM profiles
            ORDER BY created_at DESC`
-        )).map(p => ({ ...p, membership: null, relationship_manager_id: null, is_off_market: null, is_angel: p.role === 'angel', is_family_office: p.role === 'family_office', ...ROLE_035_DEFAULTS }))
+        )).map(p => ({ ...p, membership: null, relationship_manager_id: null, is_off_market: null, is_angel: p.role === 'angel', is_family_office: p.role === 'family_office', ...ROLE_035_DEFAULTS, parent_profile_id: null }))
       } catch {
         try {
           profiles = (await query<Omit<Pre034, 'is_concierge' | 'managed_by' | 'membership' | 'relationship_manager_id' | 'is_off_market'>>(
@@ -150,15 +173,16 @@ export default async function AdminPage() {
                     is_admin, created_at
              FROM profiles
              ORDER BY created_at DESC`
-          )).map(p => ({ ...p, is_concierge: null, managed_by: null, membership: null, relationship_manager_id: null, is_off_market: null, is_angel: p.role === 'angel', is_family_office: p.role === 'family_office', ...ROLE_035_DEFAULTS }))
+          )).map(p => ({ ...p, is_concierge: null, managed_by: null, membership: null, relationship_manager_id: null, is_off_market: null, is_angel: p.role === 'angel', is_family_office: p.role === 'family_office', ...ROLE_035_DEFAULTS, parent_profile_id: null }))
         } catch {
           profiles = (await query<Omit<Pre034, 'is_admin' | 'is_concierge' | 'managed_by' | 'membership' | 'relationship_manager_id' | 'is_off_market'>>(
             `SELECT id, email, full_name, firm_name, role, onboarding_completed, created_at
              FROM profiles
              ORDER BY created_at DESC`
-          )).map(p => ({ ...p, is_admin: null, is_concierge: null, managed_by: null, membership: null, relationship_manager_id: null, is_off_market: null, is_angel: p.role === 'angel', is_family_office: p.role === 'family_office', ...ROLE_035_DEFAULTS }))
+          )).map(p => ({ ...p, is_admin: null, is_concierge: null, managed_by: null, membership: null, relationship_manager_id: null, is_off_market: null, is_angel: p.role === 'angel', is_family_office: p.role === 'family_office', ...ROLE_035_DEFAULTS, parent_profile_id: null }))
         }
       }
+    }
     }
     }
     }
@@ -191,6 +215,32 @@ export default async function AdminPage() {
        ORDER BY created_at DESC`
     )
   } catch { /* concierge columns not yet initialized */ }
+
+  // P5 v1 — wealth-holders eligible to parent a next-gen seat. We
+  // include Family Offices, Family Foundations, and DAFs (the role
+  // archetypes that hold the dynastic capital). Pre-035 fallback
+  // narrows to just FOs so the picker still works on older envs.
+  interface WealthHolder { id: string; full_name: string; firm_name: string | null }
+  let wealthHolders: WealthHolder[] = []
+  try {
+    wealthHolders = await query<WealthHolder>(
+      `SELECT id, full_name, firm_name
+         FROM profiles
+        WHERE (is_family_office = TRUE OR is_family_foundation = TRUE OR is_daf = TRUE)
+          AND onboarding_completed = TRUE
+          AND id NOT LIKE 'demo\\_%' ESCAPE '\\'
+        ORDER BY full_name`,
+    )
+  } catch {
+    wealthHolders = await query<WealthHolder>(
+      `SELECT id, full_name, firm_name
+         FROM profiles
+        WHERE role = 'family_office'
+          AND onboarding_completed = TRUE
+          AND id NOT LIKE 'demo\\_%' ESCAPE '\\'
+        ORDER BY full_name`,
+    ).catch(() => [])
+  }
 
   // Existing events (for the admin CreateEventForm's "existing" list). The
   // table may not exist yet on first deploy with migration 010 pending —
@@ -313,6 +363,7 @@ export default async function AdminPage() {
       membership:   p?.membership ?? null,
       isOffMarket:  p?.is_off_market ?? false,
       relationshipManagerId: p?.relationship_manager_id ?? null,
+      parentProfileId: p?.parent_profile_id ?? null,
       togglable,
       staffTogglable:    togglable,  // same gate for real users — admin can flip A/C/RM on any non-Disabled real user
       toggleReason:      !p ? 'Run "Backfill placeholder profiles" in Setup to activate toggles' : status === 'Disabled' ? 'User is disabled' : undefined,
@@ -358,6 +409,7 @@ export default async function AdminPage() {
       membership:   p.membership ?? null,
       isOffMarket:  p.is_off_market ?? false,
       relationshipManagerId: p.relationship_manager_id ?? null,
+      parentProfileId: p.parent_profile_id ?? null,
       togglable:         true,    // demo rows: tier IS editable so you can preview each tier's UI
       staffTogglable:    !isDemo, // but admin/concierge/RM aren't meaningful on demo fixtures
       toggleReason:      undefined,
@@ -578,7 +630,12 @@ export default async function AdminPage() {
             <p className="px-6 py-10 text-center text-sm text-ee-muted">No members yet.</p>
           </div>
         ) : (
-          <MembersTable rows={merged} selfUserId={userId} concierges={concierges} />
+          <MembersTable
+            rows={merged}
+            selfUserId={userId}
+            concierges={concierges}
+            wealthHolders={wealthHolders}
+          />
         )}
 
         {/* Managed accounts ─ reassignment */}

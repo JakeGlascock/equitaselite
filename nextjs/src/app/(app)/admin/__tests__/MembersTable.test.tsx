@@ -23,6 +23,7 @@ function buildRow(over: Partial<MemberRow> = {}): MemberRow {
     isAngel: true, isFamilyOffice: false,
     isNextGen: false, isFamilyFoundation: false, isDaf: false,
     managedBy: null, membership: 'access', relationshipManagerId: null,
+    parentProfileId: null,
     isOffMarket: false, togglable: true, staffTogglable: true,
     cognitoStatus: 'CONFIRMED', deleteId: 'u-1', deletable: true, resendable: true,
     ...over,
@@ -35,6 +36,7 @@ describe('<MembersTable /> — filtering', () => {
       rows={[buildRow({ email: 'a@x.com' }), buildRow({ email: 'b@x.com' })]}
       selfUserId="admin"
       concierges={[]}
+      wealthHolders={[]}
     />)
     expect(screen.getByText('2 total')).toBeInTheDocument()
     expect(screen.getByText('a@x.com')).toBeInTheDocument()
@@ -47,7 +49,7 @@ describe('<MembersTable /> — filtering', () => {
         buildRow({ email: 'alice@x.com', name: 'Alice' }),
         buildRow({ email: 'bob@y.com',   name: 'Bob' }),
       ]}
-      selfUserId="admin" concierges={[]}
+      selfUserId="admin" concierges={[]} wealthHolders={[]}
     />)
     await userEvent.type(screen.getByPlaceholderText(/search/i), 'BOB')
     expect(screen.queryByText('alice@x.com')).not.toBeInTheDocument()
@@ -61,7 +63,7 @@ describe('<MembersTable /> — filtering', () => {
         buildRow({ email: 'a@x.com', name: 'Alice Angel' }),
         buildRow({ email: 'b@x.com', name: 'Bob FO' }),
       ]}
-      selfUserId="admin" concierges={[]}
+      selfUserId="admin" concierges={[]} wealthHolders={[]}
     />)
     await userEvent.type(screen.getByPlaceholderText(/search/i), 'angel')
     expect(screen.getByText('a@x.com')).toBeInTheDocument()
@@ -74,7 +76,7 @@ describe('<MembersTable /> — filtering', () => {
         buildRow({ email: 'invited@x.com', status: 'Invited' }),
         buildRow({ email: 'active@x.com',  status: 'Active' }),
       ]}
-      selfUserId="admin" concierges={[]}
+      selfUserId="admin" concierges={[]} wealthHolders={[]}
     />)
     await userEvent.click(screen.getByRole('button', { name: 'Invited' }))
     expect(screen.getByText('invited@x.com')).toBeInTheDocument()
@@ -87,7 +89,7 @@ describe('<MembersTable /> — filtering', () => {
         buildRow({ email: 'sov@x.com', membership: 'sovereign' }),
         buildRow({ email: 'acc@x.com', membership: 'access' }),
       ]}
-      selfUserId="admin" concierges={[]}
+      selfUserId="admin" concierges={[]} wealthHolders={[]}
     />)
     await userEvent.click(screen.getByRole('button', { name: 'Sovereign' }))
     expect(screen.getByText('sov@x.com')).toBeInTheDocument()
@@ -100,7 +102,7 @@ describe('<MembersTable /> — filtering', () => {
         buildRow({ email: 'unset@x.com', membership: null }),
         buildRow({ email: 'sov@x.com', membership: 'sovereign' }),
       ]}
-      selfUserId="admin" concierges={[]}
+      selfUserId="admin" concierges={[]} wealthHolders={[]}
     />)
     await userEvent.click(screen.getByRole('button', { name: 'Unset' }))
     expect(screen.getByText('unset@x.com')).toBeInTheDocument()
@@ -110,7 +112,7 @@ describe('<MembersTable /> — filtering', () => {
   it('shows empty-state when no rows match the filters', async () => {
     render(<MembersTable
       rows={[buildRow({ email: 'a@x.com' })]}
-      selfUserId="admin" concierges={[]}
+      selfUserId="admin" concierges={[]} wealthHolders={[]}
     />)
     await userEvent.type(screen.getByPlaceholderText(/search/i), 'nonexistent')
     expect(screen.getByText(/no members match/i)).toBeInTheDocument()

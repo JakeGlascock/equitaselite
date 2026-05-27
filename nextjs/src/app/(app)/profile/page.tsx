@@ -15,6 +15,7 @@ import KnockoutsReview, { type KnockoutSummaryItem } from './KnockoutsReview'
 import { getCandidates, type DbProfile as MatchDbProfile } from '@/lib/matches'
 import { countKnockoutsByReason } from '@/lib/scoring'
 import { getTier } from '@/lib/membership'
+import { getParent, listNextGenSeats } from '@/lib/family'
 import { DEFAULT_MANDATE_WEIGHTS, type UserProfile, type Tier, type MandateWeights } from '@/types'
 
 interface DbProfile {
@@ -117,6 +118,18 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
         : profile.off_market_grace_until)
     : null
 
+  // P5 v1 — family seats. The viewer either:
+  //   (a) shadows a parent seat (next-gen side), or
+  //   (b) has next-gen seats linked to them (parent side), or
+  //   (c) neither, in which case the section doesn't render.
+  // Both queries are isolated try/catches inside the lib helpers so
+  // pre-043 environments don't break the whole /profile page.
+  const [parentSeat, nextGenSeats] = await Promise.all([
+    getParent(userId),
+    listNextGenSeats(userId),
+  ])
+  const hasFamily = parentSeat !== null || nextGenSeats.length > 0
+
   // Per-role mandate editing (Phase D2 + E4). Multi-role users get a
   // tab switcher above the mandate form: which role's mandate are we
   // editing? Single-role users see no tabs. Concierge-only users have
@@ -175,6 +188,76 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
           initialIsDaf={!!profile.is_daf}
           isConcierge={!!profile.is_concierge}
         />
+
+        {/* P5 v1 — Family seats. Renders only when the viewer is either
+            shadowing a parent or has next-gen seats attached. v1 is
+            read-only display; self-serve invite + shadow-view toggle
+            land in P5b. Admin links the seats today via
+            PUT /api/admin/users/:id/parent. */}
+        {hasFamily && (
+          <section
+            aria-labelledby="family-seats-heading"
+            className="glass-panel p-5 space-y-4"
+          >
+            <div>
+              <p className="font-data text-[10px] tracking-[0.12em] text-ee-muted uppercase">
+                Family
+              </p>
+              <h2
+                id="family-seats-heading"
+                className="font-display text-lg text-ee-primary mt-1"
+              >
+                Family seats
+              </h2>
+            </div>
+
+            {parentSeat && (
+              <div className="border border-ee-border rounded-lg p-3">
+                <p className="font-data text-[10px] tracking-[0.12em] text-ee-muted uppercase">
+                  Shadow seat under
+                </p>
+                <p className="text-ee-primary mt-1">
+                  {parentSeat.full_name}
+                  <span className="text-ee-muted"> — {parentSeat.firm_name}</span>
+                </p>
+                <p className="text-xs text-ee-muted mt-1">
+                  View-only access to {parentSeat.full_name.split(' ')[0]}&rsquo;s deal flow is
+                  rolling out in the next release.
+                </p>
+              </div>
+            )}
+
+            {nextGenSeats.length > 0 && (
+              <div>
+                <p className="font-data text-[10px] tracking-[0.12em] text-ee-muted uppercase mb-2">
+                  Next-gen seats linked to you ({nextGenSeats.length})
+                </p>
+                <ul className="space-y-2">
+                  {nextGenSeats.map(seat => (
+                    <li
+                      key={seat.id}
+                      className="border border-ee-border rounded-lg p-3 flex items-start justify-between gap-3"
+                    >
+                      <div>
+                        <p className="text-ee-primary">{seat.full_name}</p>
+                        <p className="text-xs text-ee-muted">{seat.email}</p>
+                      </div>
+                      <span
+                        className={`shrink-0 text-[10px] font-data tracking-[0.12em] uppercase px-2 py-1 rounded-full border ${
+                          seat.onboarding_completed
+                            ? 'border-ee-gold/40 text-ee-gold'
+                            : 'border-ee-border text-ee-muted'
+                        }`}
+                      >
+                        {seat.onboarding_completed ? 'Active' : 'Invited'}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </section>
+        )}
 
         {/* Top-level email opt-out, separate from the wizard form so it's
             never more than one click away. */}

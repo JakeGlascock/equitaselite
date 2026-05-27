@@ -8,6 +8,7 @@ import RowActionsMenu from './RowActionsMenu'
 import ManagedAccountAssignment from './ManagedAccountAssignment'
 import TierAssignment from './TierAssignment'
 import RmAssignment from './RmAssignment'
+import ParentAssignment from './ParentAssignment'
 
 export type MemberStatus = 'Invited' | 'Onboarding' | 'Active' | 'Disabled' | 'Demo'
 export type Membership   = 'access' | 'select' | 'sovereign'
@@ -34,6 +35,9 @@ export interface MemberRow {
   managedBy:   string | null
   membership:  Membership | null
   relationshipManagerId: string | null
+  // P5 v1 — parent seat link for next-gen rows. Null when no parent
+  // is linked or the user isn't a next-gen.
+  parentProfileId: string | null
   // Off-Market (migration 033): Sovereign-only privacy flag. Admins
   // always see the profile but a small badge marks it so they know it
   // isn't surfaced to other members.
@@ -71,6 +75,14 @@ export interface ConciergeOption {
   firm_name: string | null
 }
 
+// P5 v1 — wealth-holder seats (FO / Foundation / DAF) that a next-gen
+// can shadow. Pulled at admin/page.tsx level and threaded through.
+export interface WealthHolderOption {
+  id:        string
+  full_name: string
+  firm_name: string | null
+}
+
 const STATUS_STYLES: Record<MemberStatus, string> = {
   Active:     'border-ee-emerald/40 bg-ee-emerald/10 text-ee-emerald',
   Onboarding: 'border-ee-gold/40    bg-ee-gold/10    text-ee-gold',
@@ -95,11 +107,12 @@ function fmtDate(s: string): string {
 }
 
 export default function MembersTable({
-  rows, selfUserId, concierges,
+  rows, selfUserId, concierges, wealthHolders,
 }: {
-  rows:        MemberRow[]
-  selfUserId:  string
-  concierges:  ConciergeOption[]
+  rows:          MemberRow[]
+  selfUserId:    string
+  concierges:    ConciergeOption[]
+  wealthHolders: WealthHolderOption[]
 }) {
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState<typeof STATUS_FILTERS[number]['key']>('all')
@@ -472,6 +485,24 @@ export default function MembersTable({
                                 <Em title={m.isConcierge ? 'Concierges are RMs, not RM recipients' : 'Profile not created yet'}>—</Em>
                               )}
                             </Field>
+                            {/* P5 v1 — Parent seat picker. Only meaningful
+                                on next-gen rows; suppressed otherwise so
+                                the grid doesn't grow a column of dashes. */}
+                            {m.isNextGen && (
+                              <Field label="Parent seat">
+                                {m.userId ? (
+                                  <ParentAssignment
+                                    userId={m.userId}
+                                    current={m.parentProfileId}
+                                    wealthHolders={wealthHolders}
+                                    disabled={!m.staffTogglable}
+                                    disabledReason={m.staffToggleReason}
+                                  />
+                                ) : (
+                                  <Em title="Profile not created yet">—</Em>
+                                )}
+                              </Field>
+                            )}
                           </div>
                         </td>
                       </tr>
