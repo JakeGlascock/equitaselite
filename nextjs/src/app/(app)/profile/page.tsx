@@ -16,6 +16,7 @@ import { getCandidates, type DbProfile as MatchDbProfile } from '@/lib/matches'
 import { countKnockoutsByReason } from '@/lib/scoring'
 import { getTier } from '@/lib/membership'
 import { getParent, listNextGenSeats } from '@/lib/family'
+import InviteNextGenForm from './InviteNextGenForm'
 import { DEFAULT_MANDATE_WEIGHTS, type UserProfile, type Tier, type MandateWeights } from '@/types'
 
 interface DbProfile {
@@ -128,7 +129,15 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
     getParent(userId),
     listNextGenSeats(userId),
   ])
-  const hasFamily = parentSeat !== null || nextGenSeats.length > 0
+  // P5c: wealth-holders (FO / Family Foundation / DAF) get a
+  // self-serve "Invite a next-gen seat" affordance. Plain Angels don't
+  // — semantically next-gen is a family-wealth-structure concept.
+  const isWealthHolder = !!(
+    profile.is_family_office     ||
+    profile.is_family_foundation ||
+    profile.is_daf
+  )
+  const hasFamily = parentSeat !== null || nextGenSeats.length > 0 || isWealthHolder
 
   // Per-role mandate editing (Phase D2 + E4). Multi-role users get a
   // tab switcher above the mandate form: which role's mandate are we
@@ -228,33 +237,50 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
               </div>
             )}
 
-            {nextGenSeats.length > 0 && (
-              <div>
-                <p className="font-data text-[10px] tracking-[0.12em] text-ee-muted uppercase mb-2">
+            {/* Parent-side: list of linked next-gen seats. Empty for
+                a wealth-holder who hasn't invited anyone yet; the
+                invite form below seeds the first one. */}
+            {(nextGenSeats.length > 0 || isWealthHolder) && (
+              <div className="space-y-2">
+                <p className="font-data text-[10px] tracking-[0.12em] text-ee-muted uppercase">
                   Next-gen seats linked to you ({nextGenSeats.length})
                 </p>
-                <ul className="space-y-2">
-                  {nextGenSeats.map(seat => (
-                    <li
-                      key={seat.id}
-                      className="border border-ee-border rounded-lg p-3 flex items-start justify-between gap-3"
-                    >
-                      <div>
-                        <p className="text-ee-primary">{seat.full_name}</p>
-                        <p className="text-xs text-ee-muted">{seat.email}</p>
-                      </div>
-                      <span
-                        className={`shrink-0 text-[10px] font-data tracking-[0.12em] uppercase px-2 py-1 rounded-full border ${
-                          seat.onboarding_completed
-                            ? 'border-ee-gold/40 text-ee-gold'
-                            : 'border-ee-border text-ee-muted'
-                        }`}
+                {nextGenSeats.length > 0 ? (
+                  <ul className="space-y-2">
+                    {nextGenSeats.map(seat => (
+                      <li
+                        key={seat.id}
+                        className="border border-ee-border rounded-lg p-3 flex items-start justify-between gap-3"
                       >
-                        {seat.onboarding_completed ? 'Active' : 'Invited'}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
+                        <div>
+                          <p className="text-ee-primary">{seat.full_name}</p>
+                          <p className="text-xs text-ee-muted">{seat.email}</p>
+                        </div>
+                        <span
+                          className={`shrink-0 text-[10px] font-data tracking-[0.12em] uppercase px-2 py-1 rounded-full border ${
+                            seat.onboarding_completed
+                              ? 'border-ee-gold/40 text-ee-gold'
+                              : 'border-ee-border text-ee-muted'
+                          }`}
+                        >
+                          {seat.onboarding_completed ? 'Active' : 'Invited'}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-xs text-ee-muted italic">
+                    None invited yet.
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* P5c — wealth-holders only. Plain Angels and concierge-
+                only profiles never see this form. */}
+            {isWealthHolder && (
+              <div className="pt-2 border-t border-ee-border">
+                <InviteNextGenForm />
               </div>
             )}
           </section>

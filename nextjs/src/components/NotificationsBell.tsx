@@ -2,9 +2,22 @@
 
 import { useEffect, useState } from 'react'
 
+type NotificationType =
+  | 'intro_requested'
+  | 'intro_accepted'
+  | 'intro_declined'
+  | 'deal_invitation'
+  | 'deal_interest'
+  | 'deal_message'
+  | 'next_gen_shadow'
+
 interface Notification {
   id:         string
-  type:       'intro_requested' | 'intro_accepted' | 'intro_declined'
+  // The server-side CHECK enforces this exhaustively (see migration
+  // 044). The `string` fallback keeps the renderer tolerant if a
+  // future type ships before this client is updated — it draws the
+  // FALLBACK icon/color instead of crashing.
+  type:       NotificationType | string
   title:      string
   body:       string | null
   link_url:   string | null
@@ -12,17 +25,34 @@ interface Notification {
   created_at: string
 }
 
-const ICON_BY_TYPE: Record<Notification['type'], string> = {
+// Material Symbols glyph + accent color per known type. Unknown types
+// fall through to the FALLBACK pair so a new server-side notification
+// shape never renders as a blank chip.
+const ICON_BY_TYPE: Record<NotificationType, string> = {
   intro_requested: 'handshake',
   intro_accepted:  'check_circle',
   intro_declined:  'cancel',
+  deal_invitation: 'workspaces',
+  deal_interest:   'star',
+  deal_message:    'forum',
+  next_gen_shadow: 'visibility',
 }
 
-const COLOR_BY_TYPE: Record<Notification['type'], string> = {
+const COLOR_BY_TYPE: Record<NotificationType, string> = {
   intro_requested: '#e9c176',
   intro_accepted:  '#4edea3',
   intro_declined:  '#8892a4',
+  deal_invitation: '#e9c176',
+  deal_interest:   '#4edea3',
+  deal_message:    '#8aa8ff',
+  next_gen_shadow: '#e9c176',
 }
+
+const FALLBACK_ICON  = 'notifications'
+const FALLBACK_COLOR = '#8892a4'
+
+function iconFor (t: string): string { return ICON_BY_TYPE[t  as NotificationType] ?? FALLBACK_ICON  }
+function colorFor(t: string): string { return COLOR_BY_TYPE[t as NotificationType] ?? FALLBACK_COLOR }
 
 function relativeTime(s: string): string {
   const diff = Date.now() - new Date(s).getTime()
@@ -130,7 +160,7 @@ export default function NotificationsBell() {
               ) : (
                 <ul className="divide-y divide-ee-outline/20">
                   {items.map(n => {
-                    const color = COLOR_BY_TYPE[n.type]
+                    const color = colorFor(n.type)
                     return (
                       <li key={n.id}>
                         <button
@@ -145,7 +175,7 @@ export default function NotificationsBell() {
                             style={{ background: `${color}1f`, border: `1px solid ${color}55` }}
                           >
                             <span className="material-symbols-outlined text-base" style={{ color }}>
-                              {ICON_BY_TYPE[n.type]}
+                              {iconFor(n.type)}
                             </span>
                           </div>
                           <div className="flex-1 min-w-0">

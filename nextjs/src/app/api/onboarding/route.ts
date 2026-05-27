@@ -161,7 +161,14 @@ export async function POST(req: NextRequest) {
          email_notifications_enabled=$19,
          onboarding_completed=TRUE,
          is_angel=$20, is_family_office=$21,
-         is_next_gen=$22, is_family_foundation=$23, is_daf=$24
+         -- P5c: preserve is_next_gen when a parent or admin already
+         -- seeded it. A parent who invited this user via /api/me/
+         -- next-gen-invite expects the link to survive onboarding even
+         -- if the user doesn't tick the "Next Gen" checkbox in the
+         -- wizard. parent_profile_id is intentionally NOT in the SET
+         -- list (preserved across onboarding by omission).
+         is_next_gen=(profiles.is_next_gen OR $22),
+         is_family_foundation=$23, is_daf=$24
        RETURNING *`,
       [
         userId, d.email, primaryRole, d.full_name, d.title ?? null,

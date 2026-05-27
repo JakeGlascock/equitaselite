@@ -89,6 +89,10 @@ const CHECKS = [
   { name: 'gate-family-page',     path: '/family',          status: [302, 307, 308], redirectContains: '/signin', followRedirect: false },
   { name: 'gate-shadow-enable',   path: '/api/me/shadow',   method: 'POST',   body: '', status: [302, 307, 308], redirectContains: '/signin', followRedirect: false },
   { name: 'gate-shadow-disable',  path: '/api/me/shadow',   method: 'DELETE', body: '', status: [302, 307, 308], redirectContains: '/signin', followRedirect: false },
+  // P5c — self-serve next-gen invite. Auth-gated; without a session,
+  // /signin redirect like the rest of /api/me/*. A leak here would let
+  // any visitor create Cognito users + EE profiles.
+  { name: 'gate-next-gen-invite', path: '/api/me/next-gen-invite', method: 'POST', body: '', status: [302, 307, 308], redirectContains: '/signin', followRedirect: false },
   { name: 'gate-discovery',    path: '/discovery',          status: [302, 307, 308], redirectContains: '/signin', followRedirect: false },
   { name: 'gate-portfolio',    path: '/portfolio',          status: [302, 307, 308], redirectContains: '/signin', followRedirect: false },
   { name: 'gate-connections',  path: '/connections',        status: [302, 307, 308], redirectContains: '/signin', followRedirect: false },
