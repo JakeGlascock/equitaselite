@@ -10,12 +10,19 @@ import {
 import { getMandate, type Role } from '@/lib/mandates'
 import { ROLE_LABELS as DROPDOWN_LABELS, INVESTOR_ROLES as DROPDOWN_ROLES } from '@/lib/role-compat'
 import { getActingAsState } from '@/lib/acting-as'
+import { getShadowState } from '@/lib/shadow'
+import ShadowBanner from '@/components/ShadowBanner'
 import { getTier, getLimits, priorityRank, checkIntroQuota } from '@/lib/membership'
 
 export default async function DashboardPage({ searchParams }: { searchParams: Promise<{ role?: string }> }) {
-  const state = await getActingAsState()
-  if (!state) redirect('/signin')
-  const userId = state.effectiveUserId
+  // P5b — shadow takes precedence over acting-as. In practice a profile
+  // can't be both a next-gen and a managing concierge, so the OR is
+  // safe. Shadow's parent_id substitutes for the read paths only;
+  // mutations are blocked at the middleware layer.
+  const shadow = await getShadowState()
+  const state  = shadow ? null : await getActingAsState()
+  if (!shadow && !state) redirect('/signin')
+  const userId = shadow?.parentId ?? state!.effectiveUserId
 
   const me = await getMe(userId)
   if (!me || !me.onboarding_completed) redirect('/onboarding')
@@ -99,6 +106,12 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   return (
     <div className="px-5 md:px-8 py-8">
       <div className="max-w-5xl mx-auto space-y-6">
+        {shadow && (
+          <ShadowBanner
+            parentName={shadow.parentProfile.full_name}
+            parentFirm={shadow.parentProfile.firm_name}
+          />
+        )}
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
             <p className="font-data text-[10px] tracking-[0.12em] text-ee-muted uppercase">Executive Overview</p>

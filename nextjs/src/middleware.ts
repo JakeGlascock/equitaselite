@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { jwtVerify, createRemoteJWKSet } from 'jose'
 import { PREVIEW_COOKIE_NAME, isDemoProfileId } from '@/lib/preview'
+import { applyShadowGate } from '@/lib/shadow'
 
 const POOL_ID = process.env.COGNITO_USER_POOL_ID
 const REGION  = process.env.AWS_REGION ?? 'us-east-1'
@@ -87,6 +88,8 @@ export async function middleware(req: NextRequest) {
     const headers = new Headers(req.headers)
     headers.set('x-user-id', payload.sub!)
     if (typeof payload.email === 'string') headers.set('x-user-email', payload.email)
+    const gated = applyShadowGate(req, headers, pathname)
+    if (gated) return gated
     return NextResponse.next({ request: { headers } })
   } catch {
     // ID token failed verification (most often: expired). Try silent
@@ -137,6 +140,13 @@ async function tryRefresh(req: NextRequest): Promise<NextResponse | null> {
     headers.set('x-user-id', payload.sub!)
     if (typeof payload.email === 'string') headers.set('x-user-email', payload.email)
 
+    const gated = applyShadowGate(req, headers, req.nextUrl.pathname)
+    if (gated) {
+      // Even when blocked, surface the new auth cookies so the next
+      // (read) call doesn't bounce back through /signin.
+      for (const cookie of setCookies) gated.headers.append('set-cookie', cookie)
+      return gated
+    }
     const response = NextResponse.next({ request: { headers } })
     for (const cookie of setCookies) {
       response.headers.append('set-cookie', cookie)

@@ -221,8 +221,9 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
                   <span className="text-ee-muted"> — {parentSeat.firm_name}</span>
                 </p>
                 <p className="text-xs text-ee-muted mt-1">
-                  View-only access to {parentSeat.full_name.split(' ')[0]}&rsquo;s deal flow is
-                  rolling out in the next release.
+                  <Link href="/family" className="text-ee-gold underline hover:no-underline">
+                    Open Family to view {parentSeat.full_name.split(' ')[0]}&rsquo;s deal flow →
+                  </Link>
                 </p>
               </div>
             )}

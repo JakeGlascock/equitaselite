@@ -2,6 +2,8 @@ import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
 import { queryOne } from '@/lib/db'
 import { getActingAsState } from '@/lib/acting-as'
+import { getShadowState } from '@/lib/shadow'
+import ShadowBanner from '@/components/ShadowBanner'
 import { computeMatchScore } from '@/lib/scoring'
 import { checkIntroQuota } from '@/lib/membership'
 import { isUserAdmin } from '@/lib/admin'
@@ -129,10 +131,16 @@ const RING_C = 2 * Math.PI * RING_R
 
 export default async function MatchDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  const state = await getActingAsState()
-  if (!state) redirect('/signin')
+  // P5b — shadow takes precedence over acting-as. The "me" in this
+  // page becomes the parent seat when a next-gen is shadowing, so the
+  // scoring (their mandate vs the candidate) and visibility gates use
+  // the parent's identity.
+  const shadow = await getShadowState()
+  const state  = shadow ? null : await getActingAsState()
+  if (!shadow && !state) redirect('/signin')
+  const viewerId = shadow?.parentId ?? state!.effectiveUserId
 
-  const me = await fetchProfile(state.effectiveUserId)
+  const me = await fetchProfile(viewerId)
   if (!me || !me.onboarding_completed) redirect('/onboarding')
 
   const candidate = await fetchProfile(id)
@@ -234,6 +242,12 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
   return (
     <div className="px-5 md:px-8 py-8">
       <div className="max-w-5xl mx-auto space-y-6">
+        {shadow && (
+          <ShadowBanner
+            parentName={shadow.parentProfile.full_name}
+            parentFirm={shadow.parentProfile.firm_name}
+          />
+        )}
         <Link
           href="/dashboard"
           className="inline-flex items-center gap-1 text-xs text-ee-muted hover:text-ee-primary font-data uppercase tracking-wider"
@@ -301,17 +315,26 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
             </div>
 
             <div className="pt-3">
-              <IntroActionClient
-                recipientId={candidate.id}
-                recipientFirstName={firstName}
-                initial={{
-                  status:       intro?.status ?? null,
-                  direction:    intro?.direction ?? null,
-                  contactEmail: intro?.status === 'accepted' ? intro.other_email : null,
-                }}
-                canSendIntros={quota.ok}
-                viewerIsOffMarket={!!me.is_off_market}
-              />
+              {/* Hide the intro-request CTA during shadow view.
+                  Middleware would 403 the underlying POST anyway, but
+                  a visible button you can't use reads as broken. The
+                  contact email for accepted intros (inside this
+                  component) is inert so showing it would be fine —
+                  but keeping the whole block on one toggle is
+                  simpler and matches /deals + /connections behavior. */}
+              {!shadow && (
+                <IntroActionClient
+                  recipientId={candidate.id}
+                  recipientFirstName={firstName}
+                  initial={{
+                    status:       intro?.status ?? null,
+                    direction:    intro?.direction ?? null,
+                    contactEmail: intro?.status === 'accepted' ? intro.other_email : null,
+                  }}
+                  canSendIntros={quota.ok}
+                  viewerIsOffMarket={!!me.is_off_market}
+                />
+              )}
             </div>
           </div>
         </div>

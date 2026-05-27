@@ -82,6 +82,13 @@ const CHECKS = [
   // /signin redirect as the rest of /api/admin/*. A leak would let
   // any visitor reparent an existing next-gen to an arbitrary seat.
   { name: 'gate-admin-user-parent',   path: '/api/admin/users/u/parent',       method: 'PUT',  body: '', status: [302, 307, 308], redirectContains: '/signin', followRedirect: false },
+  // P5b — Next-Gen shadow view. /family is auth-only; /api/me/shadow
+  // must redirect unauth callers (we can't fully assert the
+  // shadow-cookie mutation gate from outside a signed-in session, but
+  // we can prove the route is gated like everything else under /api/).
+  { name: 'gate-family-page',     path: '/family',          status: [302, 307, 308], redirectContains: '/signin', followRedirect: false },
+  { name: 'gate-shadow-enable',   path: '/api/me/shadow',   method: 'POST',   body: '', status: [302, 307, 308], redirectContains: '/signin', followRedirect: false },
+  { name: 'gate-shadow-disable',  path: '/api/me/shadow',   method: 'DELETE', body: '', status: [302, 307, 308], redirectContains: '/signin', followRedirect: false },
   { name: 'gate-discovery',    path: '/discovery',          status: [302, 307, 308], redirectContains: '/signin', followRedirect: false },
   { name: 'gate-portfolio',    path: '/portfolio',          status: [302, 307, 308], redirectContains: '/signin', followRedirect: false },
   { name: 'gate-connections',  path: '/connections',        status: [302, 307, 308], redirectContains: '/signin', followRedirect: false },

@@ -4,6 +4,8 @@ import Link from 'next/link'
 import { marked } from 'marked'
 import { getTier } from '@/lib/membership'
 import { listInvitationsForUser } from '@/lib/deals'
+import { getShadowState } from '@/lib/shadow'
+import ShadowBanner from '@/components/ShadowBanner'
 import DealResponseControls from './DealResponseControls'
 
 function fmtDate(s: string): string {
@@ -19,9 +21,15 @@ function fmtMoney(n: number | null): string {
 
 export default async function DealsPage() {
   const h = await headers()
-  const userId = h.get('x-user-id')
-  if (!userId) redirect('/signin')
+  const actualUserId = h.get('x-user-id')
+  if (!actualUserId) redirect('/signin')
 
+  // P5b — pivot to parent's seat for the deals listing when a next-gen
+  // is in shadow mode. Tier gate ALSO pivots so a next-gen shadowing a
+  // Sovereign parent sees the parent's invitations, not a /pricing
+  // upsell.
+  const shadow = await getShadowState()
+  const userId = shadow?.parentId ?? actualUserId
   const tier = await getTier(userId)
   if (tier !== 'sovereign') {
     return (
@@ -45,6 +53,12 @@ export default async function DealsPage() {
   return (
     <div className="px-5 md:px-8 py-8">
       <div className="max-w-4xl mx-auto space-y-8">
+        {shadow && (
+          <ShadowBanner
+            parentName={shadow.parentProfile.full_name}
+            parentFirm={shadow.parentProfile.firm_name}
+          />
+        )}
         <div>
           <p className="font-data text-[10px] tracking-[0.12em] text-ee-muted uppercase">Curated for you</p>
           <h1 className="font-display text-3xl text-ee-gold mt-1">Deal flow</h1>
@@ -140,7 +154,11 @@ export default async function DealsPage() {
                     </aside>
                   )}
 
-                  {inv.status === 'pending' && (
+                  {/* Hide the express-interest controls during shadow
+                      view. Middleware would 403 the POST anyway, but
+                      showing a clickable button you can't use is a
+                      worse experience than just hiding it. */}
+                  {inv.status === 'pending' && !shadow && (
                     <DealResponseControls invitationId={inv.id} />
                   )}
                 </article>

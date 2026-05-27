@@ -1,6 +1,8 @@
 import { redirect } from 'next/navigation'
 import { query } from '@/lib/db'
 import { getActingAsState } from '@/lib/acting-as'
+import { getShadowState } from '@/lib/shadow'
+import ShadowBanner from '@/components/ShadowBanner'
 import RespondButtons from './RespondButtons'
 import AcceptedActions from './AcceptedActions'
 
@@ -37,9 +39,13 @@ function statusBadge(status: IntroRow['status']) {
 }
 
 export default async function ConnectionsPage() {
-  const state = await getActingAsState()
-  if (!state) redirect('/signin')
-  const userId = state.effectiveUserId
+  // P5b — shadow takes precedence over acting-as for the read pivot.
+  // Mutations (Accept / Decline / etc.) are middleware-blocked while
+  // shadowing; we also conditionally hide their UI below.
+  const shadow = await getShadowState()
+  const state  = shadow ? null : await getActingAsState()
+  if (!shadow && !state) redirect('/signin')
+  const userId = shadow?.parentId ?? state!.effectiveUserId
 
   const intros = await query<IntroRow>(
     `SELECT i.id, i.requester_id, i.recipient_id, i.status, i.message, i.created_at,
@@ -83,7 +89,11 @@ export default async function ConnectionsPage() {
           )}
         </div>
 
-        {isIncoming && i.status === 'pending' ? (
+        {/* Hide the accept/decline controls during shadow view —
+            middleware blocks the underlying POST anyway, but visible
+            buttons that don't work read as a bug. The accepted-state
+            actions (email, calendar) stay since they're inert. */}
+        {isIncoming && i.status === 'pending' && !shadow ? (
           <RespondButtons introId={i.id} />
         ) : i.status === 'accepted' ? (
           <AcceptedActions name={them.name} firm={them.firm} email={them.email} />
@@ -111,6 +121,12 @@ export default async function ConnectionsPage() {
   return (
     <div className="px-5 md:px-8 py-8">
       <div className="max-w-5xl mx-auto space-y-6">
+        {shadow && (
+          <ShadowBanner
+            parentName={shadow.parentProfile.full_name}
+            parentFirm={shadow.parentProfile.firm_name}
+          />
+        )}
         <div>
           <p className="font-data text-[10px] tracking-[0.12em] text-ee-muted uppercase">Deal Room</p>
           <h1 className="font-display text-3xl text-ee-gold mt-1">Connections</h1>
