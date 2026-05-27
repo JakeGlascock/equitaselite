@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { marked } from 'marked'
 import { getTier } from '@/lib/membership'
 import { listInvitationsForUser } from '@/lib/deals'
-import { getShadowState } from '@/lib/shadow'
+import { getShadowState, logShadowView } from '@/lib/shadow'
 import ShadowBanner from '@/components/ShadowBanner'
 import DealResponseControls from './DealResponseControls'
 
@@ -30,6 +30,7 @@ export default async function DealsPage() {
   // upsell.
   const shadow = await getShadowState()
   const userId = shadow?.parentId ?? actualUserId
+  if (shadow) void logShadowView(shadow.parentId, shadow.actualUserId, '/deals')
   const tier = await getTier(userId)
   if (tier !== 'sovereign') {
     return (

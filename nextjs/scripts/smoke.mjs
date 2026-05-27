@@ -93,6 +93,10 @@ const CHECKS = [
   // /signin redirect like the rest of /api/me/*. A leak here would let
   // any visitor create Cognito users + EE profiles.
   { name: 'gate-next-gen-invite', path: '/api/me/next-gen-invite', method: 'POST', body: '', status: [302, 307, 308], redirectContains: '/signin', followRedirect: false },
+  // P5d — parent-owned resend. Same gate; a leak would let any
+  // visitor trigger fresh Cognito temp-password emails to arbitrary
+  // next-gen seats.
+  { name: 'gate-next-gen-resend', path: '/api/me/next-gen-invite/resend', method: 'POST', body: '', status: [302, 307, 308], redirectContains: '/signin', followRedirect: false },
   { name: 'gate-discovery',    path: '/discovery',          status: [302, 307, 308], redirectContains: '/signin', followRedirect: false },
   { name: 'gate-portfolio',    path: '/portfolio',          status: [302, 307, 308], redirectContains: '/signin', followRedirect: false },
   { name: 'gate-connections',  path: '/connections',        status: [302, 307, 308], redirectContains: '/signin', followRedirect: false },

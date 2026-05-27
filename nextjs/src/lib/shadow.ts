@@ -1,6 +1,6 @@
 import { cookies, headers } from 'next/headers'
 import { NextResponse, type NextRequest } from 'next/server'
-import { queryOne } from './db'
+import { queryOne, query } from './db'
 
 // P5b — Next-Gen shadow view. A next-gen seat (Phase E role flag,
 // migration 035) can elect to "view as" their linked parent seat
@@ -109,6 +109,77 @@ export const SHADOW_WRITE_ALLOWLIST = [
   '/api/auth/signout',
   '/api/auth/refresh',
 ]
+
+// P5d — per-view audit. Dedup window keeps the audit log readable:
+// one row per (parent, next-gen, pathname) per hour. Tune by changing
+// this constant; no migration needed because dedup is query-side.
+export const SHADOW_AUDIT_DEDUP_MINUTES = 60
+
+/**
+ * Record that a next-gen viewed a pivoted surface. Idempotent within
+ * the dedup window — a refresh-spam loop on /dashboard generates one
+ * row per hour, not one per request. Failures are swallowed so a
+ * missing migration / table never breaks the page render.
+ *
+ * pathname should be the route token, not the resolved URL. For
+ * dynamic segments (`/match/[id]`), callers pass the literal token
+ * so different candidate views aggregate into a single audit entry
+ * — "next-gen viewed /match" rather than 30 distinct rows.
+ */
+export async function logShadowView(
+  parentId:   string,
+  nextGenId:  string,
+  pathname:   string,
+): Promise<void> {
+  await query(
+    `INSERT INTO shadow_audit_logs (parent_id, next_gen_id, pathname)
+     SELECT $1, $2, $3
+      WHERE NOT EXISTS (
+        SELECT 1 FROM shadow_audit_logs
+         WHERE parent_id   = $1
+           AND next_gen_id = $2
+           AND pathname    = $3
+           AND viewed_at > NOW() - ($4 || ' minutes')::interval
+      )`,
+    [parentId, nextGenId, pathname, String(SHADOW_AUDIT_DEDUP_MINUTES)],
+  ).catch(err => {
+    // Pre-045 environment or transient DB error. Either way, this
+    // is a read-side telemetry path — never break the actual surface.
+    console.error('logShadowView failed (non-fatal):', err)
+  })
+}
+
+export interface ShadowAuditEntry {
+  id:          string
+  next_gen_id: string
+  next_gen_name: string | null
+  pathname:    string
+  viewed_at:   string
+}
+
+/** Recent activity entries scoped to a parent seat. Used by the
+ *  /profile audit panel. Returns [] on any error so the surrounding
+ *  Family Seats section keeps rendering on pre-045 envs. */
+export async function listRecentShadowViews(
+  parentId: string,
+  limit:    number = 20,
+): Promise<ShadowAuditEntry[]> {
+  try {
+    const rows = await query<ShadowAuditEntry>(
+      `SELECT l.id, l.next_gen_id, ng.full_name AS next_gen_name,
+              l.pathname, l.viewed_at
+         FROM shadow_audit_logs l
+         LEFT JOIN profiles ng ON ng.id = l.next_gen_id
+        WHERE l.parent_id = $1
+        ORDER BY l.viewed_at DESC
+        LIMIT $2`,
+      [parentId, limit],
+    )
+    return rows
+  } catch {
+    return []
+  }
+}
 
 /**
  * Edge-runtime mutation gate. Called from middleware after the JWT

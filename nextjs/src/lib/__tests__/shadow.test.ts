@@ -2,10 +2,14 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { NextRequest } from 'next/server'
 
 const mockQueryOne = vi.fn()
+const mockQuery    = vi.fn()
 const mockCookies  = vi.fn()
 const mockHeaders  = vi.fn()
 
-vi.mock('@/lib/db', () => ({ queryOne: (...a: unknown[]) => mockQueryOne(...a) }))
+vi.mock('@/lib/db', () => ({
+  queryOne: (...a: unknown[]) => mockQueryOne(...a),
+  query:    (...a: unknown[]) => mockQuery(...a),
+}))
 vi.mock('next/headers', () => ({
   cookies: () => mockCookies(),
   headers: () => mockHeaders(),
@@ -15,14 +19,19 @@ import {
   applyShadowGate,
   getShadowState,
   getEffectiveReadUserId,
+  logShadowView,
+  listRecentShadowViews,
   SHADOW_COOKIE,
   SHADOW_WRITE_ALLOWLIST,
+  SHADOW_AUDIT_DEDUP_MINUTES,
 } from '../shadow'
 
 beforeEach(() => {
   mockQueryOne.mockReset()
+  mockQuery.mockReset()
   mockCookies.mockReset()
   mockHeaders.mockReset()
+  mockQuery.mockResolvedValue(undefined)
 })
 
 function buildReq(method: string, path: string, cookieVal?: string): NextRequest {
@@ -142,6 +151,48 @@ describe('getShadowState — server-component cookie validation', () => {
     mockNextHeaders({ userId: 'ng-1', cookieParentId: 'parent-1' })
     mockQueryOne.mockRejectedValueOnce(new Error('column parent_profile_id does not exist'))
     expect(await getShadowState()).toBeNull()
+  })
+})
+
+describe('logShadowView — P5d per-view audit', () => {
+  it('inserts with the NOT EXISTS dedup guard using the configured window', async () => {
+    await logShadowView('parent-1', 'ng-1', '/dashboard')
+    const [sql, params] = mockQuery.mock.calls[0]
+    // Insert + dedup are a single SQL statement, not a separate read.
+    // INSERT...SELECT...WHERE NOT EXISTS shape lets pg do the dedup
+    // atomically — no race window where two concurrent renders both
+    // see "no recent row" and both insert.
+    expect(sql).toContain('INSERT INTO shadow_audit_logs')
+    expect(sql).toContain('WHERE NOT EXISTS')
+    expect(sql).toMatch(/viewed_at > NOW\(\)\s*-\s*\(\$4\s*\|\|\s*' minutes'\)::interval/i)
+    expect(params).toEqual(['parent-1', 'ng-1', '/dashboard', String(SHADOW_AUDIT_DEDUP_MINUTES)])
+  })
+
+  it('swallows db errors — never breaks the page render', async () => {
+    mockQuery.mockRejectedValueOnce(new Error('table shadow_audit_logs does not exist'))
+    await expect(logShadowView('parent-1', 'ng-1', '/dashboard')).resolves.toBeUndefined()
+  })
+})
+
+describe('listRecentShadowViews', () => {
+  it('returns entries newest-first, joined to the next-gen name', async () => {
+    mockQuery.mockResolvedValueOnce([
+      { id: 'a', next_gen_id: 'ng-1', next_gen_name: 'Avery', pathname: '/dashboard', viewed_at: '2026-05-27T12:00:00Z' },
+    ])
+    const out = await listRecentShadowViews('parent-1', 5)
+    const [sql, params] = mockQuery.mock.calls[0]
+    expect(sql).toContain('FROM shadow_audit_logs l')
+    expect(sql).toContain('LEFT JOIN profiles ng ON ng.id = l.next_gen_id')
+    expect(sql).toContain('WHERE l.parent_id = $1')
+    expect(sql).toContain('ORDER BY l.viewed_at DESC')
+    expect(params).toEqual(['parent-1', 5])
+    expect(out).toHaveLength(1)
+    expect(out[0].next_gen_name).toBe('Avery')
+  })
+
+  it('returns [] on any db error (pre-045 safety)', async () => {
+    mockQuery.mockRejectedValueOnce(new Error('relation does not exist'))
+    expect(await listRecentShadowViews('parent-1')).toEqual([])
   })
 })
 

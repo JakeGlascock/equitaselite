@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
 import { queryOne } from '@/lib/db'
 import { getActingAsState } from '@/lib/acting-as'
-import { getShadowState } from '@/lib/shadow'
+import { getShadowState, logShadowView } from '@/lib/shadow'
 import ShadowBanner from '@/components/ShadowBanner'
 import { computeMatchScore } from '@/lib/scoring'
 import { checkIntroQuota } from '@/lib/membership'
@@ -139,6 +139,9 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
   const state  = shadow ? null : await getActingAsState()
   if (!shadow && !state) redirect('/signin')
   const viewerId = shadow?.parentId ?? state!.effectiveUserId
+  // P5d: collapse /match/<uuid> into the literal token so different
+  // candidate views don't multiply the audit log per session.
+  if (shadow) void logShadowView(shadow.parentId, shadow.actualUserId, '/match/[id]')
 
   const me = await fetchProfile(viewerId)
   if (!me || !me.onboarding_completed) redirect('/onboarding')

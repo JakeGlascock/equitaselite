@@ -16,7 +16,9 @@ import { getCandidates, type DbProfile as MatchDbProfile } from '@/lib/matches'
 import { countKnockoutsByReason } from '@/lib/scoring'
 import { getTier } from '@/lib/membership'
 import { getParent, listNextGenSeats } from '@/lib/family'
+import { listRecentShadowViews } from '@/lib/shadow'
 import InviteNextGenForm from './InviteNextGenForm'
+import ResendNextGenInviteButton from './ResendNextGenInviteButton'
 import { DEFAULT_MANDATE_WEIGHTS, type UserProfile, type Tier, type MandateWeights } from '@/types'
 
 interface DbProfile {
@@ -125,9 +127,10 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
   //   (c) neither, in which case the section doesn't render.
   // Both queries are isolated try/catches inside the lib helpers so
   // pre-043 environments don't break the whole /profile page.
-  const [parentSeat, nextGenSeats] = await Promise.all([
+  const [parentSeat, nextGenSeats, shadowViews] = await Promise.all([
     getParent(userId),
     listNextGenSeats(userId),
+    listRecentShadowViews(userId, 10),
   ])
   // P5c: wealth-holders (FO / Family Foundation / DAF) get a
   // self-serve "Invite a next-gen seat" affordance. Plain Angels don't
@@ -256,15 +259,23 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
                           <p className="text-ee-primary">{seat.full_name}</p>
                           <p className="text-xs text-ee-muted">{seat.email}</p>
                         </div>
-                        <span
-                          className={`shrink-0 text-[10px] font-data tracking-[0.12em] uppercase px-2 py-1 rounded-full border ${
-                            seat.onboarding_completed
-                              ? 'border-ee-gold/40 text-ee-gold'
-                              : 'border-ee-border text-ee-muted'
-                          }`}
-                        >
-                          {seat.onboarding_completed ? 'Active' : 'Invited'}
-                        </span>
+                        <div className="shrink-0 flex flex-col items-end gap-2">
+                          <span
+                            className={`text-[10px] font-data tracking-[0.12em] uppercase px-2 py-1 rounded-full border ${
+                              seat.onboarding_completed
+                                ? 'border-ee-gold/40 text-ee-gold'
+                                : 'border-ee-border text-ee-muted'
+                            }`}
+                          >
+                            {seat.onboarding_completed ? 'Active' : 'Invited'}
+                          </span>
+                          {/* P5d resend control — only meaningful before
+                              onboarding. Once they've signed in, they
+                              use forgot-password like any other user. */}
+                          {!seat.onboarding_completed && (
+                            <ResendNextGenInviteButton nextGenId={seat.id} />
+                          )}
+                        </div>
                       </li>
                     ))}
                   </ul>
@@ -281,6 +292,41 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
             {isWealthHolder && (
               <div className="pt-2 border-t border-ee-border">
                 <InviteNextGenForm />
+              </div>
+            )}
+
+            {/* P5d — per-view audit trail. Rendered only when there's
+                at least one logged view (no point showing an empty
+                panel to a parent whose next-gen hasn't shadowed yet).
+                Dedup window is 1h, so a single afternoon of refreshes
+                still collapses to one row per pathname. */}
+            {shadowViews.length > 0 && (
+              <div className="pt-2 border-t border-ee-border space-y-2">
+                <p className="font-data text-[10px] tracking-[0.12em] text-ee-muted uppercase">
+                  Recent shadow activity
+                </p>
+                <ul className="space-y-1">
+                  {shadowViews.map(v => (
+                    <li
+                      key={v.id}
+                      className="flex items-center justify-between gap-3 text-xs"
+                    >
+                      <span className="text-ee-primary truncate">
+                        {v.next_gen_name ?? 'Next-gen seat'}
+                        <span className="text-ee-muted"> viewed </span>
+                        <code className="font-data text-[11px] text-ee-muted">{v.pathname}</code>
+                      </span>
+                      <span className="shrink-0 text-[10px] text-ee-muted font-data tabular-nums">
+                        {new Date(v.viewed_at).toLocaleString('en-US', {
+                          month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
+                        })}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+                <p className="text-[10px] text-ee-muted italic">
+                  Each pathname logs once per hour per next-gen. Older than that, the next view re-logs.
+                </p>
               </div>
             )}
           </section>

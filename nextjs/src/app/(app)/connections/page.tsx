@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation'
 import { query } from '@/lib/db'
 import { getActingAsState } from '@/lib/acting-as'
-import { getShadowState } from '@/lib/shadow'
+import { getShadowState, logShadowView } from '@/lib/shadow'
 import ShadowBanner from '@/components/ShadowBanner'
 import RespondButtons from './RespondButtons'
 import AcceptedActions from './AcceptedActions'
@@ -46,6 +46,7 @@ export default async function ConnectionsPage() {
   const state  = shadow ? null : await getActingAsState()
   if (!shadow && !state) redirect('/signin')
   const userId = shadow?.parentId ?? state!.effectiveUserId
+  if (shadow) void logShadowView(shadow.parentId, shadow.actualUserId, '/connections')
 
   const intros = await query<IntroRow>(
     `SELECT i.id, i.requester_id, i.recipient_id, i.status, i.message, i.created_at,

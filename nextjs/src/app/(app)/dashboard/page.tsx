@@ -10,7 +10,7 @@ import {
 import { getMandate, type Role } from '@/lib/mandates'
 import { ROLE_LABELS as DROPDOWN_LABELS, INVESTOR_ROLES as DROPDOWN_ROLES } from '@/lib/role-compat'
 import { getActingAsState } from '@/lib/acting-as'
-import { getShadowState } from '@/lib/shadow'
+import { getShadowState, logShadowView } from '@/lib/shadow'
 import ShadowBanner from '@/components/ShadowBanner'
 import { getTier, getLimits, priorityRank, checkIntroQuota } from '@/lib/membership'
 
@@ -23,6 +23,11 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   const state  = shadow ? null : await getActingAsState()
   if (!shadow && !state) redirect('/signin')
   const userId = shadow?.parentId ?? state!.effectiveUserId
+
+  // P5d: per-view audit. Fire-and-forget; the lib helper dedups within
+  // SHADOW_AUDIT_DEDUP_MINUTES so a refresh-spam loop generates one
+  // row per hour. Swallows errors internally — never blocks render.
+  if (shadow) void logShadowView(shadow.parentId, shadow.actualUserId, '/dashboard')
 
   const me = await getMe(userId)
   if (!me || !me.onboarding_completed) redirect('/onboarding')
