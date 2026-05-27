@@ -22,6 +22,13 @@ export default function ViewingAsDropdown({
   // what the viewer actually holds.
   const options = ordered.filter(r => held.includes(r))
 
+  // Native <select> renders its arrow pinned to the right edge by the
+  // browser's UA stylesheet — padding only affects where the TEXT
+  // sits. To position the arrow inside the rounded-full curve, we
+  // disable the native arrow with appearance-none and paint a custom
+  // SVG chevron as a background-image we can place anywhere.
+  const chevronSvg =
+    "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6' fill='none'><path d='M1 1l4 4 4-4' stroke='%23bec6e0' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/></svg>\")"
   return (
     <select
       value={current ?? ''}
@@ -29,11 +36,15 @@ export default function ViewingAsDropdown({
         const next = e.target.value
         router.replace(next ? `/dashboard?role=${next}` : '/dashboard', { scroll: false })
       }}
-      // Asymmetric padding: 12px left, 28px right. Native <select>
-      // renders the arrow inside the right padding area, and on a
-      // rounded-full shape the right curve eats some of that space —
-      // pr-7 gives the arrow real breathing room from the edge.
-      className="bg-ee-bg border border-ee-border rounded-full pl-3 pr-7 py-1.5 text-ee-primary text-xs font-semibold focus:outline-none focus:border-ee-gold/60 cursor-pointer"
+      // appearance-none kills the UA arrow; backgroundImage paints our
+      // chevron positioned 14px from the right edge — clear of the
+      // rounded-full curve, with the text room from pr-9.
+      style={{
+        backgroundImage:    chevronSvg,
+        backgroundRepeat:   'no-repeat',
+        backgroundPosition: 'right 14px center',
+      }}
+      className="appearance-none bg-ee-bg border border-ee-border rounded-full pl-4 pr-9 py-1.5 text-ee-primary text-xs font-semibold focus:outline-none focus:border-ee-gold/60 cursor-pointer"
       aria-label="Viewing as which role"
     >
       {options.map(r => (
