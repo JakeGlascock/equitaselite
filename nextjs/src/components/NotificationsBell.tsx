@@ -10,6 +10,7 @@ type NotificationType =
   | 'deal_interest'
   | 'deal_message'
   | 'next_gen_shadow'
+  | 'next_gen_action'
 
 interface Notification {
   id:         string
@@ -36,6 +37,7 @@ const ICON_BY_TYPE: Record<NotificationType, string> = {
   deal_interest:   'star',
   deal_message:    'forum',
   next_gen_shadow: 'visibility',
+  next_gen_action: 'supervised_user_circle',
 }
 
 const COLOR_BY_TYPE: Record<NotificationType, string> = {
@@ -46,6 +48,7 @@ const COLOR_BY_TYPE: Record<NotificationType, string> = {
   deal_interest:   '#4edea3',
   deal_message:    '#8aa8ff',
   next_gen_shadow: '#e9c176',
+  next_gen_action: '#e9c176',
 }
 
 const FALLBACK_ICON  = 'notifications'

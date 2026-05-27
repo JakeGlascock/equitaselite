@@ -250,42 +250,94 @@ export interface DealMessage {
   pinned_by_concierge:  boolean
   removed_at:           string | null
   created_at:           string
+  /** P5e — null for regular messages; set when a next-gen posted while
+   *  shadowing this parent seat. UI renders "(on behalf of <firm>)". */
+  shadowed_parent_id:   string | null
+  shadowed_parent_firm: string | null
 }
 
 export async function postDealMessage(
-  dealId: string,
-  userId: string,
-  body:   string,
+  dealId:              string,
+  userId:              string,
+  body:                string,
+  shadowedParentId?:   string | null,
 ): Promise<DealMessage> {
-  // Re-fetch with the profile JOIN so the response includes author
-  // metadata. Single round-trip via CTE.
-  const row = await queryOne<DealMessage>(
-    `WITH ins AS (
-       INSERT INTO deal_messages (deal_id, user_id, body)
-            VALUES ($1, $2, $3)
-         RETURNING *
-     )
-     SELECT ins.*, p.full_name AS user_name, p.firm_name AS user_firm
-       FROM ins LEFT JOIN profiles p ON p.id = ins.user_id`,
-    [dealId, userId, body],
-  )
-  if (!row) throw new Error('postDealMessage returned no row')
-  return row
+  // Re-fetch with the profile JOINs (author + optional shadowed parent)
+  // so the response includes everything the UI needs in one round trip.
+  // Pre-046 fallback: if the shadowed_parent_id column doesn't exist
+  // yet, retry with the original INSERT shape so the route keeps
+  // working on older schemas — shadow attribution is then just absent.
+  try {
+    const row = await queryOne<DealMessage>(
+      `WITH ins AS (
+         INSERT INTO deal_messages (deal_id, user_id, body, shadowed_parent_id)
+              VALUES ($1, $2, $3, $4)
+           RETURNING *
+       )
+       SELECT ins.*,
+              p.full_name AS user_name,
+              p.firm_name AS user_firm,
+              sp.firm_name AS shadowed_parent_firm
+         FROM ins
+         LEFT JOIN profiles p  ON p.id  = ins.user_id
+         LEFT JOIN profiles sp ON sp.id = ins.shadowed_parent_id`,
+      [dealId, userId, body, shadowedParentId ?? null],
+    )
+    if (!row) throw new Error('postDealMessage returned no row')
+    return row
+  } catch {
+    const row = await queryOne<DealMessage>(
+      `WITH ins AS (
+         INSERT INTO deal_messages (deal_id, user_id, body)
+              VALUES ($1, $2, $3)
+           RETURNING *
+       )
+       SELECT ins.*,
+              p.full_name AS user_name,
+              p.firm_name AS user_firm,
+              NULL::text  AS shadowed_parent_firm
+         FROM ins LEFT JOIN profiles p ON p.id = ins.user_id`,
+      [dealId, userId, body],
+    )
+    if (!row) throw new Error('postDealMessage returned no row')
+    return row
+  }
 }
 
 export async function listDealMessages(dealId: string): Promise<DealMessage[]> {
-  return query<DealMessage>(
-    `SELECT m.id, m.deal_id, m.user_id, m.body,
-            m.pinned_by_concierge, m.removed_at, m.created_at,
-            p.full_name AS user_name,
-            p.firm_name AS user_firm
-       FROM deal_messages m
-       LEFT JOIN profiles p ON p.id = m.user_id
-      WHERE m.deal_id    = $1
-        AND m.removed_at IS NULL
-      ORDER BY m.pinned_by_concierge DESC, m.created_at ASC`,
-    [dealId],
-  )
+  try {
+    return await query<DealMessage>(
+      `SELECT m.id, m.deal_id, m.user_id, m.body,
+              m.pinned_by_concierge, m.removed_at, m.created_at,
+              m.shadowed_parent_id,
+              p.full_name  AS user_name,
+              p.firm_name  AS user_firm,
+              sp.firm_name AS shadowed_parent_firm
+         FROM deal_messages m
+         LEFT JOIN profiles p  ON p.id  = m.user_id
+         LEFT JOIN profiles sp ON sp.id = m.shadowed_parent_id
+        WHERE m.deal_id    = $1
+          AND m.removed_at IS NULL
+        ORDER BY m.pinned_by_concierge DESC, m.created_at ASC`,
+      [dealId],
+    )
+  } catch {
+    // Pre-046 fallback. No shadow_parent column; map it to null.
+    return query<DealMessage>(
+      `SELECT m.id, m.deal_id, m.user_id, m.body,
+              m.pinned_by_concierge, m.removed_at, m.created_at,
+              NULL::text AS shadowed_parent_id,
+              p.full_name AS user_name,
+              p.firm_name AS user_firm,
+              NULL::text  AS shadowed_parent_firm
+         FROM deal_messages m
+         LEFT JOIN profiles p ON p.id = m.user_id
+        WHERE m.deal_id    = $1
+          AND m.removed_at IS NULL
+        ORDER BY m.pinned_by_concierge DESC, m.created_at ASC`,
+      [dealId],
+    )
+  }
 }
 
 export async function getDealMessage(messageId: string): Promise<DealMessage | null> {

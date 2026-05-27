@@ -97,6 +97,14 @@ const CHECKS = [
   // visitor trigger fresh Cognito temp-password emails to arbitrary
   // next-gen seats.
   { name: 'gate-next-gen-resend', path: '/api/me/next-gen-invite/resend', method: 'POST', body: '', status: [302, 307, 308], redirectContains: '/signin', followRedirect: false },
+  // P5e — next-gen shadow-write routes. These two paths are on the
+  // shadow allowlist (SHADOW_WRITE_ALLOWLIST_PATTERNS in lib/shadow.ts)
+  // so a shadowing next-gen can comment + RSVP. The allowlist must
+  // NOT make them public — proves an unauthed POST still bounces to
+  // /signin like every other /api/ route. Lookalikes that lack the
+  // dynamic segment are covered by the lib unit test, not here.
+  { name: 'gate-next-gen-deal-comment', path: '/api/deals/00000000-0000-0000-0000-000000000000/messages', method: 'POST', body: '', status: [302, 307, 308], redirectContains: '/signin', followRedirect: false },
+  { name: 'gate-next-gen-event-rsvp',   path: '/api/events/00000000-0000-0000-0000-000000000000/rsvp',     method: 'POST', body: '', status: [302, 307, 308], redirectContains: '/signin', followRedirect: false },
   { name: 'gate-discovery',    path: '/discovery',          status: [302, 307, 308], redirectContains: '/signin', followRedirect: false },
   { name: 'gate-portfolio',    path: '/portfolio',          status: [302, 307, 308], redirectContains: '/signin', followRedirect: false },
   { name: 'gate-connections',  path: '/connections',        status: [302, 307, 308], redirectContains: '/signin', followRedirect: false },

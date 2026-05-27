@@ -110,6 +110,23 @@ export const SHADOW_WRITE_ALLOWLIST = [
   '/api/auth/refresh',
 ]
 
+// P5e — parameterized routes the next-gen can additionally hit while
+// shadowing. Patterns anchor with ^ and $ so a lookalike like
+// `/api/deals/X/messages/extra` is still blocked. Two product calls
+// landed here: comment on deal threads, RSVP to events.
+//
+// Important: these patterns are allowlist-only at the middleware tier.
+// The routes themselves are responsible for:
+//   - checking the parent's authorization (not the next-gen's), since
+//     the action is "on behalf of" the parent,
+//   - writing user_id = the actual next-gen,
+//   - capturing shadowed_parent_id for attribution,
+//   - fan-out notifications including a parent-audit entry.
+export const SHADOW_WRITE_ALLOWLIST_PATTERNS: RegExp[] = [
+  /^\/api\/deals\/[^/]+\/messages$/,
+  /^\/api\/events\/[^/]+\/rsvp$/,
+]
+
 // P5d — per-view audit. Dedup window keeps the audit log readable:
 // one row per (parent, next-gen, pathname) per hour. Tune by changing
 // this constant; no migration needed because dedup is query-side.
@@ -146,6 +163,43 @@ export async function logShadowView(
     // Pre-045 environment or transient DB error. Either way, this
     // is a read-side telemetry path — never break the actual surface.
     console.error('logShadowView failed (non-fatal):', err)
+  })
+}
+
+/**
+ * P5e — write a 'next_gen_action' notification on the parent's feed
+ * when their next-gen does something on their behalf (deal-room
+ * comment, event RSVP). Fire-and-forget at the call site: a flaky
+ * notifications table never blocks the underlying action.
+ *
+ * Kept here (not in lib/notifications.ts) because the type + body
+ * shape is shadow-specific — the parent needs to know which next-gen
+ * acted, which surface, and the deep link. Callers pass the deep
+ * link as link_url; the title/body strings are computed from the
+ * next-gen's display name + a short action verb.
+ */
+export async function notifyParentOfShadowAction(opts: {
+  parentId:        string
+  nextGenId:       string
+  nextGenName:     string
+  actionVerb:      string    // e.g. "posted in", "RSVPed to"
+  contextTitle:    string    // e.g. deal title, event title
+  bodySnippet?:    string
+  linkUrl:         string
+  relatedId?:      string | null
+}): Promise<void> {
+  await query(
+    `INSERT INTO notifications (user_id, type, title, body, link_url, related_id)
+          VALUES ($1, 'next_gen_action', $2, $3, $4, $5)`,
+    [
+      opts.parentId,
+      `${opts.nextGenName} (your next-gen) ${opts.actionVerb} ${opts.contextTitle}`,
+      opts.bodySnippet ?? '',
+      opts.linkUrl,
+      opts.relatedId ?? null,
+    ],
+  ).catch(err => {
+    console.error('notifyParentOfShadowAction failed (non-fatal):', err)
   })
 }
 
@@ -209,7 +263,9 @@ export function applyShadowGate(
   const isMutating = req.method !== 'GET' && req.method !== 'HEAD'
   if (!isMutating) return null
   if (!pathname.startsWith('/api/')) return null
-  const isAllowed = SHADOW_WRITE_ALLOWLIST.some(p => pathname === p || pathname.startsWith(p + '/'))
+  const isAllowed =
+       SHADOW_WRITE_ALLOWLIST.some(p => pathname === p || pathname.startsWith(p + '/'))
+    || SHADOW_WRITE_ALLOWLIST_PATTERNS.some(re => re.test(pathname))
   if (isAllowed) return null
   return NextResponse.json(
     { error: 'Read-only while viewing as your parent seat. Exit shadow view to make changes.' },

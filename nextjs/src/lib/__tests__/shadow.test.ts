@@ -21,6 +21,7 @@ import {
   getEffectiveReadUserId,
   logShadowView,
   listRecentShadowViews,
+  notifyParentOfShadowAction,
   SHADOW_COOKIE,
   SHADOW_WRITE_ALLOWLIST,
   SHADOW_AUDIT_DEDUP_MINUTES,
@@ -101,6 +102,95 @@ describe('applyShadowGate — middleware mutation defense', () => {
     const h = new Headers()
     const res = applyShadowGate(buildReq('POST', '/api/me/shadow-impostor', 'parent-1'), h, '/api/me/shadow-impostor')
     expect(res!.status).toBe(403)
+  })
+
+  // P5e — regex pattern allowlist for parameterized routes (deal
+  // comments + event RSVPs). Anchored regex protects against suffix
+  // lookalikes that a string prefix can't.
+  it('lets POST /api/deals/<id>/messages through (P5e comment allowance)', () => {
+    const h = new Headers()
+    const path = '/api/deals/abc-123/messages'
+    expect(applyShadowGate(buildReq('POST', path, 'parent-1'), h, path)).toBeNull()
+  })
+
+  it('lets POST /api/events/<id>/rsvp through (P5e RSVP allowance)', () => {
+    const h = new Headers()
+    const path = '/api/events/evt-77/rsvp'
+    expect(applyShadowGate(buildReq('POST', path, 'parent-1'), h, path)).toBeNull()
+  })
+
+  it('lets DELETE /api/events/<id>/rsvp through too (un-RSVP reversibility)', () => {
+    const h = new Headers()
+    const path = '/api/events/evt-77/rsvp'
+    expect(applyShadowGate(buildReq('DELETE', path, 'parent-1'), h, path)).toBeNull()
+  })
+
+  it('blocks lookalike /api/deals/<id>/messages/<mid> (no PATCH for moderation while shadowing)', () => {
+    // Pin/remove must NOT be reachable while shadowing — the regex
+    // is anchored with $ so the extra path segment doesn't match.
+    const h = new Headers()
+    const path = '/api/deals/abc-123/messages/msg-9'
+    const res = applyShadowGate(buildReq('PATCH', path, 'parent-1'), h, path)
+    expect(res!.status).toBe(403)
+  })
+
+  it('blocks lookalike /api/deals/<id>/messages-extra (no suffix match)', () => {
+    const h = new Headers()
+    const path = '/api/deals/abc-123/messages-extra'
+    const res = applyShadowGate(buildReq('POST', path, 'parent-1'), h, path)
+    expect(res!.status).toBe(403)
+  })
+
+  it('blocks /api/events/<id>/cancel-rsvp (anchored regex)', () => {
+    const h = new Headers()
+    const path = '/api/events/evt-77/cancel-rsvp'
+    const res = applyShadowGate(buildReq('POST', path, 'parent-1'), h, path)
+    expect(res!.status).toBe(403)
+  })
+})
+
+describe('notifyParentOfShadowAction — P5e parent audit notification', () => {
+  it('writes a next_gen_action notification with the formatted title + linked deep link', async () => {
+    await notifyParentOfShadowAction({
+      parentId:     'parent-1',
+      nextGenId:    'ng-1',
+      nextGenName:  'Avery',
+      actionVerb:   'posted in',
+      contextTitle: 'AI Co — Series B',
+      bodySnippet:  'spoke to two LPs already',
+      linkUrl:      '/deals/deal-1',
+      relatedId:    'msg-9',
+    })
+    const [sql, params] = mockQuery.mock.calls[0]
+    expect(sql).toMatch(/INSERT INTO notifications/i)
+    expect(sql).toContain("'next_gen_action'")
+    expect(params[0]).toBe('parent-1')
+    expect(params[1]).toBe('Avery (your next-gen) posted in AI Co — Series B')
+    expect(params[2]).toBe('spoke to two LPs already')
+    expect(params[3]).toBe('/deals/deal-1')
+    expect(params[4]).toBe('msg-9')
+  })
+
+  it('defaults snippet to "" and relatedId to null when omitted', async () => {
+    await notifyParentOfShadowAction({
+      parentId:     'parent-1',
+      nextGenId:    'ng-1',
+      nextGenName:  'Avery',
+      actionVerb:   'RSVPed to',
+      contextTitle: 'Aspen Roundtable',
+      linkUrl:      '/events',
+    })
+    const [, params] = mockQuery.mock.calls[0]
+    expect(params[2]).toBe('')
+    expect(params[4]).toBeNull()
+  })
+
+  it('swallows db errors — never breaks the calling action', async () => {
+    mockQuery.mockRejectedValueOnce(new Error('check constraint violated'))
+    await expect(notifyParentOfShadowAction({
+      parentId: 'p', nextGenId: 'n', nextGenName: 'A',
+      actionVerb: 'did', contextTitle: 'X', linkUrl: '/',
+    })).resolves.toBeUndefined()
   })
 })
 

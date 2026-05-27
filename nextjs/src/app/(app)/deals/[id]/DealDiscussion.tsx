@@ -108,12 +108,20 @@ export default function DealDiscussion({
                 }`}
               >
                 <div className="flex items-center justify-between gap-2 flex-wrap">
-                  <div className="flex items-baseline gap-2 min-w-0">
+                  <div className="flex items-baseline gap-2 min-w-0 flex-wrap">
                     <p className="font-semibold text-sm text-ee-primary truncate">
                       {m.user_name ?? 'Member'}
                     </p>
                     {m.user_firm && (
                       <p className="text-[11px] text-ee-muted truncate">{m.user_firm}</p>
+                    )}
+                    {m.shadowed_parent_id && (
+                      <span
+                        className="text-[10px] font-data uppercase tracking-widest text-ee-muted px-1.5 py-0.5 rounded border border-ee-border"
+                        title="Posted by a next-gen seat on behalf of this family office"
+                      >
+                        On behalf of {m.shadowed_parent_firm ?? 'family seat'}
+                      </span>
                     )}
                     {m.pinned_by_concierge && (
                       <span
