@@ -107,6 +107,9 @@ export interface MatchView {
   sectors: string[]
   stages: string[]
   geography: string[]
+  /** Asset-class affinity (P1). Exposed on MatchView so the P2
+   *  explainability panel can show overlap with the viewer's picks. */
+  assetClasses: string[]
   checkSizeMin: number
   checkSizeMax: number
   score: ReturnType<typeof computeMatchScore>
@@ -393,6 +396,7 @@ export function toMatchView(c: DbProfile, me: DbProfile, intro?: IntroState): Ma
     sectors:      c.sectors,
     stages:       c.stages,
     geography:    c.geography,
+    assetClasses: c.asset_classes ?? [],
     checkSizeMin: Number(c.check_size_min),
     checkSizeMax: Number(c.check_size_max),
     score:        computeMatchScore(toScoringProfile(me), toCandidateProfile(c)),

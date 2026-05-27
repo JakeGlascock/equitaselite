@@ -28,7 +28,18 @@ function Chip({ label, selected, onClick }: { label: string; selected: boolean; 
   )
 }
 
-export default function DiscoveryList({ matches, viewerIsOffMarket = false }: { matches: MatchView[]; viewerIsOffMarket?: boolean }) {
+import type { MandateWeights } from '@/types'
+import type { ViewerForBreakdown } from '@/components/MatchScoreBreakdown'
+
+export default function DiscoveryList({
+  matches, viewerIsOffMarket = false, viewer, viewerWeights,
+}: {
+  matches:           MatchView[]
+  viewerIsOffMarket?: boolean
+  /** P2 — viewer mandate slice for the "Why this score" overlap panel. */
+  viewer?:           ViewerForBreakdown
+  viewerWeights?:    MandateWeights
+}) {
   const [search, setSearch] = useState('')
   const [sectors, setSectors] = useState<string[]>([])
   const [stages, setStages] = useState<string[]>([])
@@ -136,7 +147,15 @@ export default function DiscoveryList({ matches, viewerIsOffMarket = false }: { 
         </div>
       ) : (
         <div className="space-y-4">
-          {filtered.map(m => <MatchCard key={m.id} match={m} viewerIsOffMarket={viewerIsOffMarket} />)}
+          {filtered.map(m => (
+            <MatchCard
+              key={m.id}
+              match={m}
+              viewerIsOffMarket={viewerIsOffMarket}
+              viewer={viewer}
+              viewerWeights={viewerWeights}
+            />
+          ))}
         </div>
       )}
     </div>

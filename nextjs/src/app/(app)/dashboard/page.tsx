@@ -195,7 +195,19 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
         ) : (
           <div data-tour="match-list" className="space-y-4">
             {matches.map(m => (
-              <MatchCard key={m.id} match={m} canSendIntros={quota.ok} viewerIsOffMarket={!!me.is_off_market} />
+              <MatchCard
+                key={m.id}
+                match={m}
+                canSendIntros={quota.ok}
+                viewerIsOffMarket={!!me.is_off_market}
+                viewer={{
+                  sectors:      me.sectors,
+                  stages:       me.stages,
+                  geography:    me.geography,
+                  assetClasses: me.asset_classes ?? [],
+                }}
+                viewerWeights={me.mandate_weights}
+              />
             ))}
           </div>
         )}

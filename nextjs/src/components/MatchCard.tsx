@@ -2,7 +2,8 @@
 
 import Link from 'next/link'
 import { useState } from 'react'
-import type { MatchScore } from '@/types'
+import type { MatchScore, MandateWeights } from '@/types'
+import MatchScoreBreakdown, { type ViewerForBreakdown } from '@/components/MatchScoreBreakdown'
 
 export interface IntroState {
   status:       'pending' | 'accepted' | 'declined' | null
@@ -21,6 +22,8 @@ interface Match {
   sectors: string[]
   stages: string[]
   geography: string[]
+  /** P1 / P2 — asset-class affinity for the explainability panel. */
+  assetClasses?: string[]
   checkSizeMin: number
   checkSizeMax: number
   score: MatchScore
@@ -241,7 +244,18 @@ function IntroAction({ recipientId, recipientFirstName, initial, canSendIntros =
   )
 }
 
-export default function MatchCard({ match, canSendIntros = true, viewerIsOffMarket = false }: { match: Match; canSendIntros?: boolean; viewerIsOffMarket?: boolean }) {
+export default function MatchCard({
+  match, canSendIntros = true, viewerIsOffMarket = false, viewer, viewerWeights,
+}: {
+  match:           Match
+  canSendIntros?:  boolean
+  viewerIsOffMarket?: boolean
+  /** P2 — viewer profile slice for the "Why this score" overlap panel.
+   *  Optional so existing call sites that don't yet pass it degrade
+   *  gracefully (the panel falls back to per-pillar math only). */
+  viewer?:         ViewerForBreakdown
+  viewerWeights?:  MandateWeights
+}) {
   const { score } = match
   const color = LABEL_COLOR[score.label]
 
@@ -323,6 +337,19 @@ export default function MatchCard({ match, canSendIntros = true, viewerIsOffMark
             </>
           )}
         </div>
+
+        {/* P2 — "Why this score" expandable breakdown */}
+        <MatchScoreBreakdown
+          score={score}
+          viewer={viewer}
+          candidate={{
+            sectors:      match.sectors,
+            stages:       match.stages,
+            geography:    match.geography,
+            assetClasses: match.assetClasses,
+          }}
+          viewerWeights={viewerWeights}
+        />
 
         {/* Introduction action */}
         <div className="flex justify-end pt-2">

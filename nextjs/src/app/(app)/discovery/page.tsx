@@ -35,7 +35,17 @@ export default async function DiscoveryPage() {
           </p>
         </div>
 
-        <DiscoveryList matches={matches} viewerIsOffMarket={!!me.is_off_market} />
+        <DiscoveryList
+          matches={matches}
+          viewerIsOffMarket={!!me.is_off_market}
+          viewer={{
+            sectors:      me.sectors,
+            stages:       me.stages,
+            geography:    me.geography,
+            assetClasses: me.asset_classes ?? [],
+          }}
+          viewerWeights={me.mandate_weights}
+        />
       </div>
     </div>
   )
