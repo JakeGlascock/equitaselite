@@ -155,7 +155,7 @@ export default function PricingClient({ currentTier }: { currentTier: Tier | nul
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-10">
             <div className="space-y-2">
               <p className="font-data text-[10px] uppercase tracking-widest text-ee-muted">Layer 1 · Every tier</p>
-              <h3 className="font-display text-xl text-ee-primary">Mandate-match algorithm</h3>
+              <h2 className="font-display text-xl text-ee-primary">Mandate-match algorithm</h2>
               <p className="text-sm text-ee-muted leading-relaxed">
                 Six pillars — scope, capital, time and risk, governance, counterparty,
                 values — weighted by your personal mandate. Every tier gets the full
@@ -164,7 +164,7 @@ export default function PricingClient({ currentTier }: { currentTier: Tier | nul
             </div>
             <div className="space-y-2 md:border-l md:border-ee-gold/20 md:pl-10">
               <p className="font-data text-[10px] uppercase tracking-widest text-ee-muted">Layer 2 · Sovereign</p>
-              <h3 className="font-display text-xl text-ee-primary">Dedicated concierge</h3>
+              <h2 className="font-display text-xl text-ee-primary">Dedicated concierge</h2>
               <p className="text-sm text-ee-muted leading-relaxed">
                 A human relationship layer alongside the score, not on top of it. The concierge
                 tells you whom she&apos;s personally worked with and brokers the warm intro herself.
@@ -263,8 +263,13 @@ export default function PricingClient({ currentTier }: { currentTier: Tier | nul
                   {plan.features.map(f => (
                     <li key={f.label} className="flex items-start gap-2.5">
                       <CheckIcon filled={f.included} />
+                      {/* Excluded-feature text was white/30 (2.66:1) —
+                          below WCAG AA. Bumped to ee-muted with a
+                          strike-through so the "not in this tier" signal
+                          survives the contrast bump (it's no longer
+                          carried by colour alone). */}
                       <span className={`text-sm leading-snug ${
-                        f.included ? 'text-ee-primary' : 'text-white/30'
+                        f.included ? 'text-ee-primary' : 'text-ee-muted line-through decoration-ee-muted/60'
                       }`}>
                         {f.label}
                       </span>
@@ -280,7 +285,10 @@ export default function PricingClient({ currentTier }: { currentTier: Tier | nul
         <p className="text-center text-xs text-ee-muted">
           All memberships are billed in USD. Pricing shown excludes applicable taxes.
           Membership is subject to vetting and approval.{' '}
-          <a href="mailto:access@equitaselite.com" className="text-ee-gold hover:underline">
+          {/* underline at rest — gold-on-muted is 1.84:1 against the
+              surrounding text, below the 3:1 link-distinguishability
+              threshold. WCAG 1.4.1 (use of colour). */}
+          <a href="mailto:access@equitaselite.com" className="text-ee-gold underline">
             Contact us
           </a>{' '}
           for custom enterprise arrangements.
