@@ -14,7 +14,10 @@ function NavBar() {
     >
       <div className="max-w-6xl mx-auto px-5 md:px-8 h-16 flex items-center justify-between">
         <Link href="/" className="flex items-center gap-3">
-          <img src="/logo.png" alt="Equitas Elite" className="h-9 w-auto rounded" />
+          {/* Decorative when paired with the visible brand text — alt="" tells
+              screen readers to skip the logo so it doesn't announce
+              "Equitas Elite Equitas Elite" back-to-back. */}
+          <img src="/logo.png" alt="" className="h-9 w-auto rounded" />
           <span className="hidden sm:inline font-display text-base text-ee-gold">Equitas Elite</span>
         </Link>
         <nav className="flex items-center gap-2 sm:gap-6">
@@ -72,7 +75,8 @@ function Hero() {
             I have an account
           </Link>
         </div>
-        <p className="mt-4 text-[12px] text-ee-muted/80">
+        {/* Was /80 (4.19:1) — bumped to clear WCAG AA 4.5:1. */}
+        <p className="mt-4 text-[12px] text-ee-muted">
           Walk through a private demo as any role — Angel, Family Office, Foundation, DAF, or Next Gen.
           Demo content only; no real-member data.
         </p>
@@ -356,7 +360,8 @@ function Footer() {
     <footer className="border-t border-ee-outline/30 py-10">
       <div className="max-w-5xl mx-auto px-5 md:px-8 flex flex-col sm:flex-row items-center justify-between gap-5">
         <div className="flex items-center gap-3">
-          <img src="/logo.png" alt="Equitas Elite" className="h-7 w-auto rounded" />
+          {/* alt="" — decorative; "Equitas Elite" text is the adjacent span. */}
+          <img src="/logo.png" alt="" className="h-7 w-auto rounded" />
           <span className="font-display text-sm text-ee-gold">Equitas Elite</span>
         </div>
         <nav className="flex items-center gap-x-6 gap-y-2 flex-wrap justify-center">
@@ -367,7 +372,8 @@ function Footer() {
           <Link href="/terms" className="font-data text-[10px] tracking-widest uppercase text-ee-muted hover:text-ee-primary">Terms</Link>
           <a href="mailto:access@equitaselite.com" className="font-data text-[10px] tracking-widest uppercase text-ee-muted hover:text-ee-primary">Contact</a>
         </nav>
-        <p className="font-data text-[10px] tracking-widest uppercase text-ee-muted/70">
+        {/* Was /70 (3.48:1) — bumped to clear WCAG AA 4.5:1. */}
+        <p className="font-data text-[10px] tracking-widest uppercase text-ee-muted">
           © {new Date().getFullYear()} Equitas Elite
         </p>
       </div>
