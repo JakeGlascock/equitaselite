@@ -1,16 +1,18 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { NextRequest } from 'next/server'
 
-const mockIsUserAdmin     = vi.fn()
-const mockQuery           = vi.fn()
-const mockGetDeal         = vi.fn()
-const mockUpdateDealStatus = vi.fn()
+const mockIsUserAdmin             = vi.fn()
+const mockQuery                   = vi.fn()
+const mockGetDeal                 = vi.fn()
+const mockUpdateDealStatus        = vi.fn()
+const mockUpdateDealConciergeNote = vi.fn()
 
 vi.mock('@/lib/admin', () => ({ isUserAdmin: (...a: unknown[]) => mockIsUserAdmin(...a) }))
 vi.mock('@/lib/db',    () => ({ query: (...a: unknown[]) => mockQuery(...a) }))
 vi.mock('@/lib/deals', () => ({
-  getDeal:           (...a: unknown[]) => mockGetDeal(...a),
-  updateDealStatus:  (...a: unknown[]) => mockUpdateDealStatus(...a),
+  getDeal:                  (...a: unknown[]) => mockGetDeal(...a),
+  updateDealStatus:         (...a: unknown[]) => mockUpdateDealStatus(...a),
+  updateDealConciergeNote:  (...a: unknown[]) => mockUpdateDealConciergeNote(...a),
 }))
 
 import { PATCH, DELETE } from '../route'
@@ -32,6 +34,7 @@ const params = () => Promise.resolve({ id: DEAL_ID })
 beforeEach(() => {
   mockIsUserAdmin.mockReset(); mockQuery.mockReset()
   mockGetDeal.mockReset();     mockUpdateDealStatus.mockReset()
+  mockUpdateDealConciergeNote.mockReset()
   mockIsUserAdmin.mockResolvedValue(true)
 })
 
@@ -44,6 +47,11 @@ describe('PATCH /api/admin/deals/[id]', () => {
 
   it('rejects an invalid status', async () => {
     const res = await PATCH(buildReq('PATCH', { status: 'haunted' }), { params: params() })
+    expect(res.status).toBe(400)
+  })
+
+  it('rejects an empty payload (neither status nor concierge_note)', async () => {
+    const res = await PATCH(buildReq('PATCH', {}), { params: params() })
     expect(res.status).toBe(400)
   })
 
@@ -67,6 +75,64 @@ describe('PATCH /api/admin/deals/[id]', () => {
 
     expect(res.status).toBe(200)
     expect(mockUpdateDealStatus).toHaveBeenCalledWith(DEAL_ID, 'filled')
+  })
+
+  // P3 — concierge note path.
+  it('updates the concierge note with the caller as author', async () => {
+    mockGetDeal.mockResolvedValueOnce({ id: DEAL_ID })
+    mockUpdateDealConciergeNote.mockResolvedValueOnce(undefined)
+
+    const res = await PATCH(
+      buildReq('PATCH', { concierge_note: 'Worked with the lead at his last fund — strong.' }),
+      { params: params() },
+    )
+
+    expect(res.status).toBe(200)
+    expect(mockUpdateDealConciergeNote).toHaveBeenCalledWith(
+      DEAL_ID,
+      'Worked with the lead at his last fund — strong.',
+      'admin-1',
+    )
+    // Status path NOT taken when only concierge_note was sent.
+    expect(mockUpdateDealStatus).not.toHaveBeenCalled()
+  })
+
+  it('clears the concierge note when empty/null is sent', async () => {
+    mockGetDeal.mockResolvedValueOnce({ id: DEAL_ID })
+    mockUpdateDealConciergeNote.mockResolvedValueOnce(undefined)
+
+    const res = await PATCH(
+      buildReq('PATCH', { concierge_note: null }),
+      { params: params() },
+    )
+
+    expect(res.status).toBe(200)
+    expect(mockUpdateDealConciergeNote).toHaveBeenCalledWith(DEAL_ID, null, 'admin-1')
+  })
+
+  it('can update status AND concierge_note in one request', async () => {
+    mockGetDeal.mockResolvedValueOnce({ id: DEAL_ID })
+    mockUpdateDealStatus.mockResolvedValueOnce(undefined)
+    mockUpdateDealConciergeNote.mockResolvedValueOnce(undefined)
+
+    const res = await PATCH(
+      buildReq('PATCH', { status: 'closed', concierge_note: 'Filled in a club round.' }),
+      { params: params() },
+    )
+
+    expect(res.status).toBe(200)
+    expect(mockUpdateDealStatus).toHaveBeenCalledWith(DEAL_ID, 'closed')
+    expect(mockUpdateDealConciergeNote).toHaveBeenCalledOnce()
+  })
+
+  it('returns 404 if the deal does not exist BEFORE writing the concierge_note', async () => {
+    mockGetDeal.mockResolvedValueOnce(null)
+    const res = await PATCH(
+      buildReq('PATCH', { concierge_note: 'x'.repeat(10) }),
+      { params: params() },
+    )
+    expect(res.status).toBe(404)
+    expect(mockUpdateDealConciergeNote).not.toHaveBeenCalled()
   })
 })
 

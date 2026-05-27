@@ -73,3 +73,37 @@ describe('Two-trust-layers invariant — concierge tooling DOES live in /concier
     expect(src).toMatch(/isCallerConcierge\(userId\)/)
   })
 })
+
+describe('Two-trust-layers invariant — P3 concierge note on deals stays visually distinct', () => {
+  // P3 surfaces a concierge-authored note onto the member-facing /deals
+  // page. That's the FIRST member-side surface where the human-trust
+  // layer renders alongside algorithmic / structural deal content,
+  // so the visual separation is load-bearing. These assertions lock
+  // in the rendering pattern.
+
+  const src = () => readFileSync(resolve(ROOT, 'src/app/(app)/deals/page.tsx'), 'utf8')
+
+  it('renders the concierge note in its own <aside> with explicit attribution', () => {
+    const s = src()
+    // The note lives in an <aside role="note"> — semantically NOT part
+    // of the deal description article.
+    expect(s).toMatch(/<aside[\s\S]*?role="note"/)
+    expect(s).toContain('aria-label="Concierge note"')
+  })
+
+  it('attributes the note to the author by name (never anonymous)', () => {
+    const s = src()
+    // The author full_name comes through from the JOIN in
+    // listInvitationsForUser. The render must use it.
+    expect(s).toContain('concierge_note_author_name')
+  })
+
+  it('uses gold accent (ee-gold) for the note, distinct from neutral deal chrome', () => {
+    const s = src()
+    // The note block uses ee-gold/40 border + ee-gold/5 bg — same
+    // palette as the admin "Invite Sovereigns" panel, marking it as
+    // a deliberate concierge-warm surface vs the neutral deal listing.
+    expect(s).toMatch(/border-ee-gold\/40/)
+    expect(s).toMatch(/bg-ee-gold\/5/)
+  })
+})

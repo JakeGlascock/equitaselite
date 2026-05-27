@@ -12,6 +12,8 @@ const CreateSchema = z.object({
   check_size_max: z.number().int().nonnegative().nullable().optional(),
   geography:      z.string().trim().max(120).nullable().optional(),
   expires_at:     z.string().datetime().nullable().optional(),
+  // P3 — optional concierge note. Empty string clears it.
+  concierge_note: z.string().max(4000).nullable().optional(),
 })
 
 export async function POST(req: NextRequest) {

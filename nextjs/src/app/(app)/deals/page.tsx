@@ -99,6 +99,39 @@ export default async function DealsPage() {
                     dangerouslySetInnerHTML={{ __html: html }}
                   />
 
+                  {/* P3 — concierge note on the deal. Rendered as a
+                      visually-distinct gold block + explicit attribution
+                      so it doesn't blur into the deal listing's neutral
+                      algorithm-shaped chrome. See feedback memory
+                      `feedback-two-trust-layers` for why this is kept
+                      explicitly separate. */}
+                  {d.concierge_note && (
+                    <aside
+                      role="note"
+                      aria-label="Concierge note"
+                      className="rounded-lg border border-ee-gold/40 bg-ee-gold/5 p-4 space-y-2"
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="font-data text-[10px] uppercase tracking-widest text-ee-gold">
+                          Concierge note
+                          {d.concierge_note_author_name && (
+                            <span className="text-ee-muted normal-case tracking-normal font-normal ml-2">
+                              · from {d.concierge_note_author_name}
+                            </span>
+                          )}
+                        </p>
+                        {d.concierge_note_updated_at && (
+                          <p className="text-[10px] text-ee-muted">
+                            {fmtDate(d.concierge_note_updated_at)}
+                          </p>
+                        )}
+                      </div>
+                      <p className="text-sm text-ee-primary italic whitespace-pre-line">
+                        {d.concierge_note}
+                      </p>
+                    </aside>
+                  )}
+
                   {inv.status === 'pending' && (
                     <DealResponseControls invitationId={inv.id} />
                   )}

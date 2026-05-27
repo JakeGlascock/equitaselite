@@ -24,6 +24,12 @@ export interface Deal {
   created_at:      string
   updated_at:      string
   expires_at:      string | null
+  // P3 — concierge note attached to the deal. Visible only to invited
+  // Sovereigns on the member /deals page; rendered as a visually
+  // distinct block to preserve the two-trust-layers separation.
+  concierge_note:            string | null
+  concierge_note_author_id:  string | null
+  concierge_note_updated_at: string | null
 }
 
 export interface DealInvitation {
@@ -35,8 +41,12 @@ export interface DealInvitation {
   status:       InvitationStatus
 }
 
+/** Joined shape used on the member-side /deals page so the UI can
+ *  attribute the concierge note ("Note from {full_name}"). */
 export interface InvitationWithDeal extends DealInvitation {
-  deal: Deal
+  deal: Deal & {
+    concierge_note_author_name: string | null
+  }
 }
 
 // ─── Admin / concierge writes ─────────────────────────────────────
@@ -51,14 +61,19 @@ export interface CreateDealInput {
   geography?:      string | null
   expires_at?:     string | null
   created_by:      string
+  /** P3 — optional concierge note set at creation time. */
+  concierge_note?: string | null
 }
 
 export async function createDeal(input: CreateDealInput): Promise<Deal> {
+  const note = (input.concierge_note ?? '').trim()
   const row = await queryOne<Deal>(
     `INSERT INTO deals (title, description, sectors, stages,
                         check_size_min, check_size_max, geography,
-                        expires_at, created_by)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+                        expires_at, created_by,
+                        concierge_note, concierge_note_author_id, concierge_note_updated_at)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9,
+                    $10, $11, $12)
          RETURNING *`,
     [
       input.title,
@@ -70,6 +85,9 @@ export async function createDeal(input: CreateDealInput): Promise<Deal> {
       input.geography ?? null,
       input.expires_at ?? null,
       input.created_by,
+      note ? note             : null,
+      note ? input.created_by : null,
+      note ? new Date()       : null,
     ],
   )
   if (!row) throw new Error('createDeal returned no row')
@@ -81,6 +99,38 @@ export async function updateDealStatus(id: string, status: DealStatus): Promise<
     `UPDATE deals SET status = $2, updated_at = NOW() WHERE id = $1`,
     [id, status],
   )
+}
+
+/** P3 — set or clear the concierge note on a deal. Author is the
+ *  caller (admin or concierge). Empty/whitespace strings clear all
+ *  three concierge-note columns so the member side renders nothing. */
+export async function updateDealConciergeNote(
+  dealId:   string,
+  note:     string | null,
+  authorId: string,
+): Promise<void> {
+  const trimmed = (note ?? '').trim()
+  if (trimmed) {
+    await query(
+      `UPDATE deals
+          SET concierge_note            = $2,
+              concierge_note_author_id  = $3,
+              concierge_note_updated_at = NOW(),
+              updated_at                = NOW()
+        WHERE id = $1`,
+      [dealId, trimmed, authorId],
+    )
+  } else {
+    await query(
+      `UPDATE deals
+          SET concierge_note            = NULL,
+              concierge_note_author_id  = NULL,
+              concierge_note_updated_at = NULL,
+              updated_at                = NOW()
+        WHERE id = $1`,
+      [dealId],
+    )
+  }
 }
 
 export async function listAllDeals(): Promise<Deal[]> {
@@ -115,25 +165,33 @@ export async function listInvitationsForDeal(dealId: string): Promise<DealInvita
 }
 
 export async function listInvitationsForUser(userId: string): Promise<InvitationWithDeal[]> {
+  // LEFT JOIN to profiles so the concierge note can be attributed by
+  // name on the member side ("Note from Alice"). Falls back to a
+  // generic "the concierge" if the author was deleted or unjoined.
   return query<InvitationWithDeal>(
     `SELECT i.id, i.deal_id, i.user_id, i.invited_at, i.responded_at, i.status,
             jsonb_build_object(
-              'id',             d.id,
-              'title',          d.title,
-              'description',    d.description,
-              'sectors',        d.sectors,
-              'stages',         d.stages,
-              'check_size_min', d.check_size_min,
-              'check_size_max', d.check_size_max,
-              'geography',      d.geography,
-              'status',         d.status,
-              'created_by',     d.created_by,
-              'created_at',     d.created_at,
-              'updated_at',     d.updated_at,
-              'expires_at',     d.expires_at
+              'id',                         d.id,
+              'title',                      d.title,
+              'description',                d.description,
+              'sectors',                    d.sectors,
+              'stages',                     d.stages,
+              'check_size_min',             d.check_size_min,
+              'check_size_max',             d.check_size_max,
+              'geography',                  d.geography,
+              'status',                     d.status,
+              'created_by',                 d.created_by,
+              'created_at',                 d.created_at,
+              'updated_at',                 d.updated_at,
+              'expires_at',                 d.expires_at,
+              'concierge_note',             d.concierge_note,
+              'concierge_note_author_id',   d.concierge_note_author_id,
+              'concierge_note_updated_at',  d.concierge_note_updated_at,
+              'concierge_note_author_name', author.full_name
             ) AS deal
        FROM deal_invitations i
        JOIN deals d ON d.id = i.deal_id
+       LEFT JOIN profiles author ON author.id = d.concierge_note_author_id
       WHERE i.user_id = $1
         AND d.status = 'open'
       ORDER BY i.invited_at DESC`,

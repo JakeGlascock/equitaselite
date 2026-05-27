@@ -43,6 +43,9 @@ export default function DealsPanel({ sovereigns }: { sovereigns: SovereignProfil
   const [checkMin, setCheckMin]   = useState('')
   const [checkMax, setCheckMax]   = useState('')
   const [geography, setGeography] = useState('')
+  // P3 — concierge note on the deal. Optional; shows only to invitees
+  // on the member /deals page, attributed to the authoring concierge.
+  const [conciergeNote, setNote]  = useState('')
 
   // After create: open the invite picker for the new deal.
   const [invitingDeal, setInvitingDeal] = useState<Deal | null>(null)
@@ -90,12 +93,13 @@ export default function DealsPanel({ sovereigns }: { sovereigns: SovereignProfil
           check_size_min: checkMin ? Number(checkMin) : null,
           check_size_max: checkMax ? Number(checkMax) : null,
           geography:      geography.trim() || null,
+          concierge_note: conciergeNote.trim() || null,
         }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? 'Save failed')
       setTitle(''); setDesc(''); setSectors([]); setStages([])
-      setCheckMin(''); setCheckMax(''); setGeography('')
+      setCheckMin(''); setCheckMax(''); setGeography(''); setNote('')
       setInvitingDeal(data.deal)
       setSelectedSovereigns(new Set())
       setInviteResult('')
@@ -235,6 +239,24 @@ export default function DealsPanel({ sovereigns }: { sovereigns: SovereignProfil
               ))}
             </div>
           </div>
+
+          {/* P3 — concierge note. Optional. Only invited Sovereigns see
+              it; rendered on /deals as a visually-distinct gold block
+              attributed to the authoring concierge so the two-trust-
+              layers separation is preserved. */}
+          <label className="block md:col-span-2">
+            <span className="text-[10px] font-data uppercase tracking-widest text-ee-gold">
+              Concierge note (optional)
+            </span>
+            <textarea
+              value={conciergeNote}
+              onChange={e => setNote(e.target.value)}
+              maxLength={4000}
+              rows={3}
+              className="input-field mt-1.5 resize-y font-mono text-xs"
+              placeholder="Your read on this deal — visible only to invitees, attributed to you. e.g. 'Worked directly with the lead at his last fund; their underwriting on this thesis is strong.'"
+            />
+          </label>
         </div>
 
         <button type="submit" className="btn-gold text-xs">Create deal &amp; pick invitees</button>
