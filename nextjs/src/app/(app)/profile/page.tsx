@@ -15,11 +15,12 @@ import KnockoutsReview, { type KnockoutSummaryItem } from './KnockoutsReview'
 import { getCandidates, type DbProfile as MatchDbProfile } from '@/lib/matches'
 import { countKnockoutsByReason } from '@/lib/scoring'
 import { getTier } from '@/lib/membership'
-import { getParent, listNextGenSeats, listIncomingLinkRequests } from '@/lib/family'
+import { getParent, listNextGenSeats, listIncomingLinkRequests, listOutgoingLinkRequests } from '@/lib/family'
 import { listRecentShadowViews } from '@/lib/shadow'
 import InviteNextGenForm from './InviteNextGenForm'
 import ResendNextGenInviteButton from './ResendNextGenInviteButton'
 import FamilyLinkRequestsInbox from './FamilyLinkRequestsInbox'
+import PendingInvitations from './PendingInvitations'
 import { DEFAULT_MANDATE_WEIGHTS, type UserProfile, type Tier, type MandateWeights } from '@/types'
 
 interface DbProfile {
@@ -128,13 +129,16 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
   //   (c) neither, in which case the section doesn't render.
   // Both queries are isolated try/catches inside the lib helpers so
   // pre-043 environments don't break the whole /profile page.
-  const [parentSeat, nextGenSeats, shadowViews, linkRequests] = await Promise.all([
+  const [parentSeat, nextGenSeats, shadowViews, linkRequests, outgoingLinkRequests] = await Promise.all([
     getParent(userId),
     listNextGenSeats(userId),
     listRecentShadowViews(userId, 10),
     // P5f — incoming link requests. listIncomingLinkRequests returns
     // [] on pre-047 schemas, so this is safe in stale environments.
     listIncomingLinkRequests(userId),
+    // P5g — outgoing pending requests for the "Pending invitations"
+    // sub-section under Family seats. Also safe pre-047 (returns []).
+    listOutgoingLinkRequests(userId),
   ])
   // P5c: wealth-holders (FO / Family Foundation / DAF) get a
   // self-serve "Invite a next-gen seat" affordance. Plain Angels don't
@@ -296,6 +300,14 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
                 )}
               </div>
             )}
+
+            {/* P5g — outgoing link requests still awaiting a response
+                from the invited (existing) member. Renders inline
+                with the linked seats so the wealth-holder sees both
+                states (active + pending) in one place. Component
+                returns null when there are no pending outgoing
+                requests, so non-wealth-holders never see chrome. */}
+            <PendingInvitations requests={outgoingLinkRequests} />
 
             {/* P5c — wealth-holders only. Plain Angels and concierge-
                 only profiles never see this form. */}

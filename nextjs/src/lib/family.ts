@@ -212,7 +212,10 @@ export async function createLinkRequest(
   }
 }
 
-/** Pending requests the caller has received (their inbox). */
+/** Pending requests the caller has received (their inbox).
+ *  P5g: filters expired rows at read time so we don't need a cron
+ *  prune — `expires_at > NOW()` keeps stale 14-day-old requests
+ *  out of the UI even though they linger in the table. */
 export async function listIncomingLinkRequests(
   targetId: string,
 ): Promise<FamilyLinkRequestView[]> {
@@ -226,13 +229,16 @@ export async function listIncomingLinkRequests(
             NULL::text    AS target_email
        FROM family_link_requests r
        LEFT JOIN profiles req ON req.id = r.requester_id
-      WHERE r.target_id = $1 AND r.status = 'pending'
+      WHERE r.target_id = $1
+        AND r.status = 'pending'
+        AND r.expires_at > NOW()
       ORDER BY r.created_at DESC`,
     [targetId],
   ).catch(() => [])
 }
 
-/** Outgoing requests for the requester's "pending invitation" view. */
+/** Outgoing requests for the requester's "pending invitation" view.
+ *  Same expiry filter as the incoming side. */
 export async function listOutgoingLinkRequests(
   requesterId: string,
 ): Promise<FamilyLinkRequestView[]> {
@@ -246,7 +252,9 @@ export async function listOutgoingLinkRequests(
             tgt.email     AS target_email
        FROM family_link_requests r
        LEFT JOIN profiles tgt ON tgt.id = r.target_id
-      WHERE r.requester_id = $1 AND r.status = 'pending'
+      WHERE r.requester_id = $1
+        AND r.status = 'pending'
+        AND r.expires_at > NOW()
       ORDER BY r.created_at DESC`,
     [requesterId],
   ).catch(() => [])
@@ -353,6 +361,31 @@ export async function declineLinkRequest(
   await query(
     `UPDATE family_link_requests
         SET status = 'declined', responded_at = NOW()
+      WHERE id = $1 AND status = 'pending'`,
+    [requestId],
+  )
+  return { ok: true }
+}
+
+/**
+ * P5g — requester withdraws their own pending request before the
+ * target acts on it. Same ownership-by-404 pattern as accept/decline:
+ * a request that doesn't exist OR doesn't belong to the caller is
+ * indistinguishable. No notification to target — the row simply
+ * disappears from their inbox at the next read.
+ */
+export async function cancelLinkRequest(
+  requestId:   string,
+  requesterId: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const request = await getLinkRequest(requestId)
+  if (!request)                              return { ok: false, error: 'Request not found.' }
+  if (request.requester_id !== requesterId)  return { ok: false, error: 'Request not found.' }
+  if (request.status !== 'pending')          return { ok: false, error: 'Request already responded to.' }
+
+  await query(
+    `UPDATE family_link_requests
+        SET status = 'cancelled', responded_at = NOW()
       WHERE id = $1 AND status = 'pending'`,
     [requestId],
   )

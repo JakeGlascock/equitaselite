@@ -111,6 +111,9 @@ const CHECKS = [
   { name: 'gate-family-link-list',     path: '/api/me/family-link-requests',                                          status: [302, 307, 308], redirectContains: '/signin', followRedirect: false },
   { name: 'gate-family-link-accept',   path: '/api/me/family-link-requests/00000000-0000-0000-0000-000000000000/accept',  method: 'POST', body: '', status: [302, 307, 308], redirectContains: '/signin', followRedirect: false },
   { name: 'gate-family-link-decline',  path: '/api/me/family-link-requests/00000000-0000-0000-0000-000000000000/decline', method: 'POST', body: '', status: [302, 307, 308], redirectContains: '/signin', followRedirect: false },
+  // P5g — requester-side cancel. Same gate; a leak would let any
+  // visitor invalidate arbitrary pending requests.
+  { name: 'gate-family-link-cancel',   path: '/api/me/family-link-requests/00000000-0000-0000-0000-000000000000/cancel',  method: 'POST', body: '', status: [302, 307, 308], redirectContains: '/signin', followRedirect: false },
   { name: 'gate-discovery',    path: '/discovery',          status: [302, 307, 308], redirectContains: '/signin', followRedirect: false },
   { name: 'gate-portfolio',    path: '/portfolio',          status: [302, 307, 308], redirectContains: '/signin', followRedirect: false },
   { name: 'gate-connections',  path: '/connections',        status: [302, 307, 308], redirectContains: '/signin', followRedirect: false },

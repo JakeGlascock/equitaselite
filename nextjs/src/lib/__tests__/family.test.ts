@@ -19,6 +19,7 @@ import {
   listOutgoingLinkRequests,
   acceptLinkRequest,
   declineLinkRequest,
+  cancelLinkRequest,
 } from '../family'
 
 beforeEach(() => {
@@ -268,21 +269,26 @@ describe('declineLinkRequest', () => {
 })
 
 describe('listIncomingLinkRequests + listOutgoingLinkRequests', () => {
-  it('incoming filters by target + status=pending, joins requester', async () => {
+  it('incoming filters by target + status=pending + non-expired, joins requester', async () => {
     mockQuery.mockResolvedValueOnce([])
     await listIncomingLinkRequests('tgt-1')
     const [sql, params] = mockQuery.mock.calls[0]
     expect(sql).toContain('LEFT JOIN profiles req ON req.id = r.requester_id')
-    expect(sql).toContain("r.target_id = $1 AND r.status = 'pending'")
+    expect(sql).toContain('r.target_id = $1')
+    expect(sql).toContain("r.status = 'pending'")
+    // P5g — read-time expiry filter replaces the need for a cron prune.
+    expect(sql).toContain('r.expires_at > NOW()')
     expect(params).toEqual(['tgt-1'])
   })
 
-  it('outgoing filters by requester + status=pending, joins target', async () => {
+  it('outgoing filters by requester + status=pending + non-expired, joins target', async () => {
     mockQuery.mockResolvedValueOnce([])
     await listOutgoingLinkRequests('req-1')
     const [sql, params] = mockQuery.mock.calls[0]
     expect(sql).toContain('LEFT JOIN profiles tgt ON tgt.id = r.target_id')
-    expect(sql).toContain("r.requester_id = $1 AND r.status = 'pending'")
+    expect(sql).toContain('r.requester_id = $1')
+    expect(sql).toContain("r.status = 'pending'")
+    expect(sql).toContain('r.expires_at > NOW()')
     expect(params).toEqual(['req-1'])
   })
 
@@ -291,5 +297,45 @@ describe('listIncomingLinkRequests + listOutgoingLinkRequests', () => {
     expect(await listIncomingLinkRequests('x')).toEqual([])
     mockQuery.mockRejectedValueOnce(new Error('relation does not exist'))
     expect(await listOutgoingLinkRequests('x')).toEqual([])
+  })
+})
+
+describe('cancelLinkRequest — P5g requester withdraws', () => {
+  const PENDING_REQ = {
+    id: 'r-1', requester_id: 'req-1', target_id: 'tgt-1', status: 'pending',
+  }
+
+  it('404s when the request does not exist', async () => {
+    mockQueryOne.mockResolvedValueOnce(null)
+    const r = await cancelLinkRequest('r-1', 'req-1')
+    expect(r).toEqual({ ok: false, error: 'Request not found.' })
+  })
+
+  it('404s when caller is not the REQUESTER (single error, no info leak)', async () => {
+    // The target tries to cancel — different from decline, must 404.
+    mockQueryOne.mockResolvedValueOnce(PENDING_REQ)
+    const r = await cancelLinkRequest('r-1', 'tgt-1')
+    expect(r.ok).toBe(false)
+    if (!r.ok) expect(r.error).toMatch(/not found/i)
+  })
+
+  it('409s when the request is no longer pending', async () => {
+    mockQueryOne.mockResolvedValueOnce({ ...PENDING_REQ, status: 'accepted' })
+    const r = await cancelLinkRequest('r-1', 'req-1')
+    expect(r.ok).toBe(false)
+    if (!r.ok) expect(r.error).toMatch(/already responded/i)
+  })
+
+  it('flips status to cancelled on success and does NOT touch profiles', async () => {
+    mockQueryOne.mockResolvedValueOnce(PENDING_REQ)
+    mockQuery.mockResolvedValue([])
+    const r = await cancelLinkRequest('r-1', 'req-1')
+    expect(r).toEqual({ ok: true })
+    // Only one query — the UPDATE on family_link_requests. Profiles untouched.
+    expect(mockQuery).toHaveBeenCalledTimes(1)
+    const [sql, params] = mockQuery.mock.calls[0]
+    expect(sql).toContain("status = 'cancelled'")
+    expect(sql).toContain("AND status = 'pending'")   // race-safe filter
+    expect(params).toEqual(['r-1'])
   })
 })
