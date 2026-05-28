@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import Image from 'next/image'
 import RequestForm from './RequestForm'
 
 export const metadata = {
@@ -13,7 +14,7 @@ export default function RequestAccessPage() {
       <header className="border-b border-ee-outline/30">
         <div className="max-w-6xl mx-auto px-5 md:px-8 h-16 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-3">
-            <img src="/logo.png" alt="Equitas Elite" className="h-9 w-auto rounded" />
+            <Image src="/logo.png" alt="Equitas Elite" width={36} height={36} priority className="h-9 w-9 rounded" />
             <span className="hidden sm:inline font-display text-base text-ee-gold">Equitas Elite</span>
           </Link>
           <Link href="/signin" className="font-data text-[11px] tracking-widest uppercase text-ee-muted hover:text-ee-primary">

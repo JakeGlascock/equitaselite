@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import Image from 'next/image'
 import { queryOne } from '@/lib/db'
 import UnsubscribeClient from './UnsubscribeClient'
 
@@ -51,7 +52,7 @@ function Shell({ children }: { children: React.ReactNode }) {
     <main className="min-h-screen flex items-center justify-center px-4 py-12">
       <div className="w-full max-w-md">
         <div className="flex justify-center mb-8">
-          <img src="/logo.png" alt="Equitas Elite" className="h-20 w-auto rounded-xl" />
+          <Image src="/logo.png" alt="Equitas Elite" width={80} height={80} priority className="h-20 w-20 rounded-xl" />
         </div>
         <div className="glass-panel p-8 space-y-5 text-center">
           {children}

@@ -2,6 +2,7 @@
 
 import { usePathname } from 'next/navigation'
 import Link from 'next/link'
+import Image from 'next/image'
 import { useState } from 'react'
 import NotificationsBell from './NotificationsBell'
 import FeedbackWidget from './FeedbackWidget'
@@ -212,7 +213,7 @@ export default function AppShell({
             <span className="material-symbols-outlined">menu</span>
           </button>
           <Link href="/dashboard" className="flex items-center shrink-0">
-            <img src="/logo.png" alt="Equitas Elite" className="h-9 w-auto rounded-md" />
+            <Image src="/logo.png" alt="Equitas Elite" width={36} height={36} priority className="h-9 w-9 rounded-md" />
           </Link>
           <nav data-tour="top-nav" className="hidden lg:flex items-center gap-1">
             {TOP_NAV_ITEMS.map(item => {

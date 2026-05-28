@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import PasswordField from '@/components/PasswordField'
 
 type Step = 'request' | 'confirm' | 'done'
@@ -53,7 +54,7 @@ export default function ForgotPasswordPage() {
     <main className="min-h-screen flex items-center justify-center px-4 py-12">
       <div className="w-full max-w-md">
         <div className="flex justify-center mb-10">
-          <img src="/logo.png" alt="Equitas Elite" className="h-44 w-auto rounded-xl" />
+          <Image src="/logo.png" alt="Equitas Elite" width={176} height={176} priority className="h-44 w-44 rounded-xl" />
         </div>
         <div className="glass-panel p-8 space-y-5">
 

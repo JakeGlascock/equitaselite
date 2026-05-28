@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import Image from 'next/image'
 
 export const metadata = {
   title: 'Equitas Elite — Where institutional capital meets verified mandate',
@@ -17,7 +18,7 @@ function NavBar() {
           {/* Decorative when paired with the visible brand text — alt="" tells
               screen readers to skip the logo so it doesn't announce
               "Equitas Elite Equitas Elite" back-to-back. */}
-          <img src="/logo.png" alt="" className="h-9 w-auto rounded" />
+          <Image src="/logo.png" alt="" width={36} height={36} priority className="h-9 w-9 rounded" />
           <span className="hidden sm:inline font-display text-base text-ee-gold">Equitas Elite</span>
         </Link>
         <nav className="flex items-center gap-2 sm:gap-6">
@@ -361,7 +362,7 @@ function Footer() {
       <div className="max-w-5xl mx-auto px-5 md:px-8 flex flex-col sm:flex-row items-center justify-between gap-5">
         <div className="flex items-center gap-3">
           {/* alt="" — decorative; "Equitas Elite" text is the adjacent span. */}
-          <img src="/logo.png" alt="" className="h-7 w-auto rounded" />
+          <Image src="/logo.png" alt="" width={28} height={28} className="h-7 w-7 rounded" />
           <span className="font-display text-sm text-ee-gold">Equitas Elite</span>
         </div>
         <nav className="flex items-center gap-x-6 gap-y-2 flex-wrap justify-center">

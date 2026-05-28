@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import Image from 'next/image'
 
 // App-launch + foreground Face ID gate for the Capacitor wrapper.
 //
@@ -139,7 +140,7 @@ export default function BiometricLock() {
         paddingBottom:   'env(safe-area-inset-bottom)',
       }}
     >
-      <img src="/logo.png" alt="Equitas Elite" className="h-24 w-auto rounded-xl mb-6" />
+      <Image src="/logo.png" alt="Equitas Elite" width={96} height={96} priority className="h-24 w-24 rounded-xl mb-6" />
       <p className="font-display text-xl text-ee-gold mb-1">Locked</p>
       <p className="text-sm text-ee-muted mb-8 text-center max-w-xs">
         Unlock Equitas Elite with Face ID or your device passcode.
