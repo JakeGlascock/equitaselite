@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { inviteUser } from '@/lib/auth'
 import { queryOne, query } from '@/lib/db'
+import { createLinkRequest } from '@/lib/family'
 
 // P5c — self-serve next-gen invite. A wealth-holder (Family Office,
 // Family Foundation, or DAF) invites a family member to shadow their
@@ -77,17 +78,45 @@ export async function POST(req: NextRequest) {
     )
   }
 
-  // Collision: if a profile already exists with this email, block.
-  // Cross-account linking (next-gen who already has their own EE
-  // profile) is a P5d+ feature decision.
+  // Collision: if a profile already exists with this email, the
+  // request becomes a P5f cross-account link request instead of a
+  // new-profile invite. createLinkRequest silently no-ops if the
+  // target is ineligible (admin/concierge/demo/wealth-holder, or
+  // already has a parent, or a pending request from us already
+  // exists) — we return 202 either way so the requester can't
+  // enumerate target eligibility from the response.
+  //
+  // On accept, the target's parent_profile_id gets set + a
+  // notification fires back to the requester. The target sees the
+  // pending request on their /profile incoming panel and in the bell.
   const collision = await queryOne<{ id: string }>(
     `SELECT id FROM profiles WHERE LOWER(email) = $1`,
     [email],
   ).catch(() => null)
   if (collision) {
+    const linkReq = await createLinkRequest(callerId, collision.id).catch(() => null)
+    if (linkReq) {
+      void (async () => {
+        await query(
+          `INSERT INTO notifications (user_id, type, title, body, link_url, related_id)
+                VALUES ($1, 'family_link_request', $2, $3, $4, $5)`,
+          [
+            collision.id,
+            'Family seat link request',
+            'A wealth-holder on EE has invited you to join their family seat as a next-gen.',
+            '/profile',
+            linkReq.id,
+          ],
+        ).catch(err => console.error('family_link_request notification failed:', err))
+      })()
+    }
     return NextResponse.json(
-      { error: 'That email is already on EE. Ask an admin to link the account to your seat.' },
-      { status: 409 },
+      {
+        ok: true,
+        kind: 'link_request',
+        message: 'If their account is eligible, we sent them a link request.',
+      },
+      { status: 202 },
     )
   }
 

@@ -11,6 +11,9 @@ type NotificationType =
   | 'deal_message'
   | 'next_gen_shadow'
   | 'next_gen_action'
+  | 'family_link_request'
+  | 'family_link_accepted'
+  | 'family_link_declined'
 
 interface Notification {
   id:         string
@@ -30,25 +33,31 @@ interface Notification {
 // fall through to the FALLBACK pair so a new server-side notification
 // shape never renders as a blank chip.
 const ICON_BY_TYPE: Record<NotificationType, string> = {
-  intro_requested: 'handshake',
-  intro_accepted:  'check_circle',
-  intro_declined:  'cancel',
-  deal_invitation: 'workspaces',
-  deal_interest:   'star',
-  deal_message:    'forum',
-  next_gen_shadow: 'visibility',
-  next_gen_action: 'supervised_user_circle',
+  intro_requested:       'handshake',
+  intro_accepted:        'check_circle',
+  intro_declined:        'cancel',
+  deal_invitation:       'workspaces',
+  deal_interest:         'star',
+  deal_message:          'forum',
+  next_gen_shadow:       'visibility',
+  next_gen_action:       'supervised_user_circle',
+  family_link_request:   'person_add',
+  family_link_accepted:  'check_circle',
+  family_link_declined:  'cancel',
 }
 
 const COLOR_BY_TYPE: Record<NotificationType, string> = {
-  intro_requested: '#e9c176',
-  intro_accepted:  '#4edea3',
-  intro_declined:  '#8892a4',
-  deal_invitation: '#e9c176',
-  deal_interest:   '#4edea3',
-  deal_message:    '#8aa8ff',
-  next_gen_shadow: '#e9c176',
-  next_gen_action: '#e9c176',
+  intro_requested:       '#e9c176',
+  intro_accepted:        '#4edea3',
+  intro_declined:        '#8892a4',
+  deal_invitation:       '#e9c176',
+  deal_interest:         '#4edea3',
+  deal_message:          '#8aa8ff',
+  next_gen_shadow:       '#e9c176',
+  next_gen_action:       '#e9c176',
+  family_link_request:   '#e9c176',
+  family_link_accepted:  '#4edea3',
+  family_link_declined:  '#8892a4',
 }
 
 const FALLBACK_ICON  = 'notifications'

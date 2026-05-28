@@ -15,10 +15,11 @@ import KnockoutsReview, { type KnockoutSummaryItem } from './KnockoutsReview'
 import { getCandidates, type DbProfile as MatchDbProfile } from '@/lib/matches'
 import { countKnockoutsByReason } from '@/lib/scoring'
 import { getTier } from '@/lib/membership'
-import { getParent, listNextGenSeats } from '@/lib/family'
+import { getParent, listNextGenSeats, listIncomingLinkRequests } from '@/lib/family'
 import { listRecentShadowViews } from '@/lib/shadow'
 import InviteNextGenForm from './InviteNextGenForm'
 import ResendNextGenInviteButton from './ResendNextGenInviteButton'
+import FamilyLinkRequestsInbox from './FamilyLinkRequestsInbox'
 import { DEFAULT_MANDATE_WEIGHTS, type UserProfile, type Tier, type MandateWeights } from '@/types'
 
 interface DbProfile {
@@ -127,10 +128,13 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
   //   (c) neither, in which case the section doesn't render.
   // Both queries are isolated try/catches inside the lib helpers so
   // pre-043 environments don't break the whole /profile page.
-  const [parentSeat, nextGenSeats, shadowViews] = await Promise.all([
+  const [parentSeat, nextGenSeats, shadowViews, linkRequests] = await Promise.all([
     getParent(userId),
     listNextGenSeats(userId),
     listRecentShadowViews(userId, 10),
+    // P5f — incoming link requests. listIncomingLinkRequests returns
+    // [] on pre-047 schemas, so this is safe in stale environments.
+    listIncomingLinkRequests(userId),
   ])
   // P5c: wealth-holders (FO / Family Foundation / DAF) get a
   // self-serve "Invite a next-gen seat" affordance. Plain Angels don't
@@ -200,6 +204,12 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
           initialIsDaf={!!profile.is_daf}
           isConcierge={!!profile.is_concierge}
         />
+
+        {/* P5f — incoming family-link request inbox. Rendered above
+            the family-seats section because accepting a request
+            populates that section, so it's the natural reading order.
+            Component returns null when there are no pending requests. */}
+        <FamilyLinkRequestsInbox requests={linkRequests} />
 
         {/* P5 v1 — Family seats. Renders only when the viewer is either
             shadowing a parent or has next-gen seats attached. v1 is

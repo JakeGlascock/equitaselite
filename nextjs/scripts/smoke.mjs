@@ -105,6 +105,12 @@ const CHECKS = [
   // dynamic segment are covered by the lib unit test, not here.
   { name: 'gate-next-gen-deal-comment', path: '/api/deals/00000000-0000-0000-0000-000000000000/messages', method: 'POST', body: '', status: [302, 307, 308], redirectContains: '/signin', followRedirect: false },
   { name: 'gate-next-gen-event-rsvp',   path: '/api/events/00000000-0000-0000-0000-000000000000/rsvp',     method: 'POST', body: '', status: [302, 307, 308], redirectContains: '/signin', followRedirect: false },
+  // P5f — cross-account family-link request flow. The three new
+  // routes must be auth-gated like every other /api/me/* — a leak
+  // would let any visitor enumerate or mutate pending consent state.
+  { name: 'gate-family-link-list',     path: '/api/me/family-link-requests',                                          status: [302, 307, 308], redirectContains: '/signin', followRedirect: false },
+  { name: 'gate-family-link-accept',   path: '/api/me/family-link-requests/00000000-0000-0000-0000-000000000000/accept',  method: 'POST', body: '', status: [302, 307, 308], redirectContains: '/signin', followRedirect: false },
+  { name: 'gate-family-link-decline',  path: '/api/me/family-link-requests/00000000-0000-0000-0000-000000000000/decline', method: 'POST', body: '', status: [302, 307, 308], redirectContains: '/signin', followRedirect: false },
   { name: 'gate-discovery',    path: '/discovery',          status: [302, 307, 308], redirectContains: '/signin', followRedirect: false },
   { name: 'gate-portfolio',    path: '/portfolio',          status: [302, 307, 308], redirectContains: '/signin', followRedirect: false },
   { name: 'gate-connections',  path: '/connections',        status: [302, 307, 308], redirectContains: '/signin', followRedirect: false },

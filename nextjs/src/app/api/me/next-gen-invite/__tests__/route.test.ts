@@ -1,9 +1,10 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { NextRequest } from 'next/server'
 
-const mockQueryOne   = vi.fn()
-const mockQuery      = vi.fn()
-const mockInviteUser = vi.fn()
+const mockQueryOne          = vi.fn()
+const mockQuery             = vi.fn()
+const mockInviteUser        = vi.fn()
+const mockCreateLinkRequest = vi.fn()
 
 vi.mock('@/lib/db', () => ({
   queryOne: (...a: unknown[]) => mockQueryOne(...a),
@@ -11,6 +12,9 @@ vi.mock('@/lib/db', () => ({
 }))
 vi.mock('@/lib/auth', () => ({
   inviteUser: (...a: unknown[]) => mockInviteUser(...a),
+}))
+vi.mock('@/lib/family', () => ({
+  createLinkRequest: (...a: unknown[]) => mockCreateLinkRequest(...a),
 }))
 
 import { POST } from '../route'
@@ -33,7 +37,8 @@ const wealthHolder = { is_family_office: true, is_family_foundation: false, is_d
 const plainAngel   = { is_family_office: false, is_family_foundation: false, is_daf: false }
 
 beforeEach(() => {
-  mockQueryOne.mockReset(); mockQuery.mockReset(); mockInviteUser.mockReset()
+  mockQueryOne.mockReset(); mockQuery.mockReset()
+  mockInviteUser.mockReset(); mockCreateLinkRequest.mockReset()
   mockQuery.mockResolvedValue(undefined)
 })
 
@@ -66,14 +71,35 @@ describe('POST /api/me/next-gen-invite — auth + role gate', () => {
 })
 
 describe('POST /api/me/next-gen-invite — collision guards', () => {
-  it('409s when a profile with that email already exists (cross-account is P5d+)', async () => {
+  it('202s + fires a P5f link request when a profile with that email already exists', async () => {
     mockQueryOne
       .mockResolvedValueOnce(wealthHolder)
       .mockResolvedValueOnce({ id: 'existing-1' })   // collision
+    mockCreateLinkRequest.mockResolvedValueOnce({ id: 'link-req-1', target_id: 'existing-1' })
+
     const res = await POST(buildReq({ email: EMAIL }))
-    expect(res.status).toBe(409)
-    expect((await res.json()).error).toMatch(/already on EE/i)
+    expect(res.status).toBe(202)
+    const body = await res.json()
+    expect(body.kind).toBe('link_request')
+    expect(mockCreateLinkRequest).toHaveBeenCalledWith(CALLER, 'existing-1')
     expect(mockInviteUser).not.toHaveBeenCalled()
+  })
+
+  it('202s WITHOUT firing a link request when target is ineligible — no info leak', async () => {
+    // createLinkRequest returns null silently when target is admin /
+    // concierge / wealth-holder / already-parented. The route must
+    // STILL return 202 so the requester can't enumerate state.
+    mockQueryOne
+      .mockResolvedValueOnce(wealthHolder)
+      .mockResolvedValueOnce({ id: 'admin-1' })
+    mockCreateLinkRequest.mockResolvedValueOnce(null)
+
+    const res = await POST(buildReq({ email: EMAIL }))
+    expect(res.status).toBe(202)
+    const body = await res.json()
+    expect(body.kind).toBe('link_request')
+    // Verify the request was attempted even though it returned null.
+    expect(mockCreateLinkRequest).toHaveBeenCalledWith(CALLER, 'admin-1')
   })
 
   it('409s when Cognito reports a UsernameExistsException', async () => {
