@@ -19,7 +19,7 @@ function NavBar() {
               screen readers to skip the logo so it doesn't announce
               "Equitas Elite Equitas Elite" back-to-back. */}
           <Image src="/logo.png" alt="" width={36} height={36} priority className="h-9 w-9 rounded" />
-          <span className="hidden sm:inline font-display text-base text-ee-gold">Equitas Elite</span>
+          <span className="hidden sm:inline font-display text-base text-ee-gold" data-build-probe="743fa71-probe">Equitas Elite</span>
         </Link>
         <nav className="flex items-center gap-2 sm:gap-6">
           <a href="#how-it-works" className="hidden sm:inline font-data text-[11px] tracking-widest uppercase text-ee-muted hover:text-ee-primary transition-colors">
