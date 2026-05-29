@@ -62,8 +62,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           loads so we never flash "dashboard" / "event" labels as raw text.
         */}
         {/*
-          Self-hosted Material Symbols subset — only the 50 glyphs the app
-          actually uses, ~61KB instead of the 3.8MB full variable font.
+          Self-hosted Material Symbols subset — only the 51 glyphs the app
+          actually uses, ~62KB instead of the 3.8MB full variable font.
           @font-face lives in globals.css. Preload here so the woff2 starts
           downloading during initial HTML parse rather than after CSS parse,
           which is what eliminates the top-bar icon flicker on hard refresh.
@@ -73,9 +73,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             account_balance, account_balance_wallet, account_circle, add,
             arrow_back, arrow_forward, bar_chart, cancel,
             chat_bubble_outline, check, check_circle, close, dashboard,
-            delete, event, expand_more, explore, fact_check, forum,
-            group, handshake, help, hourglass_empty, inbox, insights,
-            lock, logout, mail, menu, more_horiz, notifications,
+            delete, description, event, expand_more, explore, fact_check,
+            forum, group, handshake, help, hourglass_empty, inbox,
+            insights, lock, logout, mail, menu, more_horiz, notifications,
             notifications_off, person_add, person_raised_hand, place,
             query_stats, reply, schedule, search, settings, shield_person,
             star, supervised_user_circle, support_agent, tune, verified,
