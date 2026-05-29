@@ -23,7 +23,14 @@ export interface FeedItem {
 }
 
 function formatDate(s: string): string {
-  return new Date(s).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+  // timeZone: 'UTC' anchors the displayed calendar date to the publication
+  // timestamp itself rather than the viewer's local timezone. Without this,
+  // an article published at e.g. 2026-05-28T00:30:00Z renders as "May 28"
+  // on the SSR pass (server runs in UTC) but "May 27" on hydration if the
+  // visitor is west of UTC — React then fires #418 (hydration mismatch).
+  return new Date(s).toLocaleDateString('en-US', {
+    month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC',
+  })
 }
 
 function ItemCard({ item, currentTier }: { item: FeedItem; currentTier: Tier }) {

@@ -83,6 +83,10 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
   const headersList = await headers()
   const userId = headersList.get('x-user-id')
   if (!userId) redirect('/signin')
+  // Preview mode (investor demo via `ee_preview` cookie): the visitor has
+  // no Cognito session, so any call into /api/auth/* returns 401. Hide
+  // surfaces that depend on a real account (passkeys, etc.).
+  const previewMode = headersList.get('x-preview-mode') === '1'
 
   const profile = await queryOne<DbProfile>(
     'SELECT * FROM profiles WHERE id = $1',
@@ -372,8 +376,10 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
         {/* Passkeys management — Face ID / Touch ID / hardware key
             registration + listing + removal. When at least one passkey
             is registered, /signin shows a "Sign in with passkey"
-            button alongside email+password. */}
-        <PasskeysSection />
+            button alongside email+password. Hidden in preview mode
+            (no Cognito session → the list call would 401 and pollute
+            the console). */}
+        {!previewMode && <PasskeysSection />}
 
         {/* Multi-role: tabs choose which mandate the form below edits.
             URL-driven (?role=) so the choice round-trips through the
