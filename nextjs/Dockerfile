@@ -13,6 +13,15 @@ RUN npm install --omit=dev
 FROM base AS builder
 COPY package.json package-lock.json* ./
 RUN npm install
+# CACHE_BUST is wired to the commit SHA from the deploy workflow so the
+# layer cache from this point on invalidates on every commit. Without
+# this, BuildKit's GHA cache backend has been observed to serve stale
+# layers for `COPY . .` even when source changed — yielding deploys that
+# succeeded at the workflow level but ran the previous build artifact
+# (see the 2026-05-29 woff2 + next/image stale-deploy incident).
+# Deps install above is unaffected and still caches cleanly across builds.
+ARG CACHE_BUST=changeme
+RUN echo "Cache bust: ${CACHE_BUST}"
 COPY . .
 RUN npm run build
 

@@ -73,10 +73,15 @@ jobs:
         run: |
           FULL_IMAGE="$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
           echo "Building $FULL_IMAGE"
+          # CACHE_BUST forces the Dockerfile's source-copy + build layers
+          # to invalidate per commit (BuildKit's GHA cache backend was
+          # observed serving stale `COPY . .` layers on 2026-05-29). The
+          # deps layer (npm install) is BEFORE the ARG and still caches.
           docker buildx build \
             --platform linux/amd64 \
             --cache-from type=gha \
             --cache-to type=gha,mode=max \
+            --build-arg "CACHE_BUST=$IMAGE_TAG" \
             --load \
             -t "$FULL_IMAGE" \
             .
