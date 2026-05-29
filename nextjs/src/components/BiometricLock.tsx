@@ -140,7 +140,7 @@ export default function BiometricLock() {
         paddingBottom:   'env(safe-area-inset-bottom)',
       }}
     >
-      <Image src="/logo.png" alt="Equitas Elite" width={96} height={96} priority className="h-24 w-24 rounded-xl mb-6" />
+      <Image src="/logo-transparent.png" alt="Equitas Elite" width={96} height={96} priority className="h-24 w-24 mb-6" />
       <p className="font-display text-xl text-ee-gold mb-1">Locked</p>
       <p className="text-sm text-ee-muted mb-8 text-center max-w-xs">
         Unlock Equitas Elite with Face ID or your device passcode.

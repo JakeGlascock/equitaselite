@@ -18,7 +18,7 @@ const JWKS = ISSUER
   ? createRemoteJWKSet(new URL(`${ISSUER}/.well-known/jwks.json`))
   : null
 
-const PUBLIC_PREFIXES = ['/_next/', '/favicon.ico', '/logo.png', '/logo-mark.png', '/logo-mark@2x.png', '/fonts/', '/preview/', '/deck/', '/try/', '/.well-known/']
+const PUBLIC_PREFIXES = ['/_next/', '/favicon.ico', '/logo.png', '/logo-mark.png', '/logo-mark@2x.png', '/logo-transparent.png', '/logo-transparent@2x.png', '/fonts/', '/preview/', '/deck/', '/try/', '/.well-known/']
 const PUBLIC_EXACT    = ['/', '/signin', '/forgot-password', '/pricing', '/request-access', '/unsubscribe', '/privacy', '/terms', '/preview-denied', '/deck-denied', '/try', '/robots.txt', '/sitemap.xml']
 // Note: `/api/auth/` is NOT a public prefix because the passkey
 // management endpoints (register/start, register/complete, list, [id])

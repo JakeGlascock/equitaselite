@@ -54,7 +54,7 @@ export default function ForgotPasswordPage() {
     <main className="min-h-screen flex items-center justify-center px-4 py-12">
       <div className="w-full max-w-md">
         <div className="flex justify-center mb-10">
-          <Image src="/logo.png" alt="Equitas Elite" width={176} height={176} priority className="h-44 w-44 rounded-xl" />
+          <Image src="/logo-transparent.png" alt="Equitas Elite" width={176} height={176} priority className="h-44 w-44" />
         </div>
         <div className="glass-panel p-8 space-y-5">
 
