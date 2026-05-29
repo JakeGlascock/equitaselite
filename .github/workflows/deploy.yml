@@ -207,20 +207,56 @@ jobs:
             || echo "(no logs — stream may not exist yet)"
 
       - name: Update ECS service
+        env:
+          NEW_TASK_DEF: ${{ steps.register.outputs.task_definition_arn }}
         run: |
+          # Print BEFORE state so we can tell whether the wait was waiting
+          # on a real rollout or fired immediately because the deployment
+          # was rejected.
+          echo "::group::Service BEFORE update"
+          aws ecs describe-services --cluster "$ECS_CLUSTER" --services "$ECS_SERVICE" \
+            --query 'services[0].{taskDef:taskDefinition,deployments:deployments[*].{id:id,status:status,taskDef:taskDefinition,desired:desiredCount,running:runningCount,rolloutState:rolloutState,rolloutReason:rolloutStateReason}}' \
+            --output json
+          echo "::endgroup::"
+
           aws ecs update-service \
             --cluster "$ECS_CLUSTER" \
             --service "$ECS_SERVICE" \
-            --task-definition "${{ steps.register.outputs.task_definition_arn }}" \
+            --task-definition "$NEW_TASK_DEF" \
+            --force-new-deployment \
             > /dev/null
-          echo "Service update initiated"
+          echo "Service update initiated (force-new-deployment) → $NEW_TASK_DEF"
 
       - name: Wait for service stable
         run: |
-          aws ecs wait services-stable \
-            --cluster "$ECS_CLUSTER" \
-            --services "$ECS_SERVICE"
-          echo "Service stable"
+          # Poll deployment state with a short timeout. `aws ecs wait
+          # services-stable` returns success even after a rollback to the
+          # PREVIOUS task def — so it can't tell us if the rollout
+          # actually landed. We tail deployment events instead.
+          for i in $(seq 1 60); do
+            STATE=$(aws ecs describe-services --cluster "$ECS_CLUSTER" --services "$ECS_SERVICE" \
+              --query 'services[0].deployments[?status==`PRIMARY`].rolloutState' --output text)
+            echo "[$i] PRIMARY rolloutState=$STATE"
+            if [ "$STATE" = "COMPLETED" ]; then break; fi
+            if [ "$STATE" = "FAILED" ]; then
+              echo "::error::Deployment FAILED — circuit breaker rolled back."
+              aws ecs describe-services --cluster "$ECS_CLUSTER" --services "$ECS_SERVICE" \
+                --query 'services[0].events[0:10].[createdAt,message]' --output text
+              exit 1
+            fi
+            sleep 10
+          done
+
+          echo "::group::Service AFTER rollout"
+          aws ecs describe-services --cluster "$ECS_CLUSTER" --services "$ECS_SERVICE" \
+            --query 'services[0].{taskDef:taskDefinition,deployments:deployments[*].{id:id,status:status,taskDef:taskDefinition,desired:desiredCount,running:runningCount,rolloutState:rolloutState,rolloutReason:rolloutStateReason}}' \
+            --output json
+          echo "::endgroup::"
+
+          echo "::group::Recent service events (last 10)"
+          aws ecs describe-services --cluster "$ECS_CLUSTER" --services "$ECS_SERVICE" \
+            --query 'services[0].events[0:10].[createdAt,message]' --output text
+          echo "::endgroup::"
 
       - name: Verify health
         run: |
