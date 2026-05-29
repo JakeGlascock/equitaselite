@@ -14,7 +14,7 @@ export default function RequestAccessPage() {
       <header className="border-b border-ee-outline/30">
         <div className="max-w-6xl mx-auto px-5 md:px-8 h-16 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-3">
-            <Image src="/logo.png" alt="Equitas Elite" width={36} height={36} priority className="h-9 w-9 rounded" />
+            <Image src="/logo-mark.png" alt="" width={36} height={36} priority className="h-9 w-9" />
             <span className="hidden sm:inline font-display text-base text-ee-gold">Equitas Elite</span>
           </Link>
           <Link href="/signin" className="font-data text-[11px] tracking-widest uppercase text-ee-muted hover:text-ee-primary">
