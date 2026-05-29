@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { jwtVerify, createRemoteJWKSet } from 'jose'
 import { PREVIEW_COOKIE_NAME, isDemoProfileId } from '@/lib/preview'
-import { applyShadowGate } from '@/lib/shadow'
+// Edge-runtime middleware: import from @/lib/shadow-edge, NOT @/lib/shadow.
+// shadow.ts pulls in @/lib/db (pg), which bombs in the edge runtime and
+// makes every request return 500 — silently rolled back by ECS on each
+// deploy. See shadow-edge.ts header comment for the full incident.
+import { applyShadowGate } from '@/lib/shadow-edge'
 
 const POOL_ID = process.env.COGNITO_USER_POOL_ID
 const REGION  = process.env.AWS_REGION ?? 'us-east-1'
