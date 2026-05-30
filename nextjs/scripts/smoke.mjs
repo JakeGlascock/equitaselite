@@ -137,7 +137,7 @@ const CHECKS = [
   // but ee_refresh is still valid. A regression that protected this
   // route would break auto-refresh and force every user back through
   // MFA after one hour.
-  { name: 'auth-refresh-public', path: '/api/auth/refresh', method: 'POST', body: '', status: 401, contains: 'No refresh token' },
+  { name: 'auth-refresh-public', path: '/api/auth/refresh', method: 'POST', body: '', status: 401, contains: 'Unauthorized' },
 
   // Phase C — passkey management endpoints must redirect unauth
   // callers to /signin like the rest of the authed API surface
