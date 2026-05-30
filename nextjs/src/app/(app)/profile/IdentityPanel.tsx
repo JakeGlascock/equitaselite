@@ -70,10 +70,10 @@ export default function IdentityPanel({
         body:    JSON.stringify({ [field]: next }),
       })
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error ?? 'Failed')
+      if (!res.ok) throw new Error(data.error ?? 'Something went wrong. Please try again.')
       setFlags(wouldBe)
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed')
+      setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.')
     } finally {
       setBusy(false)
     }

@@ -12,13 +12,13 @@ export default function SeedDemoButton() {
     try {
       const res = await fetch('/api/admin/seed-demo-data', { method: 'POST' })
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error ?? 'Failed')
+      if (!res.ok) throw new Error(data.error ?? 'Something went wrong. Please try again.')
       setStatus({
         kind: 'success',
         msg: `${data.upserted} demo profiles seeded (${data.rowsBefore} already existed). Refresh the dashboard to see them.`,
       })
     } catch (err: unknown) {
-      setStatus({ kind: 'error', msg: err instanceof Error ? err.message : 'Failed' })
+      setStatus({ kind: 'error', msg: err instanceof Error ? err.message : 'Something went wrong. Please try again.' })
     } finally {
       setLoading(false)
     }

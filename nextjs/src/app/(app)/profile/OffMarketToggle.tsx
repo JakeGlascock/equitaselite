@@ -45,12 +45,12 @@ export default function OffMarketToggle({
         body:    JSON.stringify({ is_off_market: next }),
       })
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error ?? 'Failed')
+      if (!res.ok) throw new Error(data.error ?? 'Something went wrong. Please try again.')
       void haptic('success')
       setEnabled(next)
       setConfirmingReveal(false)
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed')
+      setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.')
     } finally {
       setBusy(false)
     }

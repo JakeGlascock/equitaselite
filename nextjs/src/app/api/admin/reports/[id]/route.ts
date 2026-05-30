@@ -26,7 +26,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
   }
 
   const { id } = await ctx.params
-  if (!UUID_RX.test(id)) return NextResponse.json({ error: 'Bad id' }, { status: 400 })
+  if (!UUID_RX.test(id)) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
   const parsed = PatchSchema.safeParse(await req.json().catch(() => ({})))
   if (!parsed.success) {
@@ -70,7 +70,7 @@ export async function DELETE(req: NextRequest, ctx: { params: Promise<{ id: stri
   }
 
   const { id } = await ctx.params
-  if (!UUID_RX.test(id)) return NextResponse.json({ error: 'Bad id' }, { status: 400 })
+  if (!UUID_RX.test(id)) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
   await query('DELETE FROM reports WHERE id = $1', [id])
   return NextResponse.json({ ok: true })

@@ -60,10 +60,10 @@ export default function PreviewTokensPanel({ demoProfiles }: { demoProfiles: Dem
     try {
       const res = await fetch('/api/admin/preview-tokens')
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error ?? 'Failed to load')
+      if (!res.ok) throw new Error(data.error ?? 'Something went wrong. Please try again.')
       setTokens(data.tokens ?? [])
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to load')
+      setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.')
     } finally {
       setLoading(false)
     }
@@ -107,11 +107,11 @@ export default function PreviewTokensPanel({ demoProfiles }: { demoProfiles: Dem
       })
       if (!res.ok) {
         const data = await res.json()
-        throw new Error(data.error ?? 'Revoke failed')
+        throw new Error(data.error ?? 'Something went wrong. Please try again.')
       }
       void load()
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Revoke failed')
+      setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.')
     }
   }
 

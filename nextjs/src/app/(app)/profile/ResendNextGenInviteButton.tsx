@@ -22,11 +22,11 @@ export default function ResendNextGenInviteButton({ nextGenId }: { nextGenId: st
         body:    JSON.stringify({ next_gen_id: nextGenId }),
       })
       const data = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error(data.error ?? 'Resend failed')
+      if (!res.ok) throw new Error(data.error ?? 'Something went wrong. Please try again.')
       setState('sent')
     } catch (err: unknown) {
       setState('error')
-      setError(err instanceof Error ? err.message : 'Failed')
+      setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.')
     } finally {
       setBusy(false)
     }

@@ -27,10 +27,10 @@ export default function RequestForm() {
         }),
       })
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error ?? 'Submission failed')
+      if (!res.ok) throw new Error(data.error ?? 'Something went wrong. Please try again.')
       setDone(true)
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Submission failed')
+      setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.')
     } finally {
       setLoading(false)
     }

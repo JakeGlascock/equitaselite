@@ -45,7 +45,7 @@ export default function DealDiscussion({
       setMessages(prev => [...prev, data.message])
       setDraft('')
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to post')
+      setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.')
     } finally {
       setBusy(false)
     }
@@ -65,14 +65,14 @@ export default function DealDiscussion({
       })
       if (!res.ok) {
         const data = await res.json().catch(() => ({}))
-        throw new Error(data.error ?? 'Action failed')
+        throw new Error(data.error ?? 'Something went wrong. Please try again.')
       }
       // Easiest path to a clean post-action state: refresh the server
       // component. The reorder (pin / unpin) + removal both need a
       // full re-fetch through the listDealMessages SQL ordering.
       router.refresh()
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Action failed')
+      setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.')
     }
   }
 

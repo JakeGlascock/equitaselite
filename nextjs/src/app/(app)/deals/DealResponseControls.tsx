@@ -17,13 +17,13 @@ export default function DealResponseControls({ invitationId }: { invitationId: s
         body:    JSON.stringify({ status }),
       })
       const data = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error(data.error ?? 'Failed')
+      if (!res.ok) throw new Error(data.error ?? 'Something went wrong. Please try again.')
       // Refresh the server component to show the new state pill and hide
       // the controls. router.refresh() is enough — page is a server
       // component reading from listInvitationsForUser.
       router.refresh()
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed')
+      setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.')
       setBusy(null)
     }
   }

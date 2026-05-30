@@ -23,7 +23,7 @@ export default function StartOnboardingTestButton() {
       }
       window.location.href = '/onboarding'
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed')
+      setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.')
       setLoading(false)
     }
   }

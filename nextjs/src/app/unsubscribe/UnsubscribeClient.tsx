@@ -19,10 +19,10 @@ export default function UnsubscribeClient({ token, email, fullName, alreadyOff }
     try {
       const res = await fetch(`/api/unsubscribe?t=${encodeURIComponent(token)}`, { method: 'POST' })
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error ?? 'Failed')
+      if (!res.ok) throw new Error(data.error ?? 'Something went wrong. Please try again.')
       setDone(true)
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed')
+      setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.')
     } finally {
       setBusy(false)
     }

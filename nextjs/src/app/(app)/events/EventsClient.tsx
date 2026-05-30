@@ -62,13 +62,13 @@ function EventCard({ e, past = false, currentTier }: { e: EventItem; past?: bool
     try {
       const res  = await fetch(`/api/events/${e.id}/rsvp`, { method })
       const data = res.headers.get('content-type')?.includes('json') ? await res.json() : {}
-      if (!res.ok) throw new Error(data.error ?? 'Failed')
+      if (!res.ok) throw new Error(data.error ?? 'Something went wrong. Please try again.')
       setRsvped(!rsvped)
       setCount(c => c + (rsvped ? -1 : 1))
       // refresh server components so other pages see the new state
       router.refresh()
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed')
+      setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.')
       if (wasFull) { /* no-op */ }
     } finally {
       setLoading(false)

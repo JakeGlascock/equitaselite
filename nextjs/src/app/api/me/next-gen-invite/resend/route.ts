@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
 
   const parsed = Schema.safeParse(await req.json().catch(() => ({})))
   if (!parsed.success) {
-    return NextResponse.json({ error: 'next_gen_id required' }, { status: 400 })
+    return NextResponse.json({ error: 'Which seat would you like to resend? (next_gen_id is missing).' }, { status: 400 })
   }
 
   // Single lookup confirms (a) the target exists, (b) the caller
@@ -61,7 +61,10 @@ export async function POST(req: NextRequest) {
     await resendInvite(target.email)
     return NextResponse.json({ ok: true, email: target.email })
   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : 'Resend failed'
-    return NextResponse.json({ error: msg }, { status: 500 })
+    console.error('[next-gen-invite resend] resendInvite failed:', err)
+    return NextResponse.json(
+      { error: 'We couldn’t resend the invitation. Please try again.' },
+      { status: 500 },
+    )
   }
 }

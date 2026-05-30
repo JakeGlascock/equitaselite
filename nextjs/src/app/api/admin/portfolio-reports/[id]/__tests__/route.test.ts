@@ -38,8 +38,8 @@ describe('PATCH /api/admin/portfolio-reports/[id]', () => {
     expect((await PATCH(buildReq('PATCH', { title: 'New Title' }), { params: params()() })).status).toBe(403)
   })
 
-  it('rejects a non-UUID id', async () => {
-    expect((await PATCH(buildReq('PATCH', { title: 'New Title' }), { params: params('not-uuid')() })).status).toBe(400)
+  it('rejects a non-UUID id (404 Not found)', async () => {
+    expect((await PATCH(buildReq('PATCH', { title: 'New Title' }), { params: params('not-uuid')() })).status).toBe(404)
   })
 
   it('rejects an empty payload', async () => {
@@ -73,7 +73,7 @@ describe('DELETE /api/admin/portfolio-reports/[id]', () => {
   })
 
   it('rejects a non-UUID id', async () => {
-    expect((await DELETE(buildReq('DELETE'), { params: params('bad')() })).status).toBe(400)
+    expect((await DELETE(buildReq('DELETE'), { params: params('bad')() })).status).toBe(404)
   })
 
   it('deletes the row', async () => {

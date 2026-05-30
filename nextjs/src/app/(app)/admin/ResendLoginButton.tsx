@@ -26,13 +26,13 @@ export default function ResendLoginButton({ userId, email, disabled, disabledRea
         { method: 'POST' }
       )
       const data = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error(data.error ?? 'Resend failed')
+      if (!res.ok) throw new Error(data.error ?? 'Something went wrong. Please try again.')
       setMessage(data.action === 'password_reset' ? 'Password reset sent' : 'Welcome email sent')
       setConfirming(false)
       // Auto-clear the message after a few seconds.
       setTimeout(() => setMessage(''), 4000)
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Resend failed')
+      setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.')
       setConfirming(false)
     } finally {
       setLoading(false)

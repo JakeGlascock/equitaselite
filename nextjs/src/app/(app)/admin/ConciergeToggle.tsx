@@ -24,10 +24,10 @@ export default function ConciergeToggle({ userId, initial, disabled, disabledRea
         body:    JSON.stringify({ is_concierge: next }),
       })
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error ?? 'Failed')
+      if (!res.ok) throw new Error(data.error ?? 'Something went wrong. Please try again.')
       setOn(data.is_concierge)
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed')
+      setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.')
       setOn(initial)
     } finally {
       setLoading(false)

@@ -131,11 +131,15 @@ export async function POST(req: NextRequest) {
     const msg = err instanceof Error ? err.message : 'Invite failed'
     if (/UsernameExistsException|already exists/i.test(msg)) {
       return NextResponse.json(
-        { error: 'That email is already in our identity provider. Ask an admin to clean it up.' },
+        { error: 'That email is already registered. Ask an admin to clean it up.' },
         { status: 409 },
       )
     }
-    return NextResponse.json({ error: msg }, { status: 500 })
+    console.error('[next-gen-invite] inviteUser failed:', err)
+    return NextResponse.json(
+      { error: 'We couldn’t send the invitation. Please try again.' },
+      { status: 500 },
+    )
   }
 
   // Seed the placeholder row WITH is_next_gen=TRUE + parent_profile_id

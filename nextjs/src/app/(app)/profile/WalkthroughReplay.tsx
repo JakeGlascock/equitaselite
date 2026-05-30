@@ -15,10 +15,10 @@ export default function WalkthroughReplay() {
         body:    JSON.stringify({ action: 'replay' }),
       })
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error ?? 'Failed')
+      if (!res.ok) throw new Error(data.error ?? 'Something went wrong. Please try again.')
       window.location.href = '/dashboard'
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed')
+      setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.')
       setBusy(false)
     }
   }

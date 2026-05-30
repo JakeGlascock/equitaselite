@@ -197,26 +197,20 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     return NextResponse.json(updated)
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : ''
-    if (msg.includes('is_concierge')) {
+    // The three branches below catch migration-not-yet-applied states.
+    // Surface the same user-facing copy in all three; the original DB
+    // column names stay in the server log for the operator (not in the
+    // response body — see the prior "relationship_manager_id column
+    // missing" leak that made it to a UI alert).
+    if (msg.includes('is_concierge') || msg.includes('membership') || msg.includes('relationship_manager_id')) {
+      console.error('admin user PATCH blocked by pending migration:', msg)
       return NextResponse.json(
-        { error: 'Initialize the concierge columns first.' },
-        { status: 400 }
-      )
-    }
-    if (msg.includes('membership')) {
-      return NextResponse.json(
-        { error: 'Initialize the membership column first.' },
-        { status: 400 }
-      )
-    }
-    if (msg.includes('relationship_manager_id')) {
-      return NextResponse.json(
-        { error: 'relationship_manager_id column missing — wait for the next deploy to run the migration.' },
-        { status: 400 }
+        { error: 'This admin field isn’t available yet — a database migration is pending.' },
+        { status: 503 },
       )
     }
     console.error('admin user PATCH failed:', err)
-    return NextResponse.json({ error: msg || 'Failed' }, { status: 500 })
+    return NextResponse.json({ error: 'Something went wrong. Please try again.' }, { status: 500 })
   }
 }
 
@@ -291,7 +285,7 @@ export async function DELETE(req: NextRequest, ctx: { params: Promise<{ id: stri
 
     if (!cognitoUsername) {
       return NextResponse.json(
-        { error: 'Missing email — cannot resolve Cognito user.' },
+        { error: 'This account has no email on file, so we can’t delete the sign-in record.' },
         { status: 400 }
       )
     }

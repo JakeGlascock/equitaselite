@@ -50,11 +50,11 @@ export default function ErrorReportForm({ digest, path, context }: Props) {
       })
       if (!res.ok) {
         const data = await res.json().catch(() => ({}))
-        throw new Error(data.error ?? 'Send failed')
+        throw new Error(data.error ?? 'Something went wrong. Please try again.')
       }
       setSent(true)
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Send failed')
+      setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.')
     } finally {
       setBusy(false)
     }

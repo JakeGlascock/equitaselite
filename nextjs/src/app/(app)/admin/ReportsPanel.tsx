@@ -39,10 +39,10 @@ export default function ReportsPanel() {
     try {
       const res = await fetch('/api/admin/reports')
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error ?? 'Failed to load')
+      if (!res.ok) throw new Error(data.error ?? 'Something went wrong. Please try again.')
       setReports(data.reports ?? [])
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to load')
+      setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.')
     } finally {
       setLoading(false)
     }
@@ -68,11 +68,11 @@ export default function ReportsPanel() {
         }),
       })
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error ?? 'Save failed')
+      if (!res.ok) throw new Error(data.error ?? 'Something went wrong. Please try again.')
       setSlug(''); setTitle(''); setSummary(''); setBody(''); setPublishNow(false)
       void load()
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Save failed')
+      setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.')
     }
   }
 
@@ -85,11 +85,11 @@ export default function ReportsPanel() {
       })
       if (!res.ok) {
         const data = await res.json()
-        throw new Error(data.error ?? 'Failed')
+        throw new Error(data.error ?? 'Something went wrong. Please try again.')
       }
       void load()
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed')
+      setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.')
     }
   }
 
@@ -100,7 +100,7 @@ export default function ReportsPanel() {
       if (!res.ok) throw new Error('Delete failed')
       void load()
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Delete failed')
+      setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.')
     }
   }
 

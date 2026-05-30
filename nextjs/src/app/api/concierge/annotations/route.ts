@@ -63,7 +63,7 @@ export async function POST(req: NextRequest) {
     vouch_strength:  parsed.data.vouch_strength ?? null,
   })
   if (!annotation) {
-    return NextResponse.json({ error: 'Failed to upsert annotation.' }, { status: 500 })
+    return NextResponse.json({ error: 'We couldn’t save that annotation. Please try again.' }, { status: 500 })
   }
 
   // Fire-and-forget audit log entry. We deliberately don't await this with

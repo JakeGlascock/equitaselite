@@ -419,7 +419,7 @@ export default async function AdminPage() {
       // Demo and managed profiles never have Cognito sign-ins, so there's
       // nothing to email.
       resendable:   false,
-      resendReason: isDemo ? 'Demo profile has no Cognito sign-in' : 'Managed account has no Cognito sign-in',
+      resendReason: isDemo ? 'Demo profile — no sign-in to resend' : 'Managed account — no sign-in to resend',
     })
   }
 

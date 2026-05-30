@@ -78,7 +78,7 @@ describe('<DealResponseControls />', () => {
     render(<DealResponseControls invitationId="inv-1" />)
     await userEvent.click(screen.getByRole('button', { name: /^pass$/i }))
 
-    await waitFor(() => expect(screen.getByText(/Failed/i)).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByText(/Something went wrong/i)).toBeInTheDocument())
   })
 
   it('has no a11y violations', async () => {

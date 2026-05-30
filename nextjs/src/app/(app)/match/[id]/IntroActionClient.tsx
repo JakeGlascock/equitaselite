@@ -45,13 +45,13 @@ export default function IntroActionClient({
         }),
       })
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error ?? 'Failed')
+      if (!res.ok) throw new Error(data.error ?? 'Something went wrong. Please try again.')
       void haptic('success')
       setIntro({ status: 'pending', direction: 'outgoing', contactEmail: null })
       setComposing(false)
       setMessage('')
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed')
+      setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.')
     } finally {
       setLoading(false)
     }

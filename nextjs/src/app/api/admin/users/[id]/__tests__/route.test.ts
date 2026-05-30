@@ -164,10 +164,10 @@ describe('PATCH /api/admin/users/[id] — successful updates', () => {
   })
 
   it.each([
-    ['is_concierge', 'concierge columns'],
-    ['membership',   'membership column'],
-    ['relationship_manager_id', 'relationship_manager_id column'],
-  ])('maps "%s" missing-column errors to a 400 with %s hint', async (col, fragment) => {
+    ['is_concierge'],
+    ['membership'],
+    ['relationship_manager_id'],
+  ])('maps "%s" missing-column errors to a 503 without leaking the column name', async (col) => {
     mockQueryOne.mockRejectedValueOnce(new Error(`column "${col}" does not exist`))
     mockQueryOne.mockRejectedValueOnce(new Error(`column "${col}" does not exist`))
     const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
@@ -177,8 +177,11 @@ describe('PATCH /api/admin/users/[id] — successful updates', () => {
       { params: paramsFor(TARGET_ID)() },
     )
 
-    expect(res.status).toBe(400)
-    expect((await res.json()).error.toLowerCase()).toContain(fragment.toLowerCase())
+    expect(res.status).toBe(503)
+    const body = (await res.json()).error as string
+    expect(body).toMatch(/migration is pending/i)
+    // Make sure the raw DB column name never reaches the response.
+    expect(body).not.toContain(col)
     errSpy.mockRestore()
   })
 })
@@ -262,7 +265,7 @@ describe('DELETE /api/admin/users/[id]', () => {
     const res = await DELETE(buildReq('DELETE'), { params: paramsFor(TARGET_ID)() })
 
     expect(res.status).toBe(400)
-    expect((await res.json()).error).toMatch(/Missing email/i)
+    expect((await res.json()).error).toMatch(/no email on file/i)
   })
 
   it('continues if Cognito reports UserNotFound (already gone)', async () => {

@@ -21,7 +21,7 @@ export default function EnterShadowButton({ parentFirstName }: { parentFirstName
       if (!res.ok) throw new Error(data.error ?? 'Failed to enter shadow view')
       router.refresh()
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed')
+      setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.')
     } finally {
       setBusy(false)
     }

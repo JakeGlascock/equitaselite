@@ -209,7 +209,7 @@ export default function MandatePillarsForm({ initial }: { initial: MandatePillar
       setSuccess(true)
       router.refresh()
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Save failed')
+      setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.')
     } finally {
       setSaving(false)
     }

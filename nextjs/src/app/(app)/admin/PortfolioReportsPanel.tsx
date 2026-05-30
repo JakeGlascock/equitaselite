@@ -44,10 +44,10 @@ export default function PortfolioReportsPanel({ sovereigns }: { sovereigns: Sove
     try {
       const res = await fetch('/api/admin/portfolio-reports')
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error ?? 'Failed to load')
+      if (!res.ok) throw new Error(data.error ?? 'Something went wrong. Please try again.')
       setBriefings(data.briefings ?? [])
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to load')
+      setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.')
     } finally {
       setLoading(false)
     }
@@ -72,11 +72,11 @@ export default function PortfolioReportsPanel({ sovereigns }: { sovereigns: Sove
         }),
       })
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error ?? 'Save failed')
+      if (!res.ok) throw new Error(data.error ?? 'Something went wrong. Please try again.')
       setTitle(''); setSummary(''); setBody(''); setPublishNow(false)
       void load()
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Save failed')
+      setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.')
     }
   }
 
@@ -89,11 +89,11 @@ export default function PortfolioReportsPanel({ sovereigns }: { sovereigns: Sove
       })
       if (!res.ok) {
         const data = await res.json()
-        throw new Error(data.error ?? 'Failed')
+        throw new Error(data.error ?? 'Something went wrong. Please try again.')
       }
       void load()
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed')
+      setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.')
     }
   }
 
@@ -104,7 +104,7 @@ export default function PortfolioReportsPanel({ sovereigns }: { sovereigns: Sove
       if (!res.ok) throw new Error('Delete failed')
       void load()
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Delete failed')
+      setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.')
     }
   }
 

@@ -10,9 +10,13 @@ const COOKIE_OPTS = {
 }
 
 export async function POST(req: NextRequest) {
+  // 401 with `{ error: 'Unauthorized' }` on both branches: the user is
+  // about to be redirected to /signin by the middleware, so the body
+  // is incidental — keep it consistent with every other unauthorized
+  // surface and don't leak token-internals.
   const refreshToken = req.cookies.get('ee_refresh')?.value
   if (!refreshToken) {
-    return NextResponse.json({ error: 'No refresh token' }, { status: 401 })
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
   try {
@@ -23,6 +27,6 @@ export async function POST(req: NextRequest) {
     // Refresh token itself is not rotated by Cognito by default
     return res
   } catch {
-    return NextResponse.json({ error: 'Token refresh failed' }, { status: 401 })
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 }

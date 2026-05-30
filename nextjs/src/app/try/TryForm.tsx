@@ -115,11 +115,11 @@ export default function TryForm({ turnstileSiteKey }: { turnstileSiteKey: string
         }),
       })
       const data = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error(data.error ?? 'Submission failed')
+      if (!res.ok) throw new Error(data.error ?? 'Something went wrong. Please try again.')
       // Pass the email through so the interstitial can show it.
       router.replace(`/try/check-email?to=${encodeURIComponent(email)}`)
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Submission failed')
+      setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.')
       setSubmitting(false)
       // Reset Turnstile so the user can retry.
       if (window.turnstile && widgetId.current) {

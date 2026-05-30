@@ -12,13 +12,13 @@ export default function BackfillPlaceholdersButton() {
     try {
       const res = await fetch('/api/admin/backfill-placeholders', { method: 'POST' })
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error ?? 'Failed')
+      if (!res.ok) throw new Error(data.error ?? 'Something went wrong. Please try again.')
       setStatus({
         kind: 'success',
         msg: `${data.created} placeholder profiles created (${data.scanned} scanned, ${data.skipped} skipped). Refresh /admin to see toggles activate.`,
       })
     } catch (err: unknown) {
-      setStatus({ kind: 'error', msg: err instanceof Error ? err.message : 'Failed' })
+      setStatus({ kind: 'error', msg: err instanceof Error ? err.message : 'Something went wrong. Please try again.' })
     } finally {
       setLoading(false)
     }

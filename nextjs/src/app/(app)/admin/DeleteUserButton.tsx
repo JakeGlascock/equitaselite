@@ -24,10 +24,10 @@ export default function DeleteUserButton({ userId, email, disabled, disabledReas
         { method: 'DELETE' }
       )
       const data = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error(data.error ?? 'Delete failed')
+      if (!res.ok) throw new Error(data.error ?? 'Something went wrong. Please try again.')
       router.refresh()
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Delete failed')
+      setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.')
       setConfirming(false)
     } finally {
       setLoading(false)

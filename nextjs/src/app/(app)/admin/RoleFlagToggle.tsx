@@ -45,10 +45,10 @@ export default function RoleFlagToggle({ userId, field, initial, disabled, disab
         body:    JSON.stringify({ [field]: next }),
       })
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error ?? 'Failed')
+      if (!res.ok) throw new Error(data.error ?? 'Something went wrong. Please try again.')
       setOn(data[field])
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed')
+      setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.')
       setOn(initial)
     } finally {
       setLoading(false)

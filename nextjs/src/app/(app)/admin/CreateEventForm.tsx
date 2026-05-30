@@ -57,14 +57,14 @@ export default function CreateEventForm({ existing }: { existing: ExistingEvent[
         }),
       })
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error ?? 'Failed')
+      if (!res.ok) throw new Error(data.error ?? 'Something went wrong. Please try again.')
       // Reset and refresh
       setTitle(''); setDescription(''); setDuration('90 min'); setLocation('Virtual')
       setCapacity(20); setType('Roundtable'); setMinTier('select')
       setDate(defaultIsoDate())
       router.refresh()
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed')
+      setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.')
     } finally {
       setBusy(false)
     }
@@ -74,10 +74,10 @@ export default function CreateEventForm({ existing }: { existing: ExistingEvent[
     if (!confirm(`Delete "${title}"? RSVPs will be lost.`)) return
     try {
       const res = await fetch(`/api/admin/events/${id}`, { method: 'DELETE' })
-      if (!res.ok) throw new Error((await res.json()).error ?? 'Failed')
+      if (!res.ok) throw new Error((await res.json()).error ?? 'Something went wrong. Please try again.')
       router.refresh()
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : 'Failed')
+      alert(err instanceof Error ? err.message : 'Something went wrong. Please try again.')
     }
   }
 

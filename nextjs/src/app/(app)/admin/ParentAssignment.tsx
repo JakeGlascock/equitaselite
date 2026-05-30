@@ -46,10 +46,10 @@ export default function ParentAssignment({
         body:    JSON.stringify({ parent_profile_id: next }),
       })
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error ?? 'Failed')
+      if (!res.ok) throw new Error(data.error ?? 'Something went wrong. Please try again.')
     } catch (err: unknown) {
       setSelected(prev)
-      setError(err instanceof Error ? err.message : 'Failed')
+      setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.')
     } finally {
       setLoading(false)
     }

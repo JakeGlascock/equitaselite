@@ -33,10 +33,10 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
   )
 
   if (!updated) {
-    return NextResponse.json(
-      { error: 'Not found, already responded, or you are not the recipient' },
-      { status: 404 }
-    )
+    // Deliberately ambiguous: this single response covers "doesn't exist",
+    // "already responded", and "wrong recipient" so the caller can't
+    // enumerate intro ids by probing for the distinction.
+    return NextResponse.json({ error: 'Not found' }, { status: 404 })
   }
 
   // Notify the requester that their intro got a response.

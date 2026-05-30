@@ -31,10 +31,10 @@ export default function ConciergeForm() {
         body:    JSON.stringify({ category, urgency, details }),
       })
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error ?? 'Request failed')
+      if (!res.ok) throw new Error(data.error ?? 'Something went wrong. Please try again.')
       setSubmitted(true)
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Request failed')
+      setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.')
     } finally {
       setLoading(false)
     }

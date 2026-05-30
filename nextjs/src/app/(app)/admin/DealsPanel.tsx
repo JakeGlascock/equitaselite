@@ -58,10 +58,10 @@ export default function DealsPanel({ sovereigns }: { sovereigns: SovereignProfil
     try {
       const res = await fetch('/api/admin/deals')
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error ?? 'Failed to load')
+      if (!res.ok) throw new Error(data.error ?? 'Something went wrong. Please try again.')
       setDeals(data.deals ?? [])
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to load')
+      setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.')
     } finally {
       setLoading(false)
     }
@@ -97,7 +97,7 @@ export default function DealsPanel({ sovereigns }: { sovereigns: SovereignProfil
         }),
       })
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error ?? 'Save failed')
+      if (!res.ok) throw new Error(data.error ?? 'Something went wrong. Please try again.')
       setTitle(''); setDesc(''); setSectors([]); setStages([])
       setCheckMin(''); setCheckMax(''); setGeography(''); setNote('')
       setInvitingDeal(data.deal)
@@ -105,7 +105,7 @@ export default function DealsPanel({ sovereigns }: { sovereigns: SovereignProfil
       setInviteResult('')
       void load()
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Save failed')
+      setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.')
     }
   }
 
@@ -138,7 +138,7 @@ export default function DealsPanel({ sovereigns }: { sovereigns: SovereignProfil
       if (!res.ok) throw new Error('Failed')
       void load()
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed')
+      setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.')
     }
   }
 
@@ -150,7 +150,7 @@ export default function DealsPanel({ sovereigns }: { sovereigns: SovereignProfil
       if (invitingDeal?.id === deal.id) setInvitingDeal(null)
       void load()
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Delete failed')
+      setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.')
     }
   }
 

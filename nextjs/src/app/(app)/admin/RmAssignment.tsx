@@ -39,10 +39,10 @@ export default function RmAssignment({ userId, current, concierges, disabled, di
         body:    JSON.stringify({ relationship_manager_id: next }),
       })
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error ?? 'Failed')
+      if (!res.ok) throw new Error(data.error ?? 'Something went wrong. Please try again.')
     } catch (err: unknown) {
       setSelected(prev)
-      setError(err instanceof Error ? err.message : 'Failed')
+      setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.')
     } finally {
       setLoading(false)
     }

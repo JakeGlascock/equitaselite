@@ -157,7 +157,7 @@ export default function OnboardingForm({ email, mode = 'onboard', initialData, e
       if (!res.ok) throw new Error(body.error ?? 'Save failed')
       window.location.href = '/dashboard'
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Save failed')
+      setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.')
     } finally {
       setSaving(false)
     }

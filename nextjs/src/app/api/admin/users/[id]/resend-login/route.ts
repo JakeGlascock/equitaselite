@@ -24,7 +24,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   // Demo / managed profiles have no Cognito user.
   if (id.startsWith('demo_') || id.startsWith('managed_')) {
     return NextResponse.json(
-      { error: 'This account has no Cognito sign-in (demo or managed profile).' },
+      { error: 'This account has no sign-in to resend (demo or managed profile).' },
       { status: 400 }
     )
   }
@@ -38,7 +38,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   const email = target?.email ?? req.nextUrl.searchParams.get('email')
   if (!email) {
     return NextResponse.json(
-      { error: 'Missing email — cannot resolve Cognito user.' },
+      { error: 'This account has no email on file, so we can’t resend the invite.' },
       { status: 400 }
     )
   }

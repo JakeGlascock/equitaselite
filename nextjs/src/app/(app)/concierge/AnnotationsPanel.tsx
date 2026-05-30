@@ -108,7 +108,7 @@ export default function AnnotationsPanel({
         }),
       })
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error ?? 'Save failed')
+      if (!res.ok) throw new Error(data.error ?? 'Something went wrong. Please try again.')
       // Optimistically merge into the local list. router.refresh() pulls
       // the server-side source-of-truth on next request.
       setAnnotations(prev => {
@@ -118,7 +118,7 @@ export default function AnnotationsPanel({
       clearForm()
       router.refresh()
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Save failed')
+      setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.')
     } finally {
       setSaving(false)
     }
@@ -129,12 +129,12 @@ export default function AnnotationsPanel({
       const res = await fetch(`/api/concierge/annotations/${id}`, { method: 'DELETE' })
       if (!res.ok) {
         const data = await res.json().catch(() => ({}))
-        throw new Error(data.error ?? 'Delete failed')
+        throw new Error(data.error ?? 'Something went wrong. Please try again.')
       }
       setAnnotations(prev => prev.filter(a => a.id !== id))
       router.refresh()
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Delete failed')
+      setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.')
     }
   }
 

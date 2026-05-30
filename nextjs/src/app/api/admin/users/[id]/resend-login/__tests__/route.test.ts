@@ -55,7 +55,7 @@ describe('POST /api/admin/users/[id]/resend-login', () => {
     mockQueryOne.mockResolvedValueOnce(null)
     const res = await POST(postReq(TARGET), { params: params(TARGET)() })
     expect(res.status).toBe(400)
-    expect((await res.json()).error).toMatch(/Missing email/i)
+    expect((await res.json()).error).toMatch(/no email on file/i)
   })
 
   it('resends invite when the Cognito user is in FORCE_CHANGE_PASSWORD', async () => {

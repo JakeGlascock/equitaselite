@@ -109,7 +109,7 @@ describe('POST /api/me/next-gen-invite — collision guards', () => {
     mockInviteUser.mockRejectedValueOnce(new Error('UsernameExistsException: User already exists'))
     const res = await POST(buildReq({ email: EMAIL }))
     expect(res.status).toBe(409)
-    expect((await res.json()).error).toMatch(/identity provider/i)
+    expect((await res.json()).error).toMatch(/already registered/i)
   })
 
   it('500s on an unexpected Cognito failure', async () => {

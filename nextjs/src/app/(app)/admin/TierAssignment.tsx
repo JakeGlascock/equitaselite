@@ -42,10 +42,10 @@ export default function TierAssignment({ userId, current, disabled, disabledReas
         body:    JSON.stringify({ membership: next }),
       })
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error ?? 'Failed')
+      if (!res.ok) throw new Error(data.error ?? 'Something went wrong. Please try again.')
     } catch (err: unknown) {
       setTier(prev)  // revert
-      setError(err instanceof Error ? err.message : 'Failed')
+      setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.')
     } finally {
       setLoading(false)
     }

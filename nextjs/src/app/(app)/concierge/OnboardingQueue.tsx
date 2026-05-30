@@ -81,12 +81,12 @@ function QueueItem({ row }: { row: QueueRow }) {
       const res = await fetch(`/api/concierge/welcome/${row.id}`, { method: 'POST' })
       if (!res.ok) {
         const data = await res.json().catch(() => ({}))
-        throw new Error(data.error ?? 'Failed')
+        throw new Error(data.error ?? 'Something went wrong. Please try again.')
       }
       setHidden(true)
       router.refresh()
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed')
+      setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.')
       setBusy(false)
     }
   }

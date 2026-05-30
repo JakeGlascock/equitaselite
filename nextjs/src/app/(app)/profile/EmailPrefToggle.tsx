@@ -17,10 +17,10 @@ export default function EmailPrefToggle({ initial }: { initial: boolean }) {
         body:    JSON.stringify({ email_notifications_enabled: next }),
       })
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error ?? 'Failed')
+      if (!res.ok) throw new Error(data.error ?? 'Something went wrong. Please try again.')
     } catch (err: unknown) {
       setEnabled(!next)  // revert
-      setError(err instanceof Error ? err.message : 'Failed')
+      setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.')
     } finally {
       setBusy(false)
     }
